@@ -10,14 +10,16 @@
 //   and safety features for future expansion.
 //
 // Developed by: Kaveesha Nethmal / Sanjana Trishan / Dulmina Sithara
-// Version: 1.0
+// Version: 1.1
 // Date: November 2025
 // Copyrights Reserved
 // ======================================================
 
-
 #include <AccelStepper.h>
 #include "HX711.h"
+#include <WiFi.h>
+#include <WebServer.h>
+#include <pgmspace.h>
 
 // ---------------------- Pins ----------------------
 #define STEP_PIN 25
@@ -39,16 +41,89 @@
 #define BLUE_LED_PIN 22
 #define BUZZER_PIN 14
 
+
+// ================== Function Declarations ==================
+void pollScale();
+float readScaleNow();
+void startCocktail();
+void homeStepper();
+void moveToPosition(long target);
+void dispense(int bottleNo, int volumeML);
+void showCode(int code);
+float readUltrasonicWithStepping(unsigned long timeout_us);
+void handleSet();
+void handleConfirm();
+void handleRoot();
+
 // ---------------------- Stepper Setup ----------------------
 AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
 const int stepsPerBottle = 450;
 long currentPosition = 0;
 
 // ---------------------- Recipe & Flow ----------------------
-const int recipe1[] = {25, 35, 12, 22};
 int noOfBottles = 4;
+struct Recipe {
+  String name;
+  int ingredients[4];
+};
+
+Recipe recipes[] = {
+  {"Mojito", {25, 0, 30, 15}},
+  {"Blue Lagoon", {30, 25, 15, 10}},
+  {"Tequila Sunrise", {35, 0, 15, 20}},
+  {"Cosmopolitan", {25, 10, 20, 10}},
+  {"Pina Colada", {20, 0, 25, 0}},
+  {"Cuba Libre", {35, 15, 0, 5}},
+  {"Strawberry Daiquiri", {30, 0, 15, 25}},
+  {"Whiskey Sour", {25, 10, 20, 10}},
+  {"Lemon Drop", {20, 15, 25, 5}}
+};
+const int numRecipes = sizeof(recipes) / sizeof(recipes[0]);
+
+bool isOrdered = false;
+int selectedIndex = -1;  // no recipe selected initially
+
+const char htmlPage[] PROGMEM = R"rawliteral(
+<!DOCTYPE html><html><head><title>CocktailCraft Menu</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:"Poppins",sans-serif;text-align:center;background:linear-gradient(180deg,#0b0c10,#1f2833);color:#fff;margin:0;padding:20px;}h1{margin-bottom:20px;font-size:2em;}.menu{display:flex;flex-direction:column;align-items:center;gap:12px;}button{width:80%;max-width:300px;padding:15px;border:0;border-radius:12px;font-size:1.1em;font-weight:600;color:#fff;cursor:pointer;transition:transform .2s,opacity .2s;}button:hover{transform:scale(1.05);opacity:.9;}.mojito{background:#2ecc71;}.bluelagoon{background:#3498db;}.tequilasunrise{background:linear-gradient(45deg,#ff512f,#f09819);}.cosmopolitan{background:#e056fd;}.pinacolada{background:#f1c40f;color:#333;}.cubalibre{background:#8e44ad;}.strawberrydaiquiri{background:#e74c3c;}.whiskeysour{background:#d35400;}.lemondrop{background:#f9d71c;color:#222;}#current{margin-top:25px;font-size:1.2em;}</style></head><body><h1>Select Your Cocktail</h1><div class="menu"><button class="mojito"onclick="selectRecipe(0,'Mojito')">Mojito</button><button class="bluelagoon"onclick="selectRecipe(1,'Blue Lagoon')">Blue Lagoon</button><button class="tequilasunrise"onclick="selectRecipe(2,'Tequila Sunrise')">Tequila Sunrise</button><button class="cosmopolitan"onclick="selectRecipe(3,'Cosmopolitan')">Cosmopolitan</button><button class="pinacolada"onclick="selectRecipe(4,'Pina Colada')">Pina Colada</button><button class="cubalibre"onclick="selectRecipe(5,'Cuba Libre')">Cuba Libre</button><button class="strawberrydaiquiri"onclick="selectRecipe(6,'Strawberry Daiquiri')">Strawberry Daiquiri</button><button class="whiskeysour"onclick="selectRecipe(7,'Whiskey Sour')">Whiskey Sour</button><button class="lemondrop"onclick="selectRecipe(8,'Lemon Drop')">Lemon Drop</button></div><div id="current">Current selection:<b>None</b></div><button id="confirmBtn"onclick="confirmOrder()"style="margin-top:20px;padding:15px 30px;border-radius:10px;background:#27ae60;font-size:1.1em;font-weight:600;color:#fff;cursor:pointer;">Confirm Order</button><script>let selectedIndex=-1,selectedName="";async function selectRecipe(i,n){selectedIndex=i;selectedName=n;await fetch("/set?i="+i);document.getElementById("current").innerHTML="Current selection: <b>"+n+"</b>";}async function confirmOrder(){if(selectedIndex===-1){alert("Please select a recipe first!");return;}let r=await fetch("/confirm");if(r.ok)document.getElementById("current").innerHTML="Order confirmed: <b>"+selectedName+"</b>";else alert("Failed to confirm order!");}</script></body></html> )rawliteral";
 
 const float flowRate = 250.0 / 60.0;  // mL/sec
+
+// ---------------------- WiFi Setup ----------------------
+
+const char* ssid = "Galaxy M018b0d";
+const char* password = "aect8897";
+
+WebServer server(80);
+
+void handleSet() {
+  if (server.hasArg("i")) {
+    selectedIndex = server.arg("i").toInt();
+    if (selectedIndex >= 0 && selectedIndex < numRecipes) {
+      Serial.print("Selected recipe: ");
+      Serial.println(recipes[selectedIndex].name);
+      server.send(200, "text/plain", "Selected");
+    } else {
+      server.send(400, "text/plain", "Invalid index");
+    }
+  } else {
+    server.send(400, "text/plain", "Missing index");
+  }
+}
+
+void handleConfirm() {
+  if (selectedIndex >= 0 && selectedIndex < numRecipes) {
+    isOrdered = true;
+    Serial.print("Order confirmed: ");
+    Serial.println(recipes[selectedIndex].name);
+    server.send(200, "text/plain", "Order confirmed");
+  } else {
+    server.send(400, "text/plain", "No recipe selected");
+  }
+}
+
+void handleRoot() {
+  server.send_P(200, "text/html", htmlPage);
+}
 
 // ---------------------- HX711 Setup ----------------------
 HX711 scale;
@@ -69,6 +144,36 @@ volatile bool abortFlag = false; // check when glass removed during dispensing
 void setup() {
   Serial.begin(115200);
   delay(200);
+
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+  
+  // Connecting to WiFi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+    digitalWrite(BUZZER_PIN, LOW);
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(100);
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+  Serial.println();
+  Serial.print("Connected! IP: ");
+
+  // Web routes
+  server.on("/", handleRoot);        // show the web menu
+  server.on("/set", handleSet);
+  server.on("/confirm", handleConfirm);
+
+  server.begin(); // start server
+  Serial.println("HTTP server started");
+  Serial.println(WiFi.localIP());
+  showCode(2);
+
+
+  // ------ Main Program Setup ------
   Serial.println("\n=== Cocktail Dispenser HX711 Trigger + Smooth Stepper ===");
 
   // Stepper pins
@@ -88,12 +193,22 @@ void setup() {
   // LED and buzzer
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(BLUE_LED_PIN, OUTPUT);
-  pinMode(DECO_PIN, OUTPUT);
-  digitalWrite(GREEN_LED_PIN, LOW);  // off
+  digitalWrite(GREEN_LED_PIN, HIGH);  // off
   digitalWrite(BLUE_LED_PIN, HIGH);   // off
+  pinMode(DECO_PIN, OUTPUT);
+  // pinMode(BUZZER_PIN, OUTPUT);
+  // digitalWrite(BUZZER_PIN, LOW);   // off
+  for (int i = 0; i < 255; i++) {
+    analogWrite(DECO_PIN, i);
+    delay(30);
+  }
+  delay(100);
   digitalWrite(DECO_PIN, HIGH); // on
-  pinMode(BUZZER_PIN, OUTPUT);
-  digitalWrite(BUZZER_PIN, LOW);   // off
+  delay(500);
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(BLUE_LED_PIN, HIGH);
+
+
 
   // HX711 init
   scale.begin(HX711_DT, HX711_SCK);
@@ -112,9 +227,14 @@ void setup() {
 
 // ---------------------- Loop ----------------------
 void loop() {
+    server.handleClient();
   pollScale();
 
-  if (grams >= START_WEIGHT_THRESHOLD) {
+  if (isOrdered) {
+    showCode(4);
+  }
+
+  if (isOrdered && grams >= START_WEIGHT_THRESHOLD) {
     Serial.print("Glass detected: ");
     Serial.print(grams, 1);
     Serial.println(" g – Starting cocktail sequence...");
@@ -132,6 +252,9 @@ void loop() {
 
     digitalWrite(GREEN_LED_PIN, LOW);
     digitalWrite(BLUE_LED_PIN, HIGH);
+    
+    isOrdered = false; // reset order flag
+    selectedIndex = -1; // reset selection
     delay(2000);
   } else {
     Serial.print("Waiting for glass (current weight: ");
@@ -167,22 +290,24 @@ float readScaleNow() {
 //                   COCKTAIL SEQUENCE
 // ======================================================
 void startCocktail() {
-  abortFlag = false;           // clearing any previous abort
+  abortFlag = false;
   homeStepper();
 
-  for (int i = 1; i <= noOfBottles; i++) {
-    if (abortFlag) break;      // if abort happened earlier, stop sequence
+  int* currentRecipe = recipes[selectedIndex].ingredients;
+
+  for (int i = 0; i < noOfBottles; i++) {
+    if (abortFlag) break;
 
     moveToPosition(currentPosition + stepsPerBottle);
     currentPosition += stepsPerBottle;
 
-    if (recipe1[i - 1] != 0) {
-      dispense(i);
+    if (currentRecipe[i] != 0) {
+      dispense(i + 1, currentRecipe[i]);
       delay(500);
       if (abortFlag) break;
     } else {
       Serial.print("No dispense from bottle ");
-      Serial.println(i);
+      Serial.println(i + 1);
     }
   }
 
@@ -195,6 +320,7 @@ void startCocktail() {
     homeStepper();
   }
 }
+
 
 // ======================================================
 //                    HOMING ROUTINES
@@ -237,6 +363,8 @@ void homeStepper() {
   stepper.setAcceleration(2000);
   stepper.setSpeed(-500); // negative = home direction
 
+  digitalWrite(BLUE_LED_PIN, LOW);
+
   while (true) {
     float distance = readUltrasonicWithStepping(30000);
     if (distance > 5 && distance <= 15) {
@@ -268,34 +396,30 @@ void moveToPosition(long target) {
 // ======================================================
 //                      DISPENSING
 // ======================================================
-void dispense(int bottleNo) {
+void dispense(int bottleNo, int volumeML) {
   Serial.print("Dispensing from bottle ");
   Serial.println(bottleNo);
 
-  int volumeML = recipe1[bottleNo - 1];
   unsigned long pumpTime = (unsigned long)((volumeML / flowRate) * 1000.0);
 
   unsigned long startTime = millis();
   digitalWrite(PUMP_IND_PIN, HIGH);
 
   while ((millis() - startTime) < pumpTime) {
-    // Keep stepper alive
     stepper.run();
-
-    // Immediate scale read to detect glass removal
     float nowWeight = readScaleNow();
 
-    // If weight drops below threshold, abort immediately
+    digitalWrite(BLUE_LED_PIN, HIGH);
+    digitalWrite(BLUE_LED_PIN, (millis() / 100) % 2);
+
     if (nowWeight < ABORT_WEIGHT_THRESHOLD) {
+      digitalWrite(BLUE_LED_PIN, LOW);
       Serial.print("Weight dropped to ");
       Serial.print(nowWeight, 1);
       Serial.println(" g — aborting dispense!");
-      // turn off pump
       digitalWrite(PUMP_IND_PIN, LOW);
-      // stop stepper safely (decelerate)
       stepper.stop();
       while (stepper.isRunning()) stepper.run();
-      // mark abort so higher logic can stop sequence
       abortFlag = true;
       break;
     }
@@ -303,10 +427,8 @@ void dispense(int bottleNo) {
     delay(10);
   }
 
-  // Ensure pump is off
   digitalWrite(PUMP_IND_PIN, LOW);
 
-  // If normal completion (not aborted), report dispensed
   if (!abortFlag) {
     Serial.print("Dispensed ");
     Serial.print(volumeML);
@@ -314,21 +436,56 @@ void dispense(int bottleNo) {
   }
 }
 
+
 // ======================================================
 //                    ERROR BUZZER
 // ======================================================
+
+// 0 = Success process
+// 1 = critical error
+// 2 = connection success
+// 3 = connection failed
+// 4 = order confirmed
 void showCode(int code) {
-  if (code == 1) {
+  if (code == 0) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(200);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(200);
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(200);
+    digitalWrite(BUZZER_PIN, LOW);
+  } else if (code == 1) {
     digitalWrite(BUZZER_PIN, HIGH);
     delay(2000);
     digitalWrite(BUZZER_PIN, LOW);
-  } else if (code == 0) {
+  } else if (code == 2) {
     digitalWrite(BUZZER_PIN, HIGH);
-    delay(200);
+    delay(50);
     digitalWrite(BUZZER_PIN, LOW);
-    delay(200);
+    delay(50);
     digitalWrite(BUZZER_PIN, HIGH);
-    delay(200);
+    delay(50);
+    digitalWrite(BUZZER_PIN, LOW);
+  } else if (code == 3) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(1000);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(500);
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(1000);
+    digitalWrite(BUZZER_PIN, LOW);
+  } else if (code == 4) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(120);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(100);
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(80);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(80);
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(80);
     digitalWrite(BUZZER_PIN, LOW);
   } else {
     digitalWrite(BUZZER_PIN, LOW);
