@@ -30,6 +30,7 @@
 #define TRIG_PIN 5
 #define ECHO_PIN 18
 #define PUMP_IND_PIN 16
+#define ALT_IND_PIN 13  
 #define DECO_PIN 17
 
 // HX711 pins
@@ -68,23 +69,25 @@ struct Recipe {
 };
 
 Recipe recipes[] = {
-  {"Mojito", {25, 0, 30, 15}},
-  {"Blue Lagoon", {30, 25, 15, 10}},
-  {"Tequila Sunrise", {35, 0, 15, 20}},
-  {"Cosmopolitan", {25, 10, 20, 10}},
-  {"Pina Colada", {20, 0, 25, 0}},
-  {"Cuba Libre", {35, 15, 0, 5}},
-  {"Strawberry Daiquiri", {30, 0, 15, 25}},
-  {"Whiskey Sour", {25, 10, 20, 10}},
-  {"Lemon Drop", {20, 15, 25, 5}}
+  {"Mojito", {30, 0, 35, 20}},
+  {"Blue Lagoon", {35, 30, 20, 15}},
+  {"Tequila Sunrise", {40, 0, 20, 25}},
+  {"Cosmopolitan", {30, 15, 25, 15}},
+  {"Pina Colada", {25, 0, 30, 0}},
+  {"Cuba Libre", {40, 20, 0, 10}},
+  {"Strawberry Daiquiri", {35, 0, 20, 30}},
+  {"Whiskey Sour", {30, 15, 25, 15}},
+  {"Lemon Drop", {25, 20, 30, 10}},
+  {"Test", {1000, 0, 0, 0}}
 };
+
 const int numRecipes = sizeof(recipes) / sizeof(recipes[0]);
 
 bool isOrdered = false;
 int selectedIndex = -1;  // no recipe selected initially
 
 const char htmlPage[] PROGMEM = R"rawliteral(
-<!DOCTYPE html><html><head><title>CocktailCraft Menu</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:"Poppins",sans-serif;text-align:center;background:linear-gradient(180deg,#0b0c10,#1f2833);color:#fff;margin:0;padding:20px;}h1{margin-bottom:20px;font-size:2em;}.menu{display:flex;flex-direction:column;align-items:center;gap:12px;}button{width:80%;max-width:300px;padding:15px;border:0;border-radius:12px;font-size:1.1em;font-weight:600;color:#fff;cursor:pointer;transition:transform .2s,opacity .2s;}button:hover{transform:scale(1.05);opacity:.9;}.mojito{background:#2ecc71;}.bluelagoon{background:#3498db;}.tequilasunrise{background:linear-gradient(45deg,#ff512f,#f09819);}.cosmopolitan{background:#e056fd;}.pinacolada{background:#f1c40f;color:#333;}.cubalibre{background:#8e44ad;}.strawberrydaiquiri{background:#e74c3c;}.whiskeysour{background:#d35400;}.lemondrop{background:#f9d71c;color:#222;}#current{margin-top:25px;font-size:1.2em;}</style></head><body><h1>Select Your Cocktail</h1><div class="menu"><button class="mojito"onclick="selectRecipe(0,'Mojito')">Mojito</button><button class="bluelagoon"onclick="selectRecipe(1,'Blue Lagoon')">Blue Lagoon</button><button class="tequilasunrise"onclick="selectRecipe(2,'Tequila Sunrise')">Tequila Sunrise</button><button class="cosmopolitan"onclick="selectRecipe(3,'Cosmopolitan')">Cosmopolitan</button><button class="pinacolada"onclick="selectRecipe(4,'Pina Colada')">Pina Colada</button><button class="cubalibre"onclick="selectRecipe(5,'Cuba Libre')">Cuba Libre</button><button class="strawberrydaiquiri"onclick="selectRecipe(6,'Strawberry Daiquiri')">Strawberry Daiquiri</button><button class="whiskeysour"onclick="selectRecipe(7,'Whiskey Sour')">Whiskey Sour</button><button class="lemondrop"onclick="selectRecipe(8,'Lemon Drop')">Lemon Drop</button></div><div id="current">Current selection:<b>None</b></div><button id="confirmBtn"onclick="confirmOrder()"style="margin-top:20px;padding:15px 30px;border-radius:10px;background:#27ae60;font-size:1.1em;font-weight:600;color:#fff;cursor:pointer;">Confirm Order</button><script>let selectedIndex=-1,selectedName="";async function selectRecipe(i,n){selectedIndex=i;selectedName=n;await fetch("/set?i="+i);document.getElementById("current").innerHTML="Current selection: <b>"+n+"</b>";}async function confirmOrder(){if(selectedIndex===-1){alert("Please select a recipe first!");return;}let r=await fetch("/confirm");if(r.ok)document.getElementById("current").innerHTML="Order confirmed: <b>"+selectedName+"</b>";else alert("Failed to confirm order!");}</script></body></html> )rawliteral";
+<!DOCTYPE html><html><head><title>CocktailCraft Menu</title><meta name="viewport" content="width=device-width,initial-scale=1"/><style>body{font-family:"Poppins",sans-serif;text-align:center;background:linear-gradient(180deg,#0b0c10,#1f2833);color:#fff;margin:0;padding:20px;}h1{margin-bottom:20px;font-size:2em;}.menu{display:flex;flex-direction:column;align-items:center;gap:12px;}button{width:80%;max-width:300px;padding:15px;border:0;border-radius:12px;font-size:1.1em;font-weight:600;color:#fff;cursor:pointer;transition:transform .2s,opacity .2s;}button:hover{transform:scale(1.05);opacity:.9;}.mojito{background:#2ecc71;}.bluelagoon{background:#3498db;}.tequilasunrise{background:linear-gradient(45deg,#ff512f,#f09819);}.cosmopolitan{background:#e056fd;}.pinacolada{background:#f1c40f;color:#333;}.cubalibre{background:#8e44ad;}.strawberrydaiquiri{background:#e74c3c;}.whiskeysour{background:#d35400;}.lemondrop{background:#f9d71c;color:#222;}.testing{background:#555;color:#fff;opacity:.2;}#current{margin-top:25px;font-size:1.2em;}</style></head><body><h1>Select Your Cocktail</h1><div class="menu"><button class="mojito" onclick="selectRecipe(0,'Mojito')">Mojito</button><button class="bluelagoon" onclick="selectRecipe(1,'Blue Lagoon')">Blue Lagoon</button><button class="tequilasunrise" onclick="selectRecipe(2,'Tequila Sunrise')">Tequila Sunrise</button><button class="cosmopolitan" onclick="selectRecipe(3,'Cosmopolitan')">Cosmopolitan</button><button class="pinacolada" onclick="selectRecipe(4,'Pina Colada')">Pina Colada</button><button class="cubalibre" onclick="selectRecipe(5,'Cuba Libre')">Cuba Libre</button><button class="strawberrydaiquiri" onclick="selectRecipe(6,'Strawberry Daiquiri')">Strawberry Daiquiri</button><button class="whiskeysour" onclick="selectRecipe(7,'Whiskey Sour')">Whiskey Sour</button><button class="lemondrop" onclick="selectRecipe(8,'Lemon Drop')">Lemon Drop</button><button class="testing" onclick="selectRecipe(9,'Testing')">Testing</button></div><div id="current">Current selection:<b>None</b></div><button id="confirmBtn" onclick="confirmOrder()" style="margin-top:20px;padding:15px 30px;border-radius:10px;background:#27ae60;font-size:1.1em;font-weight:600;color:#fff;cursor:pointer;">Confirm Order</button><script>let selectedIndex=-1,selectedName="";async function selectRecipe(i,n){selectedIndex=i;selectedName=n;await fetch("/set?i="+i);document.getElementById("current").innerHTML="Current selection: <b>"+n+"</b>";}async function confirmOrder(){if(selectedIndex===-1){alert("Please select a recipe first!");return;}let r=await fetch("/confirm");if(r.ok)document.getElementById("current").innerHTML="Order confirmed: <b>"+selectedName+"</b>";else alert("Failed to confirm order!");}</script></body></html> )rawliteral";
 
 const float flowRate = 250.0 / 60.0;  // mL/sec
 
@@ -189,6 +192,8 @@ void setup() {
   pinMode(ECHO_PIN, INPUT);
   pinMode(PUMP_IND_PIN, OUTPUT);
   digitalWrite(PUMP_IND_PIN, LOW);
+  pinMode(ALT_IND_PIN, OUTPUT);
+  digitalWrite(ALT_IND_PIN, LOW);
 
   // LED and buzzer
   pinMode(GREEN_LED_PIN, OUTPUT);
@@ -403,7 +408,12 @@ void dispense(int bottleNo, int volumeML) {
   unsigned long pumpTime = (unsigned long)((volumeML / flowRate) * 1000.0);
 
   unsigned long startTime = millis();
-  digitalWrite(PUMP_IND_PIN, HIGH);
+  if (bottleNo == 1) {
+    digitalWrite(PUMP_IND_PIN, HIGH);
+  } else {
+    digitalWrite(ALT_IND_PIN, HIGH);
+  }
+
 
   while ((millis() - startTime) < pumpTime) {
     stepper.run();
@@ -427,7 +437,12 @@ void dispense(int bottleNo, int volumeML) {
     delay(10);
   }
 
-  digitalWrite(PUMP_IND_PIN, LOW);
+  if (bottleNo == 1) {
+    digitalWrite(PUMP_IND_PIN, LOW);
+  } else {
+    digitalWrite(ALT_IND_PIN, LOW);
+  }
+  
 
   if (!abortFlag) {
     Serial.print("Dispensed ");
