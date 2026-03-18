@@ -1,1147 +1,1856 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" data-theme="dark">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=1024, initial-scale=1.0">
-<title>MixBot POS</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-/* ── TOKENS ───────────────────────────────────────────────── */
-:root {
-  --accent:       #C9954A;
-  --accent-light: #E2B778;
-  --accent-dim:   rgba(201,149,74,0.15);
-  --radius-sm:    10px;
-  --radius-md:    18px;
-  --radius-lg:    28px;
-  --radius-xl:    40px;
-  --trans:        0.28s cubic-bezier(.4,0,.2,1);
-}
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1024, initial-scale=1.0" />
+    <title>MixBot POS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ── TOKENS ───────────────────────────────────────────────── */
+      :root {
+        --accent: #c9954a;
+        --accent-light: #e2b778;
+        --accent-dim: rgba(201, 149, 74, 0.15);
+        --radius-sm: 10px;
+        --radius-md: 18px;
+        --radius-lg: 28px;
+        --radius-xl: 40px;
+        --trans: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      }
 
-[data-theme="dark"] {
-  --bg:         #0E0E0F;
-  --bg2:        #161618;
-  --bg3:        #1E1E21;
-  --bg4:        #252528;
-  --glass:      rgba(255,255,255,0.04);
-  --glass-b:    rgba(255,255,255,0.08);
-  --text:       #F0EDE8;
-  --text2:      #9E9A94;
-  --text3:      #5C5A56;
-  --border:     rgba(255,255,255,0.07);
-  --border2:    rgba(255,255,255,0.12);
-  --shadow:     0 24px 60px rgba(0,0,0,0.6);
-  --shadow-sm:  0 4px 20px rgba(0,0,0,0.4);
-}
+      [data-theme="dark"] {
+        --bg: #0e0e0f;
+        --bg2: #161618;
+        --bg3: #1e1e21;
+        --bg4: #252528;
+        --glass: rgba(255, 255, 255, 0.04);
+        --glass-b: rgba(255, 255, 255, 0.08);
+        --text: #f0ede8;
+        --text2: #9e9a94;
+        --text3: #5c5a56;
+        --border: rgba(255, 255, 255, 0.07);
+        --border2: rgba(255, 255, 255, 0.12);
+        --shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+        --shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.4);
+      }
 
-[data-theme="light"] {
-  --bg:         #F5F2ED;
-  --bg2:        #EFEBE4;
-  --bg3:        #E8E3DB;
-  --bg4:        #DDD7CE;
-  --glass:      rgba(0,0,0,0.03);
-  --glass-b:    rgba(0,0,0,0.06);
-  --text:       #1A1916;
-  --text2:      #6B675F;
-  --text3:      #A09B91;
-  --border:     rgba(0,0,0,0.07);
-  --border2:    rgba(0,0,0,0.12);
-  --shadow:     0 24px 60px rgba(0,0,0,0.12);
-  --shadow-sm:  0 4px 20px rgba(0,0,0,0.08);
-}
+      [data-theme="light"] {
+        --bg: #f5f2ed;
+        --bg2: #efebe4;
+        --bg3: #e8e3db;
+        --bg4: #ddd7ce;
+        --glass: rgba(0, 0, 0, 0.03);
+        --glass-b: rgba(0, 0, 0, 0.06);
+        --text: #1a1916;
+        --text2: #6b675f;
+        --text3: #a09b91;
+        --border: rgba(0, 0, 0, 0.07);
+        --border2: rgba(0, 0, 0, 0.12);
+        --shadow: 0 24px 60px rgba(0, 0, 0, 0.12);
+        --shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.08);
+      }
 
-/* ── RESET ────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
-  width: 1024px; height: 600px; overflow: hidden;
-  background: var(--bg); color: var(--text);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px; line-height: 1.5;
-  transition: background var(--trans), color var(--trans);
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-}
+      /* ── RESET ────────────────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 1024px;
+        height: 600px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "DM Sans", sans-serif;
+        font-size: 15px;
+        line-height: 1.5;
+        transition:
+          background var(--trans),
+          color var(--trans);
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
 
-/* ── SCREENS ──────────────────────────────────────────────── */
-.screen {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.4s ease, transform 0.4s ease;
-  transform: translateY(12px);
-}
-.screen.active {
-  opacity: 1; pointer-events: all;
-  transform: translateY(0);
-}
+      /* ── SCREENS ──────────────────────────────────────────────── */
+      .screen {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.4s ease,
+          transform 0.4s ease;
+        transform: translateY(12px);
+      }
+      .screen.active {
+        opacity: 1;
+        pointer-events: all;
+        transform: translateY(0);
+      }
 
-/* ── THEME TOGGLE ─────────────────────────────────────────── */
-.theme-btn {
-  position: fixed; top: 18px; right: 18px; z-index: 9999;
-  width: 40px; height: 40px; border-radius: 50%;
-  background: var(--bg3); border: 1px solid var(--border2);
-  color: var(--text2); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 17px; transition: all var(--trans);
-}
-.theme-btn:hover { background: var(--bg4); color: var(--accent); }
+      /* ── THEME TOGGLE ─────────────────────────────────────────── */
+      .theme-btn {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        z-index: 9999;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--bg3);
+        border: 1px solid var(--border2);
+        color: var(--text2);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+        transition: all var(--trans);
+      }
+      .theme-btn:hover {
+        background: var(--bg4);
+        color: var(--accent);
+      }
 
-/* ── BACK BUTTON ──────────────────────────────────────────── */
-.back-btn {
-  position: absolute; top: 18px; left: 18px; z-index: 100;
-  display: flex; align-items: center; gap: 6px;
-  background: var(--bg3); border: 1px solid var(--border);
-  color: var(--text2); border-radius: 50px; padding: 8px 16px 8px 10px;
-  cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px;
-  transition: all var(--trans);
-}
-.back-btn:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); }
-.back-btn svg { width: 14px; height: 14px; }
+      /* ── BACK BUTTON ──────────────────────────────────────────── */
+      .back-btn {
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        color: var(--text2);
+        border-radius: 50px;
+        padding: 8px 16px 8px 10px;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        transition: all var(--trans);
+      }
+      .back-btn:hover {
+        background: var(--bg4);
+        color: var(--text);
+        border-color: var(--border2);
+      }
+      .back-btn svg {
+        width: 14px;
+        height: 14px;
+      }
 
-/* ════════════════════════════════════════════════════════════
+      /* ════════════════════════════════════════════════════════════
    SCREEN 1: WELCOME
 ═══════════════════════════════════════════════════════════ */
-#screen-welcome {
-  align-items: center; justify-content: center;
-  background: var(--bg);
-  overflow: hidden;
-}
+      #screen-welcome {
+        align-items: center;
+        justify-content: center;
+        background: var(--bg);
+        overflow: hidden;
+      }
 
-/* animated liquid blobs */
-.blob-wrap {
-  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
-}
-.blob {
-  position: absolute; border-radius: 50%;
-  filter: blur(70px); opacity: 0.18;
-  animation: blobFloat 12s ease-in-out infinite;
-}
-[data-theme="dark"] .blob { opacity: 0.12; }
-[data-theme="light"] .blob { opacity: 0.2; }
-.blob-1 { width:360px;height:360px; background:#C9954A; top:-80px; left:-60px; animation-delay:0s; }
-.blob-2 { width:280px;height:280px; background:#8B5CF6; bottom:-60px; right:-40px; animation-delay:-4s; }
-.blob-3 { width:200px;height:200px; background:#C9954A; bottom:80px; left:200px; animation-delay:-8s; }
+      /* animated liquid blobs */
+      .blob-wrap {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(70px);
+        opacity: 0.18;
+        animation: blobFloat 12s ease-in-out infinite;
+      }
+      [data-theme="dark"] .blob {
+        opacity: 0.12;
+      }
+      [data-theme="light"] .blob {
+        opacity: 0.2;
+      }
+      .blob-1 {
+        width: 360px;
+        height: 360px;
+        background: #c9954a;
+        top: -80px;
+        left: -60px;
+        animation-delay: 0s;
+      }
+      .blob-2 {
+        width: 280px;
+        height: 280px;
+        background: #8b5cf6;
+        bottom: -60px;
+        right: -40px;
+        animation-delay: -4s;
+      }
+      .blob-3 {
+        width: 200px;
+        height: 200px;
+        background: #c9954a;
+        bottom: 80px;
+        left: 200px;
+        animation-delay: -8s;
+      }
 
-@keyframes blobFloat {
-  0%,100% { transform: translate(0,0) scale(1); }
-  33%      { transform: translate(30px,-20px) scale(1.05); }
-  66%      { transform: translate(-20px,25px) scale(0.95); }
-}
+      @keyframes blobFloat {
+        0%,
+        100% {
+          transform: translate(0, 0) scale(1);
+        }
+        33% {
+          transform: translate(30px, -20px) scale(1.05);
+        }
+        66% {
+          transform: translate(-20px, 25px) scale(0.95);
+        }
+      }
 
-/* grid lines bg */
-.grid-bg {
-  position: absolute; inset: 0;
-  background-image:
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
-  background-size: 60px 60px;
-  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 100%);
-}
+      /* grid lines bg */
+      .grid-bg {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(var(--border) 1px, transparent 1px),
+          linear-gradient(90deg, var(--border) 1px, transparent 1px);
+        background-size: 60px 60px;
+        mask-image: radial-gradient(
+          ellipse 70% 70% at 50% 50%,
+          black 30%,
+          transparent 100%
+        );
+        -webkit-mask-image: radial-gradient(
+          ellipse 70% 70% at 50% 50%,
+          black 30%,
+          transparent 100%
+        );
+      }
 
-.welcome-content {
-  position: relative; z-index: 2;
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  animation: fadeUp 0.9s ease both;
-}
+      .welcome-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        animation: fadeUp 0.9s ease both;
+      }
 
-@keyframes fadeUp {
-  from { opacity:0; transform: translateY(24px); }
-  to   { opacity:1; transform: translateY(0); }
-}
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(24px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
 
-.welcome-eyebrow {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 11px; font-weight: 500; letter-spacing: 3px;
-  text-transform: uppercase; color: var(--accent);
-  opacity: 0; animation: fadeUp 0.6s 0.2s ease both;
-}
-.welcome-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 84px; font-weight: 300; line-height: 0.9;
-  letter-spacing: -2px;
-  color: var(--text);
-  opacity: 0; animation: fadeUp 0.7s 0.35s ease both;
-}
-.welcome-title em {
-  font-style: italic; color: var(--accent);
-}
-.welcome-sub {
-  font-size: 14px; color: var(--text2); margin-top: 6px;
-  opacity: 0; animation: fadeUp 0.7s 0.5s ease both;
-}
+      .welcome-eyebrow {
+        font-family: "DM Sans", sans-serif;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--accent);
+        opacity: 0;
+        animation: fadeUp 0.6s 0.2s ease both;
+      }
+      .welcome-title {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 84px;
+        font-weight: 300;
+        line-height: 0.9;
+        letter-spacing: -2px;
+        color: var(--text);
+        opacity: 0;
+        animation: fadeUp 0.7s 0.35s ease both;
+      }
+      .welcome-title em {
+        font-style: italic;
+        color: var(--accent);
+      }
+      .welcome-sub {
+        font-size: 14px;
+        color: var(--text2);
+        margin-top: 6px;
+        opacity: 0;
+        animation: fadeUp 0.7s 0.5s ease both;
+      }
 
-.tap-btn {
-  margin-top: 40px;
-  background: var(--accent);
-  color: #0E0E0F;
-  border: none; border-radius: 50px;
-  padding: 16px 52px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px; font-weight: 500; letter-spacing: 0.5px;
-  cursor: pointer;
-  position: relative; overflow: hidden;
-  transition: all var(--trans);
-  opacity: 0; animation: fadeUp 0.7s 0.7s ease both;
-}
-.tap-btn::after {
-  content: ''; position: absolute; inset: 0;
-  background: rgba(255,255,255,0.15);
-  opacity: 0; transition: opacity var(--trans);
-}
-.tap-btn:hover::after { opacity: 1; }
-.tap-btn:active { transform: scale(0.97); }
+      .tap-btn {
+        margin-top: 40px;
+        background: var(--accent);
+        color: #0e0e0f;
+        border: none;
+        border-radius: 50px;
+        padding: 16px 52px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        transition: all var(--trans);
+        opacity: 0;
+        animation: fadeUp 0.7s 0.7s ease both;
+      }
+      .tap-btn::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.15);
+        opacity: 0;
+        transition: opacity var(--trans);
+      }
+      .tap-btn:hover::after {
+        opacity: 1;
+      }
+      .tap-btn:active {
+        transform: scale(0.97);
+      }
 
-.tap-hint {
-  font-size: 12px; color: var(--text3); margin-top: 14px;
-  animation: pulse 3s ease-in-out infinite;
-  opacity: 0; animation: fadeUp 0.7s 0.9s ease both, pulse 3s 1.6s ease-in-out infinite;
-}
-@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+      .tap-hint {
+        font-size: 12px;
+        color: var(--text3);
+        margin-top: 14px;
+        animation: pulse 3s ease-in-out infinite;
+        opacity: 0;
+        animation:
+          fadeUp 0.7s 0.9s ease both,
+          pulse 3s 1.6s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.4;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
 
-/* ════════════════════════════════════════════════════════════
+      /* ════════════════════════════════════════════════════════════
    SCREEN 2: MODE SELECT
 ═══════════════════════════════════════════════════════════ */
-#screen-mode {
-  align-items: center; justify-content: center; gap: 28px;
-  padding: 40px;
-}
+      #screen-mode {
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        padding: 40px;
+      }
 
-.mode-header { text-align: center; margin-bottom: 8px; }
-.mode-header h2 {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 42px; font-weight: 300; color: var(--text);
-}
-.mode-header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+      .mode-header {
+        text-align: center;
+        margin-bottom: 8px;
+      }
+      .mode-header h2 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 42px;
+        font-weight: 300;
+        color: var(--text);
+      }
+      .mode-header p {
+        font-size: 13px;
+        color: var(--text2);
+        margin-top: 4px;
+      }
 
-.mode-cards { display: flex; gap: 20px; }
+      .mode-cards {
+        display: flex;
+        gap: 20px;
+      }
 
-.mode-card {
-  width: 300px; height: 280px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 16px;
-  cursor: pointer; position: relative; overflow: hidden;
-  transition: all var(--trans);
-}
-.mode-card::before {
-  content: ''; position: absolute; inset: 0;
-  background: radial-gradient(circle at 50% 0%, var(--accent-dim), transparent 70%);
-  opacity: 0; transition: opacity var(--trans);
-}
-.mode-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: var(--shadow); }
-.mode-card:hover::before { opacity: 1; }
-.mode-card:active { transform: scale(0.98) translateY(-2px); }
+      .mode-card {
+        width: 300px;
+        height: 280px;
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        transition: all var(--trans);
+      }
+      .mode-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          circle at 50% 0%,
+          var(--accent-dim),
+          transparent 70%
+        );
+        opacity: 0;
+        transition: opacity var(--trans);
+      }
+      .mode-card:hover {
+        border-color: var(--accent);
+        transform: translateY(-4px);
+        box-shadow: var(--shadow);
+      }
+      .mode-card:hover::before {
+        opacity: 1;
+      }
+      .mode-card:active {
+        transform: scale(0.98) translateY(-2px);
+      }
 
-.mode-icon {
-  width: 72px; height: 72px;
-  background: var(--accent-dim);
-  border: 1px solid rgba(201,149,74,0.25);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 30px;
-  transition: all var(--trans);
-}
-.mode-card:hover .mode-icon {
-  background: rgba(201,149,74,0.25);
-  border-color: var(--accent);
-}
-.mode-card h3 {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 26px; font-weight: 400; color: var(--text);
-  position: relative;
-}
-.mode-card p {
-  font-size: 12px; color: var(--text2);
-  text-align: center; padding: 0 24px;
-  position: relative;
-}
+      .mode-icon {
+        width: 72px;
+        height: 72px;
+        background: var(--accent-dim);
+        border: 1px solid rgba(201, 149, 74, 0.25);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+        transition: all var(--trans);
+      }
+      .mode-card:hover .mode-icon {
+        background: rgba(201, 149, 74, 0.25);
+        border-color: var(--accent);
+      }
+      .mode-card h3 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 26px;
+        font-weight: 400;
+        color: var(--text);
+        position: relative;
+      }
+      .mode-card p {
+        font-size: 12px;
+        color: var(--text2);
+        text-align: center;
+        padding: 0 24px;
+        position: relative;
+      }
 
-/* ════════════════════════════════════════════════════════════
+      /* ════════════════════════════════════════════════════════════
    SCREEN 3: DEFAULT DRINKS
 ═══════════════════════════════════════════════════════════ */
-#screen-drinks {
-  padding: 0;
-  flex-direction: column;
-}
+      #screen-drinks {
+        padding: 0;
+        flex-direction: column;
+      }
 
-.drinks-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 28px 16px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.drinks-header-left { display: flex; align-items: center; gap: 16px; }
-.drinks-header h2 {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 30px; font-weight: 300;
-}
-.drinks-count {
-  background: var(--accent-dim); color: var(--accent);
-  border: 1px solid rgba(201,149,74,0.3);
-  border-radius: 20px; padding: 3px 12px;
-  font-size: 12px; font-weight: 500;
-}
+      .drinks-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 28px 16px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .drinks-header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .drinks-header h2 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 30px;
+        font-weight: 300;
+      }
+      .drinks-count {
+        background: var(--accent-dim);
+        color: var(--accent);
+        border: 1px solid rgba(201, 149, 74, 0.3);
+        border-radius: 20px;
+        padding: 3px 12px;
+        font-size: 12px;
+        font-weight: 500;
+      }
 
-.drinks-grid {
-  flex: 1; overflow-y: auto;
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 16px; padding: 20px 24px;
-}
-.drinks-grid::-webkit-scrollbar { width: 4px; }
-.drinks-grid::-webkit-scrollbar-track { background: transparent; }
-.drinks-grid::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+      .drinks-grid {
+        flex: 1;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        padding: 20px 24px;
+      }
+      .drinks-grid::-webkit-scrollbar {
+        width: 4px;
+      }
+      .drinks-grid::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .drinks-grid::-webkit-scrollbar-thumb {
+        background: var(--border2);
+        border-radius: 2px;
+      }
 
-.drink-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 22px 20px 18px;
-  cursor: pointer; position: relative; overflow: hidden;
-  transition: all var(--trans);
-  display: flex; flex-direction: column; gap: 8px;
-}
-.drink-card::after {
-  content: ''; position: absolute;
-  inset: 0; border-radius: inherit;
-  background: radial-gradient(circle at 30% 0%, var(--accent-dim), transparent 60%);
-  opacity: 0; transition: opacity var(--trans);
-}
-.drink-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: var(--shadow-sm); }
-.drink-card:hover::after { opacity: 1; }
-.drink-card:active { transform: scale(0.97); }
+      .drink-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 22px 20px 18px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        transition: all var(--trans);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .drink-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: radial-gradient(
+          circle at 30% 0%,
+          var(--accent-dim),
+          transparent 60%
+        );
+        opacity: 0;
+        transition: opacity var(--trans);
+      }
+      .drink-card:hover {
+        border-color: var(--accent);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-sm);
+      }
+      .drink-card:hover::after {
+        opacity: 1;
+      }
+      .drink-card:active {
+        transform: scale(0.97);
+      }
 
-.drink-emoji { font-size: 32px; line-height: 1; }
-.drink-name {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 20px; font-weight: 400; color: var(--text);
-  margin-top: 4px;
-}
-.drink-desc { font-size: 11px; color: var(--text2); line-height: 1.4; }
-.drink-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
-.drink-tag {
-  background: var(--bg3); border: 1px solid var(--border);
-  border-radius: 20px; padding: 2px 9px;
-  font-size: 10px; color: var(--text3);
-}
-.drink-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: auto; padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-.drink-price {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 22px; font-weight: 400; color: var(--accent);
-}
-.drink-price span { font-size: 13px; }
-.drink-arrow {
-  width: 28px; height: 28px;
-  background: var(--accent-dim); border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--accent); font-size: 13px;
-  transition: all var(--trans);
-}
-.drink-card:hover .drink-arrow { background: var(--accent); color: #0E0E0F; }
+      .drink-emoji {
+        font-size: 32px;
+        line-height: 1;
+      }
+      .drink-name {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 20px;
+        font-weight: 400;
+        color: var(--text);
+        margin-top: 4px;
+      }
+      .drink-desc {
+        font-size: 11px;
+        color: var(--text2);
+        line-height: 1.4;
+      }
+      .drink-tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+      }
+      .drink-tag {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 2px 9px;
+        font-size: 10px;
+        color: var(--text3);
+      }
+      .drink-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: auto;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+      }
+      .drink-price {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 22px;
+        font-weight: 400;
+        color: var(--accent);
+      }
+      .drink-price span {
+        font-size: 13px;
+      }
+      .drink-arrow {
+        width: 28px;
+        height: 28px;
+        background: var(--accent-dim);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        font-size: 13px;
+        transition: all var(--trans);
+      }
+      .drink-card:hover .drink-arrow {
+        background: var(--accent);
+        color: #0e0e0f;
+      }
 
-/* ════════════════════════════════════════════════════════════
+      /* ════════════════════════════════════════════════════════════
    MODAL: DRINK DETAIL
 ═══════════════════════════════════════════════════════════ */
-.modal-overlay {
-  position: fixed; inset: 0; z-index: 500;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-.modal-overlay.open { opacity: 1; pointer-events: all; }
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 500;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+      .modal-overlay.open {
+        opacity: 1;
+        pointer-events: all;
+      }
 
-.modal {
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: var(--radius-xl);
-  width: 560px; max-height: 520px;
-  display: flex; flex-direction: column;
-  overflow: hidden;
-  transform: translateY(20px) scale(0.97);
-  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1);
-  box-shadow: var(--shadow);
-}
-.modal-overlay.open .modal { transform: translateY(0) scale(1); }
+      .modal {
+        background: var(--bg2);
+        border: 1px solid var(--border2);
+        border-radius: var(--radius-xl);
+        width: 560px;
+        max-height: 520px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transform: translateY(20px) scale(0.97);
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: var(--shadow);
+      }
+      .modal-overlay.open .modal {
+        transform: translateY(0) scale(1);
+      }
 
-.modal-hero {
-  padding: 32px 32px 24px;
-  background: linear-gradient(135deg, var(--bg3), var(--bg2));
-  border-bottom: 1px solid var(--border);
-  position: relative;
-}
-.modal-close {
-  position: absolute; top: 16px; right: 16px;
-  width: 32px; height: 32px; border-radius: 50%;
-  background: var(--bg4); border: 1px solid var(--border);
-  color: var(--text2); cursor: pointer; font-size: 16px;
-  display: flex; align-items: center; justify-content: center;
-  transition: all var(--trans);
-}
-.modal-close:hover { background: var(--bg3); color: var(--text); }
-.modal-emoji { font-size: 48px; margin-bottom: 12px; }
-.modal-name {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 36px; font-weight: 300; color: var(--text);
-}
-.modal-desc { font-size: 13px; color: var(--text2); margin-top: 6px; line-height: 1.5; }
+      .modal-hero {
+        padding: 32px 32px 24px;
+        background: linear-gradient(135deg, var(--bg3), var(--bg2));
+        border-bottom: 1px solid var(--border);
+        position: relative;
+      }
+      .modal-close {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--bg4);
+        border: 1px solid var(--border);
+        color: var(--text2);
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--trans);
+      }
+      .modal-close:hover {
+        background: var(--bg3);
+        color: var(--text);
+      }
+      .modal-emoji {
+        font-size: 48px;
+        margin-bottom: 12px;
+      }
+      .modal-name {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 36px;
+        font-weight: 300;
+        color: var(--text);
+      }
+      .modal-desc {
+        font-size: 13px;
+        color: var(--text2);
+        margin-top: 6px;
+        line-height: 1.5;
+      }
 
-.modal-body { padding: 24px 32px; overflow-y: auto; flex: 1; }
-.modal-body::-webkit-scrollbar { width: 4px; }
-.modal-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+      .modal-body {
+        padding: 24px 32px;
+        overflow-y: auto;
+        flex: 1;
+      }
+      .modal-body::-webkit-scrollbar {
+        width: 4px;
+      }
+      .modal-body::-webkit-scrollbar-thumb {
+        background: var(--border2);
+        border-radius: 2px;
+      }
 
-.modal-section-label {
-  font-size: 10px; font-weight: 500; letter-spacing: 2px;
-  text-transform: uppercase; color: var(--text3); margin-bottom: 12px;
-}
-.ingredient-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-.ingredient-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--bg3); border-radius: var(--radius-sm);
-  font-size: 13px;
-}
-.ingredient-name { color: var(--text); }
-.ingredient-ml { color: var(--accent); font-weight: 500; }
+      .modal-section-label {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text3);
+        margin-bottom: 12px;
+      }
+      .ingredient-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+      .ingredient-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: var(--bg3);
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+      }
+      .ingredient-name {
+        color: var(--text);
+      }
+      .ingredient-ml {
+        color: var(--accent);
+        font-weight: 500;
+      }
 
-/* add-ons */
-.addons-row { display: flex; gap: 10px; margin-bottom: 24px; }
-.addon-chip {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 16px;
-  background: var(--bg3); border: 1.5px solid var(--border);
-  border-radius: 50px; cursor: pointer; font-size: 13px; color: var(--text2);
-  transition: all var(--trans); user-select: none;
-}
-.addon-chip.selected {
-  background: var(--accent-dim); border-color: var(--accent); color: var(--accent);
-}
-.addon-check {
-  width: 16px; height: 16px; border-radius: 50%;
-  border: 1.5px solid var(--border2);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; transition: all var(--trans);
-}
-.addon-chip.selected .addon-check {
-  background: var(--accent); border-color: var(--accent); color: #0E0E0F;
-}
+      /* add-ons */
+      .addons-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 24px;
+      }
+      .addon-chip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: var(--bg3);
+        border: 1.5px solid var(--border);
+        border-radius: 50px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--text2);
+        transition: all var(--trans);
+        user-select: none;
+      }
+      .addon-chip.selected {
+        background: var(--accent-dim);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .addon-check {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 1.5px solid var(--border2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        transition: all var(--trans);
+      }
+      .addon-chip.selected .addon-check {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #0e0e0f;
+      }
 
-.modal-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 32px;
-  border-top: 1px solid var(--border);
-}
-.modal-price {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 34px; font-weight: 300; color: var(--accent);
-}
-.modal-price span { font-size: 16px; }
-.make-btn {
-  background: var(--accent); color: #0E0E0F;
-  border: none; border-radius: 50px;
-  padding: 14px 36px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px; font-weight: 500;
-  cursor: pointer; transition: all var(--trans);
-  position: relative; overflow: hidden;
-}
-.make-btn::after {
-  content: ''; position: absolute; inset: 0;
-  background: rgba(255,255,255,0.2); opacity: 0; transition: opacity var(--trans);
-}
-.make-btn:hover::after { opacity: 1; }
-.make-btn:active { transform: scale(0.97); }
+      .modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 32px;
+        border-top: 1px solid var(--border);
+      }
+      .modal-price {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 34px;
+        font-weight: 300;
+        color: var(--accent);
+      }
+      .modal-price span {
+        font-size: 16px;
+      }
+      .make-btn {
+        background: var(--accent);
+        color: #0e0e0f;
+        border: none;
+        border-radius: 50px;
+        padding: 14px 36px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--trans);
+        position: relative;
+        overflow: hidden;
+      }
+      .make-btn::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.2);
+        opacity: 0;
+        transition: opacity var(--trans);
+      }
+      .make-btn:hover::after {
+        opacity: 1;
+      }
+      .make-btn:active {
+        transform: scale(0.97);
+      }
 
-/* ════════════════════════════════════════════════════════════
+      /* ════════════════════════════════════════════════════════════
    SCREEN 4: CUSTOM DRINK
 ═══════════════════════════════════════════════════════════ */
-#screen-custom { flex-direction: column; }
+      #screen-custom {
+        flex-direction: column;
+      }
 
-.custom-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 28px 16px;
-  border-bottom: 1px solid var(--border); flex-shrink: 0;
-}
-.custom-header h2 {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 30px; font-weight: 300;
-}
-.custom-header p { font-size: 12px; color: var(--text2); margin-top: 2px; }
+      .custom-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 28px 16px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .custom-header h2 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 30px;
+        font-weight: 300;
+      }
+      .custom-header p {
+        font-size: 12px;
+        color: var(--text2);
+        margin-top: 2px;
+      }
 
-.custom-body {
-  flex: 1; display: flex; overflow: hidden;
-}
+      .custom-body {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+      }
 
-.slots-panel {
-  flex: 1; padding: 20px 20px 20px 24px;
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 12px; overflow-y: auto; align-content: start;
-}
-.slots-panel::-webkit-scrollbar { display: none; }
+      .slots-panel {
+        flex: 1;
+        padding: 20px 20px 20px 24px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        overflow-y: auto;
+        align-content: start;
+      }
+      .slots-panel::-webkit-scrollbar {
+        display: none;
+      }
 
-.slot-card {
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: var(--radius-md); padding: 16px;
-  transition: all var(--trans);
-}
-.slot-card.active-slot { border-color: var(--accent); }
+      .slot-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        transition: all var(--trans);
+      }
+      .slot-card.active-slot {
+        border-color: var(--accent);
+      }
 
-.slot-top {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 12px;
-}
-.slot-label {
-  font-size: 10px; font-weight: 500; letter-spacing: 2px;
-  text-transform: uppercase; color: var(--text3);
-}
-.slot-toggle {
-  width: 36px; height: 20px; background: var(--bg4);
-  border-radius: 10px; position: relative; cursor: pointer;
-  transition: background var(--trans); border: 1px solid var(--border);
-}
-.slot-toggle.on { background: var(--accent); border-color: var(--accent); }
-.slot-toggle::after {
-  content: ''; position: absolute;
-  top: 2px; left: 2px;
-  width: 14px; height: 14px; border-radius: 50%;
-  background: #fff; transition: transform var(--trans);
-}
-.slot-toggle.on::after { transform: translateX(16px); }
+      .slot-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .slot-label {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text3);
+      }
+      .slot-toggle {
+        width: 36px;
+        height: 20px;
+        background: var(--bg4);
+        border-radius: 10px;
+        position: relative;
+        cursor: pointer;
+        transition: background var(--trans);
+        border: 1px solid var(--border);
+      }
+      .slot-toggle.on {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .slot-toggle::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform var(--trans);
+      }
+      .slot-toggle.on::after {
+        transform: translateX(16px);
+      }
 
-.slot-name {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 17px; font-weight: 400; color: var(--text); margin-bottom: 12px;
-}
+      .slot-name {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 17px;
+        font-weight: 400;
+        color: var(--text);
+        margin-bottom: 12px;
+      }
 
-.slot-slider-row {
-  display: flex; align-items: center; gap: 10px;
-}
-.slot-slider {
-  -webkit-appearance: none; flex: 1; height: 4px;
-  background: var(--bg4); border-radius: 2px; outline: none;
-  transition: opacity var(--trans);
-}
-.slot-slider::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 16px; height: 16px;
-  border-radius: 50%; background: var(--accent);
-  cursor: pointer; transition: transform 0.15s;
-  box-shadow: 0 0 0 3px var(--accent-dim);
-}
-.slot-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
-.slot-slider:disabled { opacity: 0.35; cursor: not-allowed; }
-.slot-ml {
-  font-size: 13px; font-weight: 500; color: var(--accent);
-  min-width: 40px; text-align: right;
-}
+      .slot-stepper {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        background: var(--bg4);
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        opacity: 1;
+        transition: opacity var(--trans);
+      }
+      .slot-stepper.disabled {
+        opacity: 0.35;
+        pointer-events: none;
+      }
+      .stepper-btn {
+        width: 120px;
+        height: 42px;
+        background: transparent;
+        border: none;
+        background-color: var(--accent);
+        color: var(--text);
+        font-size: 20px;
+        font-weight: 300;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--trans);
+        flex-shrink: 0;
+        line-height: 1;
+      }
+      .stepper-btn:hover {
+        background: var(--bg3);
+        color: var(--accent);
+      }
+      .stepper-btn:active {
+        background: var(--accent-dim);
+        color: var(--accent);
+        transform: scale(0.92);
+      }
+      .stepper-divider {
+        width: 1px;
+        height: 24px;
+        background: var(--border);
+        flex-shrink: 0;
+      }
+      .stepper-val {
+        flex: 1;
+        text-align: center;
+        font-family: "DM Sans", sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--accent);
+        letter-spacing: 0.3px;
+        pointer-events: none;
+      }
 
-/* right summary panel */
-.custom-summary {
-  width: 240px; border-left: 1px solid var(--border);
-  padding: 20px; display: flex; flex-direction: column; gap: 12px;
-  flex-shrink: 0; overflow-y: auto;
-}
-.custom-summary::-webkit-scrollbar { display: none; }
-.summary-title {
-  font-size: 10px; font-weight: 500; letter-spacing: 2px;
-  text-transform: uppercase; color: var(--text3);
-}
-.summary-items { display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.summary-item {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 12px; padding: 6px 10px;
-  background: var(--bg3); border-radius: 8px;
-}
-.summary-item-name { color: var(--text2); }
-.summary-item-ml { color: var(--accent); font-weight: 500; }
-.summary-empty { font-size: 12px; color: var(--text3); font-style: italic; text-align: center; margin-top: 20px; }
+      /* right summary panel */
+      .custom-summary {
+        width: 240px;
+        border-left: 1px solid var(--border);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        flex-shrink: 0;
+        overflow-y: auto;
+      }
+      .custom-summary::-webkit-scrollbar {
+        display: none;
+      }
+      .summary-title {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text3);
+      }
+      .summary-items {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex: 1;
+      }
+      .summary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        padding: 6px 10px;
+        background: var(--bg3);
+        border-radius: 8px;
+      }
+      .summary-item-name {
+        color: var(--text2);
+      }
+      .summary-item-ml {
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .summary-empty {
+        font-size: 12px;
+        color: var(--text3);
+        font-style: italic;
+        text-align: center;
+        margin-top: 20px;
+      }
 
-.custom-addons { margin-top: 4px; }
-.custom-addons .summary-title { margin-bottom: 10px; }
-.custom-addons-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.custom-addon-chip {
-  padding: 6px 12px; border-radius: 50px;
-  background: var(--bg3); border: 1.5px solid var(--border);
-  font-size: 11px; color: var(--text2); cursor: pointer;
-  transition: all var(--trans);
-}
-.custom-addon-chip.selected {
-  background: var(--accent-dim); border-color: var(--accent); color: var(--accent);
-}
+      .custom-addons {
+        margin-top: 4px;
+      }
+      .custom-addons .summary-title {
+        margin-bottom: 10px;
+      }
+      .custom-addons-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .custom-addon-chip {
+        padding: 6px 12px;
+        border-radius: 50px;
+        background: var(--bg3);
+        border: 1.5px solid var(--border);
+        font-size: 11px;
+        color: var(--text2);
+        cursor: pointer;
+        transition: all var(--trans);
+      }
+      .custom-addon-chip.selected {
+        background: var(--accent-dim);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
 
-.custom-make-btn {
-  background: var(--accent); color: #0E0E0F;
-  border: none; border-radius: 50px;
-  padding: 14px; font-family: 'DM Sans', sans-serif;
-  font-size: 14px; font-weight: 500;
-  cursor: pointer; transition: all var(--trans);
-  text-align: center; margin-top: auto;
-  position: relative; overflow: hidden;
-}
-.custom-make-btn::after {
-  content: ''; position: absolute; inset: 0;
-  background: rgba(255,255,255,0.2); opacity: 0; transition: opacity var(--trans);
-}
-.custom-make-btn:hover::after { opacity: 1; }
-.custom-make-btn:disabled {
-  background: var(--bg4); color: var(--text3); cursor: not-allowed;
-}
-.custom-make-btn:disabled::after { display: none; }
-.custom-total-vol {
-  font-size: 12px; color: var(--text2); text-align: center;
-}
-.custom-total-vol strong { color: var(--accent); }
+      .custom-make-btn {
+        background: var(--accent);
+        color: #0e0e0f;
+        border: none;
+        border-radius: 50px;
+        padding: 14px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--trans);
+        text-align: center;
+        margin-top: auto;
+        position: relative;
+        overflow: hidden;
+      }
+      .custom-make-btn::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.2);
+        opacity: 0;
+        transition: opacity var(--trans);
+      }
+      .custom-make-btn:hover::after {
+        opacity: 1;
+      }
+      .custom-make-btn:disabled {
+        background: var(--bg4);
+        color: var(--text3);
+        cursor: not-allowed;
+      }
+      .custom-make-btn:disabled::after {
+        display: none;
+      }
+      .custom-total-vol {
+        font-size: 12px;
+        color: var(--text2);
+        text-align: center;
+      }
+      .custom-total-vol strong {
+        color: var(--accent);
+      }
 
-/* ════════════════════════════════════════════════════════════
+      /* ════════════════════════════════════════════════════════════
    SCREEN 5: PROGRESS
 ═══════════════════════════════════════════════════════════ */
-#screen-progress {
-  align-items: center; justify-content: center;
-  flex-direction: column; gap: 0; padding: 32px 48px;
-}
+      #screen-progress {
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 0;
+        padding: 32px 48px;
+      }
 
-.progress-header { text-align: center; margin-bottom: 32px; }
-.progress-header .eyebrow {
-  font-size: 10px; font-weight: 500; letter-spacing: 3px;
-  text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
-}
-.progress-header h2 {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 42px; font-weight: 300; color: var(--text);
-}
-.progress-header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+      .progress-header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+      .progress-header .eyebrow {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 8px;
+      }
+      .progress-header h2 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 42px;
+        font-weight: 300;
+        color: var(--text);
+      }
+      .progress-header p {
+        font-size: 13px;
+        color: var(--text2);
+        margin-top: 4px;
+      }
 
-.progress-slots { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 560px; }
+      .progress-slots {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        width: 100%;
+        max-width: 560px;
+      }
 
-.progress-slot {
-  display: flex; align-items: center; gap: 16px;
-}
-.progress-slot-label {
-  width: 120px; flex-shrink: 0;
-  font-size: 13px; color: var(--text2); text-align: right;
-}
-.progress-track {
-  flex: 1; height: 8px; background: var(--bg4);
-  border-radius: 4px; overflow: hidden;
-}
-.progress-fill {
-  height: 100%; border-radius: 4px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-light));
-  width: 0%; transition: width 0.5s ease;
-}
-.progress-fill.done { background: #4ADE80; }
-.progress-ml {
-  width: 50px; flex-shrink: 0;
-  font-size: 12px; color: var(--accent); font-weight: 500;
-}
+      .progress-slot {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .progress-slot-label {
+        width: 120px;
+        flex-shrink: 0;
+        font-size: 13px;
+        color: var(--text2);
+        text-align: right;
+      }
+      .progress-track {
+        flex: 1;
+        height: 8px;
+        background: var(--bg4);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        border-radius: 4px;
+        background: linear-gradient(90deg, var(--accent), var(--accent-light));
+        width: 0%;
+        transition: width 0.5s ease;
+      }
+      .progress-fill.done {
+        background: #4ade80;
+      }
+      .progress-ml {
+        width: 50px;
+        flex-shrink: 0;
+        font-size: 12px;
+        color: var(--accent);
+        font-weight: 500;
+      }
 
-.progress-overall {
-  margin-top: 28px; width: 100%; max-width: 560px;
-}
-.progress-overall-track {
-  width: 100%; height: 3px; background: var(--bg4); border-radius: 2px; margin-bottom: 10px;
-}
-.progress-overall-fill {
-  height: 100%; border-radius: 2px;
-  background: var(--accent);
-  width: 0%; transition: width 0.5s ease;
-}
-.progress-overall-text {
-  display: flex; justify-content: space-between;
-  font-size: 12px; color: var(--text2);
-}
-.progress-pct { color: var(--accent); font-weight: 500; }
+      .progress-overall {
+        margin-top: 28px;
+        width: 100%;
+        max-width: 560px;
+      }
+      .progress-overall-track {
+        width: 100%;
+        height: 3px;
+        background: var(--bg4);
+        border-radius: 2px;
+        margin-bottom: 10px;
+      }
+      .progress-overall-fill {
+        height: 100%;
+        border-radius: 2px;
+        background: var(--accent);
+        width: 0%;
+        transition: width 0.5s ease;
+      }
+      .progress-overall-text {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--text2);
+      }
+      .progress-pct {
+        color: var(--accent);
+        font-weight: 500;
+      }
 
-.progress-anim {
-  margin-top: 24px; display: flex; gap: 6px; align-items: center;
-}
-.drop {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--accent); opacity: 0.4;
-  animation: dropPulse 1.2s ease-in-out infinite;
-}
-.drop:nth-child(2) { animation-delay: 0.2s; }
-.drop:nth-child(3) { animation-delay: 0.4s; }
-@keyframes dropPulse { 0%,100%{opacity:0.2;transform:scale(0.7)} 50%{opacity:1;transform:scale(1)} }
+      .progress-anim {
+        margin-top: 24px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .drop {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+        opacity: 0.4;
+        animation: dropPulse 1.2s ease-in-out infinite;
+      }
+      .drop:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .drop:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+      @keyframes dropPulse {
+        0%,
+        100% {
+          opacity: 0.2;
+          transform: scale(0.7);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
 
-/* ════════════════════════════════════════════════════════════
+      /* ════════════════════════════════════════════════════════════
    SCREEN 6: DONE
 ═══════════════════════════════════════════════════════════ */
-#screen-done {
-  align-items: center; justify-content: center;
-  flex-direction: column; gap: 16px;
-}
-.done-ring {
-  width: 100px; height: 100px; border-radius: 50%;
-  border: 2px solid var(--accent);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 44px;
-  animation: ringPop 0.6s cubic-bezier(.34,1.56,.64,1) both;
-}
-@keyframes ringPop { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
-.done-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 52px; font-weight: 300; color: var(--text);
-  animation: fadeUp 0.6s 0.2s both;
-}
-.done-sub {
-  font-size: 14px; color: var(--text2);
-  animation: fadeUp 0.6s 0.35s both;
-}
-.done-name {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 22px; font-style: italic; color: var(--accent);
-  animation: fadeUp 0.6s 0.45s both;
-}
-.done-btn {
-  margin-top: 16px;
-  background: transparent; color: var(--text2);
-  border: 1px solid var(--border2); border-radius: 50px;
-  padding: 12px 32px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px; cursor: pointer;
-  transition: all var(--trans);
-  animation: fadeUp 0.6s 0.6s both;
-}
-.done-btn:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
-</style>
-</head>
-<body>
-
-<!-- Theme Toggle -->
-<button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
-  <span id="theme-icon">☀️</span>
-</button>
-
-<!-- ══ SCREEN 1: WELCOME ══════════════════════════════════ -->
-<div class="screen active" id="screen-welcome">
-  <div class="blob-wrap">
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
-  </div>
-  <div class="grid-bg"></div>
-  <div class="welcome-content">
-    <div class="welcome-eyebrow">Automated Cocktail System</div>
-    <div class="welcome-title">Mix<em>Bot</em></div>
-    <div class="welcome-sub">Your bartender, reimagined</div>
-    <button class="tap-btn" onclick="goTo('screen-mode')">Get Started</button>
-    <div class="tap-hint">Touch anywhere to begin</div>
-  </div>
-</div>
-
-<!-- ══ SCREEN 2: MODE SELECT ══════════════════════════════ -->
-<div class="screen" id="screen-mode">
-  <button class="back-btn" onclick="goTo('screen-welcome')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-    Back
-  </button>
-  <div class="mode-header">
-    <h2>What would you like?</h2>
-    <p>Choose your experience</p>
-  </div>
-  <div class="mode-cards">
-    <div class="mode-card" onclick="goTo('screen-drinks')">
-      <div class="mode-icon">🍹</div>
-      <h3>Default Drinks</h3>
-      <p>Choose from our curated cocktail menu crafted for this machine</p>
-    </div>
-    <div class="mode-card" onclick="goTo('screen-custom')">
-      <div class="mode-icon">⚗️</div>
-      <h3>Custom Drink</h3>
-      <p>Select bottles and set your own amounts to create something unique</p>
-    </div>
-  </div>
-</div>
-
-<!-- ══ SCREEN 3: DEFAULT DRINKS ══════════════════════════ -->
-<div class="screen" id="screen-drinks">
-  <div class="drinks-header">
-    <button class="back-btn" style="position:relative;top:auto;left:auto" onclick="goTo('screen-mode')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-      Back
+      #screen-done {
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .done-ring {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        border: 2px solid var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 44px;
+        animation: ringPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      }
+      @keyframes ringPop {
+        from {
+          transform: scale(0);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .done-title {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 52px;
+        font-weight: 300;
+        color: var(--text);
+        animation: fadeUp 0.6s 0.2s both;
+      }
+      .done-sub {
+        font-size: 14px;
+        color: var(--text2);
+        animation: fadeUp 0.6s 0.35s both;
+      }
+      .done-name {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 22px;
+        font-style: italic;
+        color: var(--accent);
+        animation: fadeUp 0.6s 0.45s both;
+      }
+      .done-btn {
+        margin-top: 16px;
+        background: transparent;
+        color: var(--text2);
+        border: 1px solid var(--border2);
+        border-radius: 50px;
+        padding: 12px 32px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all var(--trans);
+        animation: fadeUp 0.6s 0.6s both;
+      }
+      .done-btn:hover {
+        background: var(--bg3);
+        color: var(--text);
+        border-color: var(--border2);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Theme Toggle -->
+    <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+      <span id="theme-icon">☀️</span>
     </button>
-    <div class="drinks-header-left">
-      <h2>Cocktail Menu</h2>
-      <span class="drinks-count">6 drinks</span>
-    </div>
-    <div style="font-size:12px;color:var(--text3)">Tap a drink to see details</div>
-  </div>
-  <div class="drinks-grid" id="drinks-grid"></div>
-</div>
 
-<!-- ══ SCREEN 4: CUSTOM DRINK ════════════════════════════ -->
-<div class="screen" id="screen-custom">
-  <div class="custom-header">
-    <button class="back-btn" style="position:relative;top:auto;left:auto" onclick="goTo('screen-mode')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-      Back
-    </button>
-    <div>
-      <h2>Build Your Drink</h2>
-      <p>Toggle slots on/off · adjust ml with sliders</p>
+    <!-- ══ SCREEN 1: WELCOME ══════════════════════════════════ -->
+    <div class="screen active" id="screen-welcome">
+      <div class="blob-wrap">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+      </div>
+      <div class="grid-bg"></div>
+      <div class="welcome-content">
+        <div class="welcome-eyebrow">Automated Cocktail System</div>
+        <div class="welcome-title">Mix<em>Bot</em></div>
+        <div class="welcome-sub">Your bartender, reimagined</div>
+        <button class="tap-btn" onclick="goTo('screen-mode')">
+          Get Started
+        </button>
+        <div class="tap-hint">Touch anywhere to begin</div>
+      </div>
     </div>
-    <div></div>
-  </div>
-  <div class="custom-body">
-    <div class="slots-panel" id="slots-panel"></div>
-    <div class="custom-summary">
-      <div class="summary-title">Your Mix</div>
-      <div class="summary-items" id="summary-items">
-        <div class="summary-empty" id="summary-empty">No slots selected yet</div>
+
+    <!-- ══ SCREEN 2: MODE SELECT ══════════════════════════════ -->
+    <div class="screen" id="screen-mode">
+      <button class="back-btn" onclick="goTo('screen-welcome')">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back
+      </button>
+      <div class="mode-header">
+        <h2>What would you like?</h2>
+        <p>Choose your experience</p>
       </div>
-      <div class="custom-addons">
-        <div class="summary-title">Add-ons</div>
-        <div class="custom-addons-row" id="custom-addons-row"></div>
+      <div class="mode-cards">
+        <div class="mode-card" onclick="goTo('screen-drinks')">
+          <div class="mode-icon">🍹</div>
+          <h3>Default Drinks</h3>
+          <p>Choose from our curated cocktail menu crafted for this machine</p>
+        </div>
+        <div class="mode-card" onclick="goTo('screen-custom')">
+          <div class="mode-icon">⚗️</div>
+          <h3>Custom Drink</h3>
+          <p>
+            Select bottles and set your own amounts to create something unique
+          </p>
+        </div>
       </div>
-      <div class="custom-total-vol" id="custom-total-vol">Total: <strong>0 ml</strong></div>
-      <button class="custom-make-btn" id="custom-make-btn" disabled onclick="startDispense(true)">
-        Make Drink →
+    </div>
+
+    <!-- ══ SCREEN 3: DEFAULT DRINKS ══════════════════════════ -->
+    <div class="screen" id="screen-drinks">
+      <div class="drinks-header">
+        <button
+          class="back-btn"
+          style="position: relative; top: auto; left: auto"
+          onclick="goTo('screen-mode')"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Back
+        </button>
+        <div class="drinks-header-left">
+          <h2>Cocktail Menu</h2>
+          <span class="drinks-count">6 drinks</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text3)">
+          Tap a drink to see details
+        </div>
+      </div>
+      <div class="drinks-grid" id="drinks-grid"></div>
+    </div>
+
+    <!-- ══ SCREEN 4: CUSTOM DRINK ════════════════════════════ -->
+    <div class="screen" id="screen-custom">
+      <div class="custom-header">
+        <button
+          class="back-btn"
+          style="position: relative; top: auto; left: auto"
+          onclick="goTo('screen-mode')"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Back
+        </button>
+        <div>
+          <h2>Build Your Drink</h2>
+          <p>Toggle slots on/off · adjust ml with sliders</p>
+        </div>
+        <div></div>
+      </div>
+      <div class="custom-body">
+        <div class="slots-panel" id="slots-panel"></div>
+        <div class="custom-summary">
+          <div class="summary-title">Your Mix</div>
+          <div class="summary-items" id="summary-items">
+            <div class="summary-empty" id="summary-empty">
+              No slots selected yet
+            </div>
+          </div>
+          <div class="custom-addons">
+            <div class="summary-title">Add-ons</div>
+            <div class="custom-addons-row" id="custom-addons-row"></div>
+          </div>
+          <div class="custom-total-vol" id="custom-total-vol">
+            Total: <strong>0 ml</strong>
+          </div>
+          <button
+            class="custom-make-btn"
+            id="custom-make-btn"
+            disabled
+            onclick="startDispense(true)"
+          >
+            Make Drink →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 5: PROGRESS ════════════════════════════════ -->
+    <div class="screen" id="screen-progress">
+      <div class="progress-header">
+        <div class="eyebrow">Dispensing Now</div>
+        <h2 id="progress-drink-name">Your Cocktail</h2>
+        <p id="progress-drink-sub">Sit tight — your drink is being crafted</p>
+      </div>
+      <div class="progress-slots" id="progress-slots"></div>
+      <div class="progress-overall">
+        <div class="progress-overall-track">
+          <div class="progress-overall-fill" id="progress-overall-fill"></div>
+        </div>
+        <div class="progress-overall-text">
+          <span>Overall progress</span>
+          <span class="progress-pct" id="progress-pct">0%</span>
+        </div>
+      </div>
+      <div class="progress-anim">
+        <div class="drop"></div>
+        <div class="drop"></div>
+        <div class="drop"></div>
+        <span style="font-size: 12px; color: var(--text3); margin-left: 6px"
+          >Pouring…</span
+        >
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 6: DONE ════════════════════════════════════ -->
+    <div class="screen" id="screen-done">
+      <div class="done-ring">🍸</div>
+      <div class="done-title">Enjoy!</div>
+      <div class="done-name" id="done-drink-name">Your Cocktail</div>
+      <div class="done-sub">Your drink is ready. Cheers! 🥂</div>
+      <button class="done-btn" onclick="goTo('screen-welcome')">
+        Make Another Drink
       </button>
     </div>
-  </div>
-</div>
 
-<!-- ══ SCREEN 5: PROGRESS ════════════════════════════════ -->
-<div class="screen" id="screen-progress">
-  <div class="progress-header">
-    <div class="eyebrow">Dispensing Now</div>
-    <h2 id="progress-drink-name">Your Cocktail</h2>
-    <p id="progress-drink-sub">Sit tight — your drink is being crafted</p>
-  </div>
-  <div class="progress-slots" id="progress-slots"></div>
-  <div class="progress-overall">
-    <div class="progress-overall-track">
-      <div class="progress-overall-fill" id="progress-overall-fill"></div>
+    <!-- ══ DRINK DETAIL MODAL ════════════════════════════════ -->
+    <div class="modal-overlay" id="drink-modal" onclick="closeModal(event)">
+      <div class="modal">
+        <div class="modal-hero">
+          <button class="modal-close" onclick="closeModalDirect()">✕</button>
+          <div class="modal-emoji" id="modal-emoji">🍹</div>
+          <div class="modal-name" id="modal-name">Cocktail Name</div>
+          <div class="modal-desc" id="modal-desc">Description here</div>
+        </div>
+        <div class="modal-body">
+          <div class="modal-section-label">Ingredients</div>
+          <div class="ingredient-list" id="modal-ingredients"></div>
+          <div class="modal-section-label">Add-ons</div>
+          <div class="addons-row" id="modal-addons"></div>
+        </div>
+        <div class="modal-footer">
+          <div class="modal-price">
+            <span>LKR </span><span id="modal-price">0</span>
+          </div>
+          <button class="make-btn" onclick="startDispenseFromModal()">
+            Make This Drink →
+          </button>
+        </div>
+      </div>
     </div>
-    <div class="progress-overall-text">
-      <span>Overall progress</span>
-      <span class="progress-pct" id="progress-pct">0%</span>
-    </div>
-  </div>
-  <div class="progress-anim">
-    <div class="drop"></div>
-    <div class="drop"></div>
-    <div class="drop"></div>
-    <span style="font-size:12px;color:var(--text3);margin-left:6px">Pouring…</span>
-  </div>
-</div>
 
-<!-- ══ SCREEN 6: DONE ════════════════════════════════════ -->
-<div class="screen" id="screen-done">
-  <div class="done-ring">🍸</div>
-  <div class="done-title">Enjoy!</div>
-  <div class="done-name" id="done-drink-name">Your Cocktail</div>
-  <div class="done-sub">Your drink is ready. Cheers! 🥂</div>
-  <button class="done-btn" onclick="goTo('screen-welcome')">Make Another Drink</button>
-</div>
+    <script>
+      /* ── DATA ─────────────────────────────────────────────── */
+      const SLOTS = [
+        { id: 1, name: "Vodka", color: "#8B9CF7" },
+        { id: 2, name: "Sugar Syrup", color: "#F4B942" },
+        { id: 3, name: "Soda Water", color: "#6EE7F7" },
+        { id: 4, name: "Lime Juice", color: "#86EFAC" },
+        { id: 5, name: "Blue Curaçao", color: "#60A5FA" },
+        { id: 6, name: "Grenadine", color: "#F87171" },
+      ];
 
-<!-- ══ DRINK DETAIL MODAL ════════════════════════════════ -->
-<div class="modal-overlay" id="drink-modal" onclick="closeModal(event)">
-  <div class="modal">
-    <div class="modal-hero">
-      <button class="modal-close" onclick="closeModalDirect()">✕</button>
-      <div class="modal-emoji" id="modal-emoji">🍹</div>
-      <div class="modal-name" id="modal-name">Cocktail Name</div>
-      <div class="modal-desc" id="modal-desc">Description here</div>
-    </div>
-    <div class="modal-body">
-      <div class="modal-section-label">Ingredients</div>
-      <div class="ingredient-list" id="modal-ingredients"></div>
-      <div class="modal-section-label">Add-ons</div>
-      <div class="addons-row" id="modal-addons"></div>
-    </div>
-    <div class="modal-footer">
-      <div class="modal-price"><span>LKR </span><span id="modal-price">0</span></div>
-      <button class="make-btn" onclick="startDispenseFromModal()">Make This Drink →</button>
-    </div>
-  </div>
-</div>
+      const DRINKS = [
+        {
+          id: 1,
+          emoji: "🍹",
+          name: "Tropical Breeze",
+          desc: "A refreshing blend of citrus and tropical sweetness.",
+          price: 950,
+          tags: ["Sweet", "Citrus", "Light"],
+          ingredients: [
+            { slot: 1, name: "Vodka", ml: 60 },
+            { slot: 3, name: "Soda Water", ml: 80 },
+            { slot: 4, name: "Lime Juice", ml: 30 },
+            { slot: 2, name: "Sugar Syrup", ml: 20 },
+          ],
+        },
+        {
+          id: 2,
+          emoji: "🌊",
+          name: "Blue Lagoon",
+          desc: "Electric blue with a crisp, slightly sweet taste.",
+          price: 1100,
+          tags: ["Sweet", "Fruity", "Strong"],
+          ingredients: [
+            { slot: 1, name: "Vodka", ml: 45 },
+            { slot: 5, name: "Blue Curaçao", ml: 30 },
+            { slot: 3, name: "Soda Water", ml: 100 },
+            { slot: 4, name: "Lime Juice", ml: 20 },
+          ],
+        },
+        {
+          id: 3,
+          emoji: "🌅",
+          name: "Sunset Kiss",
+          desc: "Layers of colour with grenadine sunrise effect.",
+          price: 1050,
+          tags: ["Sweet", "Smooth", "Vibrant"],
+          ingredients: [
+            { slot: 1, name: "Vodka", ml: 45 },
+            { slot: 6, name: "Grenadine", ml: 25 },
+            { slot: 3, name: "Soda Water", ml: 90 },
+            { slot: 2, name: "Sugar Syrup", ml: 15 },
+          ],
+        },
+        {
+          id: 4,
+          emoji: "🍋",
+          name: "Citrus Fizz",
+          desc: "Sharp lime meets bubbling soda for a clean kick.",
+          price: 850,
+          tags: ["Sour", "Fizzy", "Refreshing"],
+          ingredients: [
+            { slot: 3, name: "Soda Water", ml: 120 },
+            { slot: 4, name: "Lime Juice", ml: 40 },
+            { slot: 2, name: "Sugar Syrup", ml: 20 },
+          ],
+        },
+        {
+          id: 5,
+          emoji: "🏝️",
+          name: "Island Mule",
+          desc: "A vodka-lime combo with fizzy island vibes.",
+          price: 1000,
+          tags: ["Tangy", "Fizzy", "Classic"],
+          ingredients: [
+            { slot: 1, name: "Vodka", ml: 60 },
+            { slot: 4, name: "Lime Juice", ml: 30 },
+            { slot: 3, name: "Soda Water", ml: 80 },
+            { slot: 6, name: "Grenadine", ml: 10 },
+          ],
+        },
+        {
+          id: 6,
+          emoji: "💜",
+          name: "Violet Haze",
+          desc: "A deep blue-purple dream with a bittersweet edge.",
+          price: 1150,
+          tags: ["Bold", "Fruity", "Exotic"],
+          ingredients: [
+            { slot: 1, name: "Vodka", ml: 50 },
+            { slot: 5, name: "Blue Curaçao", ml: 40 },
+            { slot: 6, name: "Grenadine", ml: 20 },
+            { slot: 2, name: "Sugar Syrup", ml: 15 },
+          ],
+        },
+      ];
 
-<script>
-/* ── DATA ─────────────────────────────────────────────── */
-const SLOTS = [
-  { id: 1, name: 'Vodka',        color: '#8B9CF7' },
-  { id: 2, name: 'Sugar Syrup',  color: '#F4B942' },
-  { id: 3, name: 'Soda Water',   color: '#6EE7F7' },
-  { id: 4, name: 'Lime Juice',   color: '#86EFAC' },
-  { id: 5, name: 'Blue Curaçao', color: '#60A5FA' },
-  { id: 6, name: 'Grenadine',    color: '#F87171' },
-];
+      const ADDONS = [
+        { id: "ice", emoji: "🧊", label: "Add Ice" },
+        { id: "lemon", emoji: "🍋", label: "Add Lemon" },
+      ];
 
-const DRINKS = [
-  {
-    id: 1, emoji: '🍹', name: 'Tropical Breeze',
-    desc: 'A refreshing blend of citrus and tropical sweetness.',
-    price: 950,
-    tags: ['Sweet', 'Citrus', 'Light'],
-    ingredients: [
-      { slot: 1, name: 'Vodka',       ml: 60 },
-      { slot: 3, name: 'Soda Water',  ml: 80 },
-      { slot: 4, name: 'Lime Juice',  ml: 30 },
-      { slot: 2, name: 'Sugar Syrup', ml: 20 },
-    ]
-  },
-  {
-    id: 2, emoji: '🌊', name: 'Blue Lagoon',
-    desc: 'Electric blue with a crisp, slightly sweet taste.',
-    price: 1100,
-    tags: ['Sweet', 'Fruity', 'Strong'],
-    ingredients: [
-      { slot: 1, name: 'Vodka',        ml: 45 },
-      { slot: 5, name: 'Blue Curaçao', ml: 30 },
-      { slot: 3, name: 'Soda Water',   ml: 100 },
-      { slot: 4, name: 'Lime Juice',   ml: 20 },
-    ]
-  },
-  {
-    id: 3, emoji: '🌅', name: 'Sunset Kiss',
-    desc: 'Layers of colour with grenadine sunrise effect.',
-    price: 1050,
-    tags: ['Sweet', 'Smooth', 'Vibrant'],
-    ingredients: [
-      { slot: 1, name: 'Vodka',       ml: 45 },
-      { slot: 6, name: 'Grenadine',   ml: 25 },
-      { slot: 3, name: 'Soda Water',  ml: 90 },
-      { slot: 2, name: 'Sugar Syrup', ml: 15 },
-    ]
-  },
-  {
-    id: 4, emoji: '🍋', name: 'Citrus Fizz',
-    desc: 'Sharp lime meets bubbling soda for a clean kick.',
-    price: 850,
-    tags: ['Sour', 'Fizzy', 'Refreshing'],
-    ingredients: [
-      { slot: 3, name: 'Soda Water',  ml: 120 },
-      { slot: 4, name: 'Lime Juice',  ml: 40 },
-      { slot: 2, name: 'Sugar Syrup', ml: 20 },
-    ]
-  },
-  {
-    id: 5, emoji: '🏝️', name: 'Island Mule',
-    desc: 'A vodka-lime combo with fizzy island vibes.',
-    price: 1000,
-    tags: ['Tangy', 'Fizzy', 'Classic'],
-    ingredients: [
-      { slot: 1, name: 'Vodka',       ml: 60 },
-      { slot: 4, name: 'Lime Juice',  ml: 30 },
-      { slot: 3, name: 'Soda Water',  ml: 80 },
-      { slot: 6, name: 'Grenadine',   ml: 10 },
-    ]
-  },
-  {
-    id: 6, emoji: '💜', name: 'Violet Haze',
-    desc: 'A deep blue-purple dream with a bittersweet edge.',
-    price: 1150,
-    tags: ['Bold', 'Fruity', 'Exotic'],
-    ingredients: [
-      { slot: 1, name: 'Vodka',        ml: 50 },
-      { slot: 5, name: 'Blue Curaçao', ml: 40 },
-      { slot: 6, name: 'Grenadine',    ml: 20 },
-      { slot: 2, name: 'Sugar Syrup',  ml: 15 },
-    ]
-  },
-];
+      /* ── STATE ────────────────────────────────────────────── */
+      let currentDrink = null;
+      let selectedAddons = new Set();
+      let customSlots = SLOTS.map((s) => ({ ...s, active: false, ml: 50 }));
+      let customAddons = new Set();
 
-const ADDONS = [
-  { id: 'ice',   emoji: '🧊', label: 'Add Ice' },
-  { id: 'lemon', emoji: '🍋', label: 'Add Lemon' },
-];
+      /* ── THEME ────────────────────────────────────────────── */
+      function toggleTheme() {
+        const html = document.documentElement;
+        const isDark = html.getAttribute("data-theme") === "dark";
+        html.setAttribute("data-theme", isDark ? "light" : "dark");
+        document.getElementById("theme-icon").textContent = isDark
+          ? "🌙"
+          : "☀️";
+      }
 
-/* ── STATE ────────────────────────────────────────────── */
-let currentDrink = null;
-let selectedAddons = new Set();
-let customSlots = SLOTS.map(s => ({ ...s, active: false, ml: 50 }));
-let customAddons = new Set();
+      /* ── NAVIGATION ───────────────────────────────────────── */
+      function goTo(id) {
+        document
+          .querySelectorAll(".screen")
+          .forEach((s) => s.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+      }
 
-/* ── THEME ────────────────────────────────────────────── */
-function toggleTheme() {
-  const html = document.documentElement;
-  const isDark = html.getAttribute('data-theme') === 'dark';
-  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  document.getElementById('theme-icon').textContent = isDark ? '🌙' : '☀️';
-}
-
-/* ── NAVIGATION ───────────────────────────────────────── */
-function goTo(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-/* ── BUILD DRINKS GRID ────────────────────────────────── */
-function buildDrinksGrid() {
-  const grid = document.getElementById('drinks-grid');
-  grid.innerHTML = DRINKS.map(d => `
+      /* ── BUILD DRINKS GRID ────────────────────────────────── */
+      function buildDrinksGrid() {
+        const grid = document.getElementById("drinks-grid");
+        grid.innerHTML = DRINKS.map(
+          (d) => `
     <div class="drink-card" onclick="openModal(${d.id})">
       <div class="drink-emoji">${d.emoji}</div>
       <div class="drink-name">${d.name}</div>
       <div class="drink-desc">${d.desc}</div>
-      <div class="drink-tags">${d.tags.map(t=>`<span class="drink-tag">${t}</span>`).join('')}</div>
+      <div class="drink-tags">${d.tags.map((t) => `<span class="drink-tag">${t}</span>`).join("")}</div>
       <div class="drink-footer">
         <div class="drink-price"><span>LKR </span>${d.price}</div>
         <div class="drink-arrow">→</div>
       </div>
     </div>
-  `).join('');
-}
+  `,
+        ).join("");
+      }
 
-/* ── MODAL ────────────────────────────────────────────── */
-function openModal(id) {
-  const d = DRINKS.find(x => x.id === id);
-  if (!d) return;
-  currentDrink = d;
-  selectedAddons.clear();
-  document.getElementById('modal-emoji').textContent = d.emoji;
-  document.getElementById('modal-name').textContent = d.name;
-  document.getElementById('modal-desc').textContent = d.desc;
-  document.getElementById('modal-price').textContent = d.price.toLocaleString();
-  document.getElementById('modal-ingredients').innerHTML = d.ingredients.map(i => `
+      /* ── MODAL ────────────────────────────────────────────── */
+      function openModal(id) {
+        const d = DRINKS.find((x) => x.id === id);
+        if (!d) return;
+        currentDrink = d;
+        selectedAddons.clear();
+        document.getElementById("modal-emoji").textContent = d.emoji;
+        document.getElementById("modal-name").textContent = d.name;
+        document.getElementById("modal-desc").textContent = d.desc;
+        document.getElementById("modal-price").textContent =
+          d.price.toLocaleString();
+        document.getElementById("modal-ingredients").innerHTML = d.ingredients
+          .map(
+            (i) => `
     <div class="ingredient-row">
       <span class="ingredient-name">${i.name}</span>
       <span class="ingredient-ml">${i.ml} ml</span>
     </div>
-  `).join('');
-  document.getElementById('modal-addons').innerHTML = ADDONS.map(a => `
+  `,
+          )
+          .join("");
+        document.getElementById("modal-addons").innerHTML = ADDONS.map(
+          (a) => `
     <div class="addon-chip" id="addon-${a.id}" onclick="toggleAddon('${a.id}')">
       <div class="addon-check" id="addon-check-${a.id}"></div>
       ${a.emoji} ${a.label}
     </div>
-  `).join('');
-  document.getElementById('drink-modal').classList.add('open');
-}
+  `,
+        ).join("");
+        document.getElementById("drink-modal").classList.add("open");
+      }
 
-function toggleAddon(id) {
-  if (selectedAddons.has(id)) {
-    selectedAddons.delete(id);
-    document.getElementById(`addon-${id}`).classList.remove('selected');
-    document.getElementById(`addon-check-${id}`).textContent = '';
-  } else {
-    selectedAddons.add(id);
-    document.getElementById(`addon-${id}`).classList.add('selected');
-    document.getElementById(`addon-check-${id}`).textContent = '✓';
-  }
-}
+      function toggleAddon(id) {
+        if (selectedAddons.has(id)) {
+          selectedAddons.delete(id);
+          document.getElementById(`addon-${id}`).classList.remove("selected");
+          document.getElementById(`addon-check-${id}`).textContent = "";
+        } else {
+          selectedAddons.add(id);
+          document.getElementById(`addon-${id}`).classList.add("selected");
+          document.getElementById(`addon-check-${id}`).textContent = "✓";
+        }
+      }
 
-function closeModal(e) {
-  if (e.target === document.getElementById('drink-modal')) closeModalDirect();
-}
-function closeModalDirect() {
-  document.getElementById('drink-modal').classList.remove('open');
-}
+      function closeModal(e) {
+        if (e.target === document.getElementById("drink-modal"))
+          closeModalDirect();
+      }
+      function closeModalDirect() {
+        document.getElementById("drink-modal").classList.remove("open");
+      }
 
-function startDispenseFromModal() {
-  closeModalDirect();
-  startDispense(false);
-}
+      function startDispenseFromModal() {
+        closeModalDirect();
+        startDispense(false);
+      }
 
-/* ── BUILD CUSTOM SLOTS ───────────────────────────────── */
-function buildCustom() {
-  const panel = document.getElementById('slots-panel');
-  panel.innerHTML = customSlots.map((s, i) => `
+      /* ── BUILD CUSTOM SLOTS ───────────────────────────────── */
+      function buildCustom() {
+        const panel = document.getElementById("slots-panel");
+        panel.innerHTML = customSlots
+          .map(
+            (s, i) => `
     <div class="slot-card" id="slot-card-${i}">
       <div class="slot-top">
         <span class="slot-label">Slot ${s.id}</span>
-        <div class="slot-toggle ${s.active?'on':''}" id="slot-toggle-${i}" onclick="toggleSlot(${i})"></div>
+        <div class="slot-toggle ${s.active ? "on" : ""}" id="slot-toggle-${i}" onclick="toggleSlot(${i})"></div>
       </div>
       <div class="slot-name">${s.name}</div>
-      <div class="slot-slider-row">
-        <input type="range" class="slot-slider" id="slot-slider-${i}"
-          min="10" max="150" value="${s.ml}" step="5"
-          ${!s.active?'disabled':''}
-          oninput="updateSlot(${i}, this.value)">
-        <span class="slot-ml" id="slot-ml-${i}">${s.ml}<span style="font-size:10px;color:var(--text3)"> ml</span></span>
+      <div class="slot-stepper ${!s.active ? "disabled" : ""}" id="slot-stepper-${i}">
+        <button class="stepper-btn" ontouchstart="" onclick="stepSlot(${i}, -1)">−</button>
+        <div class="stepper-divider"></div>
+        <div class="stepper-val" id="slot-ml-${i}">${s.ml} ml</div>
+        <div class="stepper-divider"></div>
+        <button class="stepper-btn" ontouchstart="" onclick="stepSlot(${i}, 1)">+</button>
       </div>
     </div>
-  `).join('');
+  `,
+          )
+          .join("");
 
-  const addonsRow = document.getElementById('custom-addons-row');
-  addonsRow.innerHTML = ADDONS.map(a => `
-    <div class="custom-addon-chip ${customAddons.has(a.id)?'selected':''}"
+        const addonsRow = document.getElementById("custom-addons-row");
+        addonsRow.innerHTML = ADDONS.map(
+          (a) => `
+    <div class="custom-addon-chip ${customAddons.has(a.id) ? "selected" : ""}"
       onclick="toggleCustomAddon('${a.id}')">
       ${a.emoji} ${a.label}
     </div>
-  `).join('');
+  `,
+        ).join("");
 
-  updateCustomSummary();
-}
+        updateCustomSummary();
+      }
 
-function toggleSlot(i) {
-  customSlots[i].active = !customSlots[i].active;
-  document.getElementById(`slot-toggle-${i}`).classList.toggle('on', customSlots[i].active);
-  document.getElementById(`slot-card-${i}`).classList.toggle('active-slot', customSlots[i].active);
-  const slider = document.getElementById(`slot-slider-${i}`);
-  slider.disabled = !customSlots[i].active;
-  updateCustomSummary();
-}
+      function toggleSlot(i) {
+        customSlots[i].active = !customSlots[i].active;
+        document
+          .getElementById(`slot-toggle-${i}`)
+          .classList.toggle("on", customSlots[i].active);
+        document
+          .getElementById(`slot-card-${i}`)
+          .classList.toggle("active-slot", customSlots[i].active);
+        document
+          .getElementById(`slot-stepper-${i}`)
+          .classList.toggle("disabled", !customSlots[i].active);
+        updateCustomSummary();
+      }
 
-function updateSlot(i, val) {
-  customSlots[i].ml = parseInt(val);
-  document.getElementById(`slot-ml-${i}`).innerHTML = `${val}<span style="font-size:10px;color:var(--text3)"> ml</span>`;
-  updateCustomSummary();
-}
+      function stepSlot(i, dir) {
+        const s = customSlots[i];
+        if (!s.active) return;
+        s.ml = Math.min(150, Math.max(10, s.ml + dir * 5));
+        document.getElementById(`slot-ml-${i}`).textContent = s.ml + " ml";
+        updateCustomSummary();
+      }
 
-function updateCustomSummary() {
-  const active = customSlots.filter(s => s.active);
-  const totalMl = active.reduce((sum, s) => sum + s.ml, 0);
-  const container = document.getElementById('summary-items');
-  const empty = document.getElementById('summary-empty');
+      function updateCustomSummary() {
+        const active = customSlots.filter((s) => s.active);
+        const totalMl = active.reduce((sum, s) => sum + s.ml, 0);
+        const container = document.getElementById("summary-items");
+        const empty = document.getElementById("summary-empty");
 
-  if (active.length === 0) {
-    container.innerHTML = '<div class="summary-empty" id="summary-empty">No slots selected yet</div>';
-  } else {
-    container.innerHTML = active.map(s => `
+        if (active.length === 0) {
+          container.innerHTML =
+            '<div class="summary-empty" id="summary-empty">No slots selected yet</div>';
+        } else {
+          container.innerHTML = active
+            .map(
+              (s) => `
       <div class="summary-item">
         <span class="summary-item-name">${s.name}</span>
         <span class="summary-item-ml">${s.ml} ml</span>
       </div>
-    `).join('');
-  }
-  document.getElementById('custom-total-vol').innerHTML = `Total: <strong>${totalMl} ml</strong>`;
-  const btn = document.getElementById('custom-make-btn');
-  btn.disabled = active.length === 0;
-}
+    `,
+            )
+            .join("");
+        }
+        document.getElementById("custom-total-vol").innerHTML =
+          `Total: <strong>${totalMl} ml</strong>`;
+        const btn = document.getElementById("custom-make-btn");
+        btn.disabled = active.length === 0;
+      }
 
-function toggleCustomAddon(id) {
-  const chips = document.getElementById('custom-addons-row').querySelectorAll('.custom-addon-chip');
-  if (customAddons.has(id)) {
-    customAddons.delete(id);
-    chips.forEach(c => { if(c.textContent.includes(ADDONS.find(a=>a.id===id).label)) c.classList.remove('selected'); });
-  } else {
-    customAddons.add(id);
-    chips.forEach(c => { if(c.textContent.includes(ADDONS.find(a=>a.id===id).label)) c.classList.add('selected'); });
-  }
-}
+      function toggleCustomAddon(id) {
+        const chips = document
+          .getElementById("custom-addons-row")
+          .querySelectorAll(".custom-addon-chip");
+        if (customAddons.has(id)) {
+          customAddons.delete(id);
+          chips.forEach((c) => {
+            if (c.textContent.includes(ADDONS.find((a) => a.id === id).label))
+              c.classList.remove("selected");
+          });
+        } else {
+          customAddons.add(id);
+          chips.forEach((c) => {
+            if (c.textContent.includes(ADDONS.find((a) => a.id === id).label))
+              c.classList.add("selected");
+          });
+        }
+      }
 
-/* ── DISPENSE ─────────────────────────────────────────── */
-function startDispense(isCustom) {
-  let dispenseIngredients = [];
-  let drinkName = 'Your Custom Blend';
-  let drinkSub  = 'Crafting your unique creation';
+      /* ── DISPENSE ─────────────────────────────────────────── */
+      function startDispense(isCustom) {
+        let dispenseIngredients = [];
+        let drinkName = "Your Custom Blend";
+        let drinkSub = "Crafting your unique creation";
 
-  if (!isCustom && currentDrink) {
-    dispenseIngredients = currentDrink.ingredients.map(i => ({
-      name: i.name, ml: i.ml, target: i.ml
-    }));
-    drinkName = currentDrink.name;
-    drinkSub  = 'Sit tight — your cocktail is being crafted';
-  } else {
-    dispenseIngredients = customSlots
-      .filter(s => s.active)
-      .map(s => ({ name: s.name, ml: s.ml, target: s.ml }));
-  }
+        if (!isCustom && currentDrink) {
+          dispenseIngredients = currentDrink.ingredients.map((i) => ({
+            name: i.name,
+            ml: i.ml,
+            target: i.ml,
+          }));
+          drinkName = currentDrink.name;
+          drinkSub = "Sit tight — your cocktail is being crafted";
+        } else {
+          dispenseIngredients = customSlots
+            .filter((s) => s.active)
+            .map((s) => ({ name: s.name, ml: s.ml, target: s.ml }));
+        }
 
-  document.getElementById('progress-drink-name').textContent = drinkName;
-  document.getElementById('progress-drink-sub').textContent  = drinkSub;
+        document.getElementById("progress-drink-name").textContent = drinkName;
+        document.getElementById("progress-drink-sub").textContent = drinkSub;
 
-  const container = document.getElementById('progress-slots');
-  container.innerHTML = dispenseIngredients.map((ing, i) => `
+        const container = document.getElementById("progress-slots");
+        container.innerHTML = dispenseIngredients
+          .map(
+            (ing, i) => `
     <div class="progress-slot">
       <div class="progress-slot-label">${ing.name}</div>
       <div class="progress-track">
@@ -1149,63 +1858,71 @@ function startDispense(isCustom) {
       </div>
       <div class="progress-ml" id="pml-${i}">0 ml</div>
     </div>
-  `).join('');
+  `,
+          )
+          .join("");
 
-  document.getElementById('progress-overall-fill').style.width = '0%';
-  document.getElementById('progress-pct').textContent = '0%';
-  document.getElementById('done-drink-name').textContent = drinkName;
+        document.getElementById("progress-overall-fill").style.width = "0%";
+        document.getElementById("progress-pct").textContent = "0%";
+        document.getElementById("done-drink-name").textContent = drinkName;
 
-  goTo('screen-progress');
-  simulateDispense(dispenseIngredients);
-}
+        goTo("screen-progress");
+        simulateDispense(dispenseIngredients);
+      }
 
-function simulateDispense(ingredients) {
-  /* Simulates ESP32 MQTT messages — in production replace with
+      function simulateDispense(ingredients) {
+        /* Simulates ESP32 MQTT messages — in production replace with
      socket.on('dispenser/progress', ...) WebSocket handler */
-  const poured = ingredients.map(() => 0);
-  const totalTarget = ingredients.reduce((s, i) => s + i.target, 0);
-  let allDone = false;
+        const poured = ingredients.map(() => 0);
+        const totalTarget = ingredients.reduce((s, i) => s + i.target, 0);
+        let allDone = false;
 
-  const interval = setInterval(() => {
-    if (allDone) { clearInterval(interval); return; }
+        const interval = setInterval(() => {
+          if (allDone) {
+            clearInterval(interval);
+            return;
+          }
 
-    let totalPoured = 0;
-    let anyPouring  = false;
+          let totalPoured = 0;
+          let anyPouring = false;
 
-    ingredients.forEach((ing, i) => {
-      if (poured[i] < ing.target) {
-        const step = Math.min(Math.random() * 12 + 4, ing.target - poured[i]);
-        poured[i] = Math.min(poured[i] + step, ing.target);
-        anyPouring = true;
+          ingredients.forEach((ing, i) => {
+            if (poured[i] < ing.target) {
+              const step = Math.min(
+                Math.random() * 12 + 4,
+                ing.target - poured[i],
+              );
+              poured[i] = Math.min(poured[i] + step, ing.target);
+              anyPouring = true;
+            }
+            const pct = (poured[i] / ing.target) * 100;
+            const fill = document.getElementById(`pfill-${i}`);
+            const ml = document.getElementById(`pml-${i}`);
+            if (fill) {
+              fill.style.width = pct + "%";
+              if (pct >= 100) fill.classList.add("done");
+            }
+            if (ml) ml.textContent = Math.round(poured[i]) + " ml";
+            totalPoured += poured[i];
+          });
+
+          const overallPct = Math.round((totalPoured / totalTarget) * 100);
+          const ofill = document.getElementById("progress-overall-fill");
+          const pctEl = document.getElementById("progress-pct");
+          if (ofill) ofill.style.width = overallPct + "%";
+          if (pctEl) pctEl.textContent = overallPct + "%";
+
+          if (!anyPouring) {
+            allDone = true;
+            clearInterval(interval);
+            setTimeout(() => goTo("screen-done"), 900);
+          }
+        }, 200);
       }
-      const pct = (poured[i] / ing.target) * 100;
-      const fill = document.getElementById(`pfill-${i}`);
-      const ml   = document.getElementById(`pml-${i}`);
-      if (fill) {
-        fill.style.width = pct + '%';
-        if (pct >= 100) fill.classList.add('done');
-      }
-      if (ml) ml.textContent = Math.round(poured[i]) + ' ml';
-      totalPoured += poured[i];
-    });
 
-    const overallPct = Math.round((totalPoured / totalTarget) * 100);
-    const ofill = document.getElementById('progress-overall-fill');
-    const pctEl = document.getElementById('progress-pct');
-    if (ofill) ofill.style.width = overallPct + '%';
-    if (pctEl) pctEl.textContent = overallPct + '%';
-
-    if (!anyPouring) {
-      allDone = true;
-      clearInterval(interval);
-      setTimeout(() => goTo('screen-done'), 900);
-    }
-  }, 200);
-}
-
-/* ── INIT ─────────────────────────────────────────────── */
-buildDrinksGrid();
-buildCustom();
-</script>
-</body>
+      /* ── INIT ─────────────────────────────────────────────── */
+      buildDrinksGrid();
+      buildCustom();
+    </script>
+  </body>
 </html>
