@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=1024, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MixBot POS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
@@ -15,10 +15,10 @@
         --accent: #c9954a;
         --accent-light: #e2b778;
         --accent-dim: rgba(201, 149, 74, 0.15);
-        --radius-sm: 10px;
-        --radius-md: 18px;
-        --radius-lg: 28px;
-        --radius-xl: 40px;
+        --radius-sm: 8px;
+        --radius-md: 14px;
+        --radius-lg: 20px;
+        --radius-xl: 28px;
         --trans: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
@@ -27,15 +27,13 @@
         --bg2: #161618;
         --bg3: #1e1e21;
         --bg4: #252528;
-        --glass: rgba(255, 255, 255, 0.04);
-        --glass-b: rgba(255, 255, 255, 0.08);
         --text: #f0ede8;
         --text2: #9e9a94;
         --text3: #5c5a56;
         --border: rgba(255, 255, 255, 0.07);
         --border2: rgba(255, 255, 255, 0.12);
-        --shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
-        --shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.4);
+        --shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+        --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.4);
       }
 
       [data-theme="light"] {
@@ -43,15 +41,13 @@
         --bg2: #efebe4;
         --bg3: #e8e3db;
         --bg4: #ddd7ce;
-        --glass: rgba(0, 0, 0, 0.03);
-        --glass-b: rgba(0, 0, 0, 0.06);
         --text: #1a1916;
         --text2: #6b675f;
         --text3: #a09b91;
         --border: rgba(0, 0, 0, 0.07);
         --border2: rgba(0, 0, 0, 0.12);
-        --shadow: 0 24px 60px rgba(0, 0, 0, 0.12);
-        --shadow-sm: 0 4px 20px rgba(0, 0, 0, 0.08);
+        --shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+        --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.08);
       }
 
       /* ── RESET ────────────────────────────────────────────────── */
@@ -62,15 +58,27 @@
         margin: 0;
         padding: 0;
       }
-      html,
-      body {
+
+      html {
+        /* Scale the entire UI to fill 1024×600 natively.
+     Design canvas = 410×245. Scale = 1024/410 ≈ 2.494
+     This makes every px in CSS map to ~2.5 physical px on screen —
+     the same as "250% zoom" but automatic and always correct. */
         width: 1024px;
         height: 600px;
+        overflow: hidden;
+      }
+
+      body {
+        width: 410px;
+        height: 245px;
+        transform: scale(2.494);
+        transform-origin: top left;
         overflow: hidden;
         background: var(--bg);
         color: var(--text);
         font-family: "DM Sans", sans-serif;
-        font-size: 15px;
+        font-size: 13px;
         line-height: 1.5;
         transition:
           background var(--trans),
@@ -90,7 +98,7 @@
         transition:
           opacity 0.4s ease,
           transform 0.4s ease;
-        transform: translateY(12px);
+        transform: translateY(8px);
       }
       .screen.active {
         opacity: 1;
@@ -101,11 +109,11 @@
       /* ── THEME TOGGLE ─────────────────────────────────────────── */
       .theme-btn {
         position: fixed;
-        top: 18px;
-        right: 18px;
+        top: 7px;
+        right: 7px;
         z-index: 9999;
-        width: 40px;
-        height: 40px;
+        width: 26px;
+        height: 26px;
         border-radius: 50%;
         background: var(--bg3);
         border: 1px solid var(--border2);
@@ -114,7 +122,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 17px;
+        font-size: 12px;
         transition: all var(--trans);
       }
       .theme-btn:hover {
@@ -125,20 +133,20 @@
       /* ── BACK BUTTON ──────────────────────────────────────────── */
       .back-btn {
         position: absolute;
-        top: 18px;
-        left: 18px;
+        top: 7px;
+        left: 7px;
         z-index: 100;
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
         background: var(--bg3);
         border: 1px solid var(--border);
         color: var(--text2);
         border-radius: 50px;
-        padding: 8px 16px 8px 10px;
+        padding: 5px 10px 5px 6px;
         cursor: pointer;
         font-family: "DM Sans", sans-serif;
-        font-size: 13px;
+        font-size: 10px;
         transition: all var(--trans);
       }
       .back-btn:hover {
@@ -147,8 +155,8 @@
         border-color: var(--border2);
       }
       .back-btn svg {
-        width: 14px;
-        height: 14px;
+        width: 10px;
+        height: 10px;
       }
 
       /* ════════════════════════════════════════════════════════════
@@ -161,7 +169,6 @@
         overflow: hidden;
       }
 
-      /* animated liquid blobs */
       .blob-wrap {
         position: absolute;
         inset: 0;
@@ -171,8 +178,7 @@
       .blob {
         position: absolute;
         border-radius: 50%;
-        filter: blur(70px);
-        opacity: 0.18;
+        filter: blur(30px);
         animation: blobFloat 12s ease-in-out infinite;
       }
       [data-theme="dark"] .blob {
@@ -182,27 +188,27 @@
         opacity: 0.2;
       }
       .blob-1 {
-        width: 360px;
-        height: 360px;
+        width: 160px;
+        height: 160px;
         background: #c9954a;
-        top: -80px;
-        left: -60px;
+        top: -30px;
+        left: -20px;
         animation-delay: 0s;
       }
       .blob-2 {
-        width: 280px;
-        height: 280px;
+        width: 120px;
+        height: 120px;
         background: #8b5cf6;
-        bottom: -60px;
-        right: -40px;
+        bottom: -20px;
+        right: -20px;
         animation-delay: -4s;
       }
       .blob-3 {
-        width: 200px;
-        height: 200px;
+        width: 90px;
+        height: 90px;
         background: #c9954a;
-        bottom: 80px;
-        left: 200px;
+        bottom: 40px;
+        left: 100px;
         animation-delay: -8s;
       }
 
@@ -212,21 +218,20 @@
           transform: translate(0, 0) scale(1);
         }
         33% {
-          transform: translate(30px, -20px) scale(1.05);
+          transform: translate(12px, -8px) scale(1.05);
         }
         66% {
-          transform: translate(-20px, 25px) scale(0.95);
+          transform: translate(-8px, 10px) scale(0.95);
         }
       }
 
-      /* grid lines bg */
       .grid-bg {
         position: absolute;
         inset: 0;
         background-image:
           linear-gradient(var(--border) 1px, transparent 1px),
           linear-gradient(90deg, var(--border) 1px, transparent 1px);
-        background-size: 60px 60px;
+        background-size: 24px 24px;
         mask-image: radial-gradient(
           ellipse 70% 70% at 50% 50%,
           black 30%,
@@ -245,14 +250,13 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
-        animation: fadeUp 0.9s ease both;
+        gap: 4px;
       }
 
       @keyframes fadeUp {
         from {
           opacity: 0;
-          transform: translateY(24px);
+          transform: translateY(10px);
         }
         to {
           opacity: 1;
@@ -261,10 +265,9 @@
       }
 
       .welcome-eyebrow {
-        font-family: "DM Sans", sans-serif;
-        font-size: 11px;
+        font-size: 7px;
         font-weight: 500;
-        letter-spacing: 3px;
+        letter-spacing: 2.5px;
         text-transform: uppercase;
         color: var(--accent);
         opacity: 0;
@@ -272,10 +275,10 @@
       }
       .welcome-title {
         font-family: "Cormorant Garamond", serif;
-        font-size: 84px;
+        font-size: 52px;
         font-weight: 300;
         line-height: 0.9;
-        letter-spacing: -2px;
+        letter-spacing: -1px;
         color: var(--text);
         opacity: 0;
         animation: fadeUp 0.7s 0.35s ease both;
@@ -285,24 +288,24 @@
         color: var(--accent);
       }
       .welcome-sub {
-        font-size: 14px;
+        font-size: 10px;
         color: var(--text2);
-        margin-top: 6px;
+        margin-top: 4px;
         opacity: 0;
         animation: fadeUp 0.7s 0.5s ease both;
       }
 
       .tap-btn {
-        margin-top: 40px;
+        margin-top: 18px;
         background: var(--accent);
         color: #0e0e0f;
         border: none;
         border-radius: 50px;
-        padding: 16px 52px;
+        padding: 9px 28px;
         font-family: "DM Sans", sans-serif;
-        font-size: 15px;
+        font-size: 11px;
         font-weight: 500;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
         cursor: pointer;
         position: relative;
         overflow: hidden;
@@ -326,10 +329,9 @@
       }
 
       .tap-hint {
-        font-size: 12px;
+        font-size: 9px;
         color: var(--text3);
-        margin-top: 14px;
-        animation: pulse 3s ease-in-out infinite;
+        margin-top: 8px;
         opacity: 0;
         animation:
           fadeUp 0.7s 0.9s ease both,
@@ -351,34 +353,33 @@
       #screen-mode {
         align-items: center;
         justify-content: center;
-        gap: 28px;
-        padding: 40px;
+        gap: 14px;
+        padding: 20px;
       }
 
       .mode-header {
         text-align: center;
-        margin-bottom: 8px;
       }
       .mode-header h2 {
         font-family: "Cormorant Garamond", serif;
-        font-size: 42px;
+        font-size: 26px;
         font-weight: 300;
         color: var(--text);
       }
       .mode-header p {
-        font-size: 13px;
+        font-size: 9px;
         color: var(--text2);
-        margin-top: 4px;
+        margin-top: 2px;
       }
 
       .mode-cards {
         display: flex;
-        gap: 20px;
+        gap: 12px;
       }
 
       .mode-card {
-        width: 300px;
-        height: 280px;
+        width: 160px;
+        height: 150px;
         background: var(--bg2);
         border: 1px solid var(--border);
         border-radius: var(--radius-xl);
@@ -386,7 +387,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: 8px;
         cursor: pointer;
         position: relative;
         overflow: hidden;
@@ -406,26 +407,26 @@
       }
       .mode-card:hover {
         border-color: var(--accent);
-        transform: translateY(-4px);
+        transform: translateY(-2px);
         box-shadow: var(--shadow);
       }
       .mode-card:hover::before {
         opacity: 1;
       }
       .mode-card:active {
-        transform: scale(0.98) translateY(-2px);
+        transform: scale(0.98);
       }
 
       .mode-icon {
-        width: 72px;
-        height: 72px;
+        width: 44px;
+        height: 44px;
         background: var(--accent-dim);
         border: 1px solid rgba(201, 149, 74, 0.25);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 30px;
+        font-size: 20px;
         transition: all var(--trans);
       }
       .mode-card:hover .mode-icon {
@@ -434,17 +435,18 @@
       }
       .mode-card h3 {
         font-family: "Cormorant Garamond", serif;
-        font-size: 26px;
+        font-size: 17px;
         font-weight: 400;
         color: var(--text);
         position: relative;
       }
       .mode-card p {
-        font-size: 12px;
+        font-size: 8px;
         color: var(--text2);
         text-align: center;
-        padding: 0 24px;
+        padding: 0 10px;
         position: relative;
+        line-height: 1.4;
       }
 
       /* ════════════════════════════════════════════════════════════
@@ -459,18 +461,18 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 20px 28px 16px;
+        padding: 9px 12px 8px;
         border-bottom: 1px solid var(--border);
         flex-shrink: 0;
       }
       .drinks-header-left {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 8px;
       }
       .drinks-header h2 {
         font-family: "Cormorant Garamond", serif;
-        font-size: 30px;
+        font-size: 19px;
         font-weight: 300;
       }
       .drinks-count {
@@ -478,9 +480,13 @@
         color: var(--accent);
         border: 1px solid rgba(201, 149, 74, 0.3);
         border-radius: 20px;
-        padding: 3px 12px;
-        font-size: 12px;
+        padding: 1px 7px;
+        font-size: 8px;
         font-weight: 500;
+      }
+      .drinks-header-hint {
+        font-size: 8px;
+        color: var(--text3);
       }
 
       .drinks-grid {
@@ -488,14 +494,11 @@
         overflow-y: auto;
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-        padding: 20px 24px;
+        gap: 8px;
+        padding: 8px 10px;
       }
       .drinks-grid::-webkit-scrollbar {
-        width: 4px;
-      }
-      .drinks-grid::-webkit-scrollbar-track {
-        background: transparent;
+        width: 3px;
       }
       .drinks-grid::-webkit-scrollbar-thumb {
         background: var(--border2);
@@ -506,14 +509,14 @@
         background: var(--bg2);
         border: 1px solid var(--border);
         border-radius: var(--radius-lg);
-        padding: 22px 20px 18px;
+        padding: 10px 10px 8px;
         cursor: pointer;
         position: relative;
         overflow: hidden;
         transition: all var(--trans);
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 4px;
       }
       .drink-card::after {
         content: "";
@@ -530,7 +533,7 @@
       }
       .drink-card:hover {
         border-color: var(--accent);
-        transform: translateY(-3px);
+        transform: translateY(-2px);
         box-shadow: var(--shadow-sm);
       }
       .drink-card:hover::after {
@@ -541,33 +544,31 @@
       }
 
       .drink-emoji {
-        font-size: 32px;
+        font-size: 22px;
         line-height: 1;
       }
       .drink-name {
         font-family: "Cormorant Garamond", serif;
-        font-size: 20px;
+        font-size: 14px;
         font-weight: 400;
         color: var(--text);
-        margin-top: 4px;
       }
       .drink-desc {
-        font-size: 11px;
+        font-size: 8px;
         color: var(--text2);
         line-height: 1.4;
       }
       .drink-tags {
         display: flex;
-        gap: 6px;
+        gap: 3px;
         flex-wrap: wrap;
-        margin-top: 4px;
       }
       .drink-tag {
         background: var(--bg3);
         border: 1px solid var(--border);
         border-radius: 20px;
-        padding: 2px 9px;
-        font-size: 10px;
+        padding: 1px 5px;
+        font-size: 7px;
         color: var(--text3);
       }
       .drink-footer {
@@ -575,28 +576,28 @@
         align-items: center;
         justify-content: space-between;
         margin-top: auto;
-        padding-top: 10px;
+        padding-top: 6px;
         border-top: 1px solid var(--border);
       }
       .drink-price {
         font-family: "Cormorant Garamond", serif;
-        font-size: 22px;
+        font-size: 15px;
         font-weight: 400;
         color: var(--accent);
       }
       .drink-price span {
-        font-size: 13px;
+        font-size: 9px;
       }
       .drink-arrow {
-        width: 28px;
-        height: 28px;
+        width: 18px;
+        height: 18px;
         background: var(--accent-dim);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--accent);
-        font-size: 13px;
+        font-size: 9px;
         transition: all var(--trans);
       }
       .drink-card:hover .drink-arrow {
@@ -612,7 +613,7 @@
         inset: 0;
         z-index: 500;
         background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(8px);
+        backdrop-filter: blur(6px);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -629,12 +630,12 @@
         background: var(--bg2);
         border: 1px solid var(--border2);
         border-radius: var(--radius-xl);
-        width: 560px;
-        max-height: 520px;
+        width: 300px;
+        max-height: 222px;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        transform: translateY(20px) scale(0.97);
+        transform: translateY(10px) scale(0.97);
         transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
         box-shadow: var(--shadow);
       }
@@ -643,23 +644,23 @@
       }
 
       .modal-hero {
-        padding: 32px 32px 24px;
+        padding: 14px 14px 10px;
         background: linear-gradient(135deg, var(--bg3), var(--bg2));
         border-bottom: 1px solid var(--border);
         position: relative;
       }
       .modal-close {
         position: absolute;
-        top: 16px;
-        right: 16px;
-        width: 32px;
-        height: 32px;
+        top: 8px;
+        right: 8px;
+        width: 22px;
+        height: 22px;
         border-radius: 50%;
         background: var(--bg4);
         border: 1px solid var(--border);
         color: var(--text2);
         cursor: pointer;
-        font-size: 16px;
+        font-size: 11px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -670,29 +671,29 @@
         color: var(--text);
       }
       .modal-emoji {
-        font-size: 48px;
-        margin-bottom: 12px;
+        font-size: 28px;
+        margin-bottom: 6px;
       }
       .modal-name {
         font-family: "Cormorant Garamond", serif;
-        font-size: 36px;
+        font-size: 22px;
         font-weight: 300;
         color: var(--text);
       }
       .modal-desc {
-        font-size: 13px;
+        font-size: 9px;
         color: var(--text2);
-        margin-top: 6px;
-        line-height: 1.5;
+        margin-top: 3px;
+        line-height: 1.4;
       }
 
       .modal-body {
-        padding: 24px 32px;
+        padding: 10px 14px;
         overflow-y: auto;
         flex: 1;
       }
       .modal-body::-webkit-scrollbar {
-        width: 4px;
+        width: 3px;
       }
       .modal-body::-webkit-scrollbar-thumb {
         background: var(--border2);
@@ -700,27 +701,27 @@
       }
 
       .modal-section-label {
-        font-size: 10px;
+        font-size: 7px;
         font-weight: 500;
-        letter-spacing: 2px;
+        letter-spacing: 1.5px;
         text-transform: uppercase;
         color: var(--text3);
-        margin-bottom: 12px;
+        margin-bottom: 6px;
       }
       .ingredient-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        margin-bottom: 20px;
+        gap: 4px;
+        margin-bottom: 10px;
       }
       .ingredient-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 8px 12px;
+        padding: 5px 8px;
         background: var(--bg3);
         border-radius: var(--radius-sm);
-        font-size: 13px;
+        font-size: 9px;
       }
       .ingredient-name {
         color: var(--text);
@@ -730,22 +731,21 @@
         font-weight: 500;
       }
 
-      /* add-ons */
       .addons-row {
         display: flex;
-        gap: 10px;
-        margin-bottom: 24px;
+        gap: 6px;
+        margin-bottom: 10px;
       }
       .addon-chip {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 16px;
+        gap: 5px;
+        padding: 6px 10px;
         background: var(--bg3);
         border: 1.5px solid var(--border);
         border-radius: 50px;
         cursor: pointer;
-        font-size: 13px;
+        font-size: 9px;
         color: var(--text2);
         transition: all var(--trans);
         user-select: none;
@@ -756,14 +756,14 @@
         color: var(--accent);
       }
       .addon-check {
-        width: 16px;
-        height: 16px;
+        width: 11px;
+        height: 11px;
         border-radius: 50%;
         border: 1.5px solid var(--border2);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 10px;
+        font-size: 7px;
         transition: all var(--trans);
       }
       .addon-chip.selected .addon-check {
@@ -776,26 +776,26 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 20px 32px;
+        padding: 8px 14px;
         border-top: 1px solid var(--border);
       }
       .modal-price {
         font-family: "Cormorant Garamond", serif;
-        font-size: 34px;
+        font-size: 22px;
         font-weight: 300;
         color: var(--accent);
       }
       .modal-price span {
-        font-size: 16px;
+        font-size: 10px;
       }
       .make-btn {
         background: var(--accent);
         color: #0e0e0f;
         border: none;
         border-radius: 50px;
-        padding: 14px 36px;
+        padding: 8px 18px;
         font-family: "DM Sans", sans-serif;
-        font-size: 14px;
+        font-size: 9px;
         font-weight: 500;
         cursor: pointer;
         transition: all var(--trans);
@@ -828,19 +828,19 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 20px 28px 16px;
+        padding: 9px 12px 8px;
         border-bottom: 1px solid var(--border);
         flex-shrink: 0;
       }
       .custom-header h2 {
         font-family: "Cormorant Garamond", serif;
-        font-size: 30px;
+        font-size: 19px;
         font-weight: 300;
       }
       .custom-header p {
-        font-size: 12px;
+        font-size: 8px;
         color: var(--text2);
-        margin-top: 2px;
+        margin-top: 1px;
       }
 
       .custom-body {
@@ -851,10 +851,10 @@
 
       .slots-panel {
         flex: 1;
-        padding: 20px 20px 20px 24px;
+        padding: 8px 8px 8px 10px;
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 12px;
+        gap: 6px;
         overflow-y: auto;
         align-content: start;
       }
@@ -866,7 +866,7 @@
         background: var(--bg2);
         border: 1px solid var(--border);
         border-radius: var(--radius-md);
-        padding: 16px;
+        padding: 8px;
         transition: all var(--trans);
       }
       .slot-card.active-slot {
@@ -877,24 +877,25 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 12px;
+        margin-bottom: 5px;
       }
       .slot-label {
-        font-size: 10px;
+        font-size: 7px;
         font-weight: 500;
-        letter-spacing: 2px;
+        letter-spacing: 1.5px;
         text-transform: uppercase;
         color: var(--text3);
       }
       .slot-toggle {
-        width: 36px;
-        height: 20px;
+        width: 26px;
+        height: 14px;
         background: var(--bg4);
-        border-radius: 10px;
+        border-radius: 7px;
         position: relative;
         cursor: pointer;
         transition: background var(--trans);
         border: 1px solid var(--border);
+        flex-shrink: 0;
       }
       .slot-toggle.on {
         background: var(--accent);
@@ -905,30 +906,29 @@
         position: absolute;
         top: 2px;
         left: 2px;
-        width: 14px;
-        height: 14px;
+        width: 9px;
+        height: 9px;
         border-radius: 50%;
         background: #fff;
         transition: transform var(--trans);
       }
       .slot-toggle.on::after {
-        transform: translateX(16px);
+        transform: translateX(12px);
       }
 
       .slot-name {
         font-family: "Cormorant Garamond", serif;
-        font-size: 17px;
+        font-size: 13px;
         font-weight: 400;
         color: var(--text);
-        margin-bottom: 12px;
+        margin-bottom: 7px;
       }
 
       .slot-stepper {
         display: flex;
         align-items: center;
-        gap: 0;
         background: var(--bg4);
-        border-radius: 12px;
+        border-radius: 8px;
         border: 1px solid var(--border);
         overflow: hidden;
         opacity: 1;
@@ -939,13 +939,12 @@
         pointer-events: none;
       }
       .stepper-btn {
-        width: 120px;
-        height: 42px;
+        width: 34px;
+        height: 30px;
         background: transparent;
         border: none;
-        background-color: var(--accent);
-        color: var(--text);
-        font-size: 20px;
+        color: var(--text2);
+        font-size: 16px;
         font-weight: 300;
         cursor: pointer;
         display: flex;
@@ -962,11 +961,11 @@
       .stepper-btn:active {
         background: var(--accent-dim);
         color: var(--accent);
-        transform: scale(0.92);
+        transform: scale(0.9);
       }
       .stepper-divider {
         width: 1px;
-        height: 24px;
+        height: 16px;
         background: var(--border);
         flex-shrink: 0;
       }
@@ -974,21 +973,20 @@
         flex: 1;
         text-align: center;
         font-family: "DM Sans", sans-serif;
-        font-size: 14px;
+        font-size: 10px;
         font-weight: 500;
         color: var(--accent);
-        letter-spacing: 0.3px;
         pointer-events: none;
       }
 
       /* right summary panel */
       .custom-summary {
-        width: 240px;
+        width: 110px;
         border-left: 1px solid var(--border);
-        padding: 20px;
+        padding: 8px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 6px;
         flex-shrink: 0;
         overflow-y: auto;
       }
@@ -996,26 +994,26 @@
         display: none;
       }
       .summary-title {
-        font-size: 10px;
+        font-size: 7px;
         font-weight: 500;
-        letter-spacing: 2px;
+        letter-spacing: 1.5px;
         text-transform: uppercase;
         color: var(--text3);
       }
       .summary-items {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 3px;
         flex: 1;
       }
       .summary-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 12px;
-        padding: 6px 10px;
+        font-size: 8px;
+        padding: 4px 6px;
         background: var(--bg3);
-        border-radius: 8px;
+        border-radius: 5px;
       }
       .summary-item-name {
         color: var(--text2);
@@ -1025,30 +1023,30 @@
         font-weight: 500;
       }
       .summary-empty {
-        font-size: 12px;
+        font-size: 8px;
         color: var(--text3);
         font-style: italic;
         text-align: center;
-        margin-top: 20px;
+        margin-top: 8px;
       }
 
       .custom-addons {
-        margin-top: 4px;
+        margin-top: 2px;
       }
       .custom-addons .summary-title {
-        margin-bottom: 10px;
+        margin-bottom: 5px;
       }
       .custom-addons-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 4px;
       }
       .custom-addon-chip {
-        padding: 6px 12px;
+        padding: 4px 7px;
         border-radius: 50px;
         background: var(--bg3);
-        border: 1.5px solid var(--border);
-        font-size: 11px;
+        border: 1px solid var(--border);
+        font-size: 8px;
         color: var(--text2);
         cursor: pointer;
         transition: all var(--trans);
@@ -1064,9 +1062,9 @@
         color: #0e0e0f;
         border: none;
         border-radius: 50px;
-        padding: 14px;
+        padding: 8px 6px;
         font-family: "DM Sans", sans-serif;
-        font-size: 14px;
+        font-size: 9px;
         font-weight: 500;
         cursor: pointer;
         transition: all var(--trans);
@@ -1095,7 +1093,7 @@
         display: none;
       }
       .custom-total-vol {
-        font-size: 12px;
+        font-size: 8px;
         color: var(--text2);
         text-align: center;
       }
@@ -1111,63 +1109,62 @@
         justify-content: center;
         flex-direction: column;
         gap: 0;
-        padding: 32px 48px;
+        padding: 14px 24px;
       }
 
       .progress-header {
         text-align: center;
-        margin-bottom: 32px;
+        margin-bottom: 12px;
       }
       .progress-header .eyebrow {
-        font-size: 10px;
+        font-size: 7px;
         font-weight: 500;
-        letter-spacing: 3px;
+        letter-spacing: 2px;
         text-transform: uppercase;
         color: var(--accent);
-        margin-bottom: 8px;
+        margin-bottom: 4px;
       }
       .progress-header h2 {
         font-family: "Cormorant Garamond", serif;
-        font-size: 42px;
+        font-size: 26px;
         font-weight: 300;
         color: var(--text);
       }
       .progress-header p {
-        font-size: 13px;
+        font-size: 9px;
         color: var(--text2);
-        margin-top: 4px;
+        margin-top: 2px;
       }
 
       .progress-slots {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 7px;
         width: 100%;
-        max-width: 560px;
+        max-width: 280px;
       }
-
       .progress-slot {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 8px;
       }
       .progress-slot-label {
-        width: 120px;
+        width: 70px;
         flex-shrink: 0;
-        font-size: 13px;
+        font-size: 9px;
         color: var(--text2);
         text-align: right;
       }
       .progress-track {
         flex: 1;
-        height: 8px;
+        height: 5px;
         background: var(--bg4);
-        border-radius: 4px;
+        border-radius: 3px;
         overflow: hidden;
       }
       .progress-fill {
         height: 100%;
-        border-radius: 4px;
+        border-radius: 3px;
         background: linear-gradient(90deg, var(--accent), var(--accent-light));
         width: 0%;
         transition: width 0.5s ease;
@@ -1176,28 +1173,28 @@
         background: #4ade80;
       }
       .progress-ml {
-        width: 50px;
+        width: 30px;
         flex-shrink: 0;
-        font-size: 12px;
+        font-size: 8px;
         color: var(--accent);
         font-weight: 500;
       }
 
       .progress-overall {
-        margin-top: 28px;
+        margin-top: 12px;
         width: 100%;
-        max-width: 560px;
+        max-width: 280px;
       }
       .progress-overall-track {
         width: 100%;
-        height: 3px;
+        height: 2px;
         background: var(--bg4);
-        border-radius: 2px;
-        margin-bottom: 10px;
+        border-radius: 1px;
+        margin-bottom: 5px;
       }
       .progress-overall-fill {
         height: 100%;
-        border-radius: 2px;
+        border-radius: 1px;
         background: var(--accent);
         width: 0%;
         transition: width 0.5s ease;
@@ -1205,7 +1202,7 @@
       .progress-overall-text {
         display: flex;
         justify-content: space-between;
-        font-size: 12px;
+        font-size: 8px;
         color: var(--text2);
       }
       .progress-pct {
@@ -1214,14 +1211,14 @@
       }
 
       .progress-anim {
-        margin-top: 24px;
+        margin-top: 10px;
         display: flex;
-        gap: 6px;
+        gap: 4px;
         align-items: center;
       }
       .drop {
-        width: 8px;
-        height: 8px;
+        width: 5px;
+        height: 5px;
         border-radius: 50%;
         background: var(--accent);
         opacity: 0.4;
@@ -1252,17 +1249,17 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        gap: 16px;
+        gap: 8px;
       }
       .done-ring {
-        width: 100px;
-        height: 100px;
+        width: 60px;
+        height: 60px;
         border-radius: 50%;
         border: 2px solid var(--accent);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 44px;
+        font-size: 28px;
         animation: ringPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
       }
       @keyframes ringPop {
@@ -1277,32 +1274,32 @@
       }
       .done-title {
         font-family: "Cormorant Garamond", serif;
-        font-size: 52px;
+        font-size: 36px;
         font-weight: 300;
         color: var(--text);
         animation: fadeUp 0.6s 0.2s both;
       }
-      .done-sub {
-        font-size: 14px;
-        color: var(--text2);
-        animation: fadeUp 0.6s 0.35s both;
-      }
       .done-name {
         font-family: "Cormorant Garamond", serif;
-        font-size: 22px;
+        font-size: 15px;
         font-style: italic;
         color: var(--accent);
+        animation: fadeUp 0.6s 0.35s both;
+      }
+      .done-sub {
+        font-size: 10px;
+        color: var(--text2);
         animation: fadeUp 0.6s 0.45s both;
       }
       .done-btn {
-        margin-top: 16px;
+        margin-top: 6px;
         background: transparent;
         color: var(--text2);
         border: 1px solid var(--border2);
         border-radius: 50px;
-        padding: 12px 32px;
+        padding: 7px 20px;
         font-family: "DM Sans", sans-serif;
-        font-size: 13px;
+        font-size: 9px;
         cursor: pointer;
         transition: all var(--trans);
         animation: fadeUp 0.6s 0.6s both;
@@ -1310,7 +1307,6 @@
       .done-btn:hover {
         background: var(--bg3);
         color: var(--text);
-        border-color: var(--border2);
       }
     </style>
   </head>
@@ -1394,9 +1390,7 @@
           <h2>Cocktail Menu</h2>
           <span class="drinks-count">6 drinks</span>
         </div>
-        <div style="font-size: 12px; color: var(--text3)">
-          Tap a drink to see details
-        </div>
+        <div class="drinks-header-hint">Tap a drink to see details</div>
       </div>
       <div class="drinks-grid" id="drinks-grid"></div>
     </div>
@@ -1421,7 +1415,7 @@
         </button>
         <div>
           <h2>Build Your Drink</h2>
-          <p>Toggle slots on/off · adjust ml with sliders</p>
+          <p>Toggle slots on · adjust ml with +/− buttons</p>
         </div>
         <div></div>
       </div>
@@ -1474,7 +1468,7 @@
         <div class="drop"></div>
         <div class="drop"></div>
         <div class="drop"></div>
-        <span style="font-size: 12px; color: var(--text3); margin-left: 6px"
+        <span style="font-size: 8px; color: var(--text3); margin-left: 4px"
           >Pouring…</span
         >
       </div>
