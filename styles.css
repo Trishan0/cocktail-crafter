@@ -1,0 +1,2619 @@
+/* ── TOKENS ───────────────────────────────────────────────── */
+:root {
+    --accent: #c9954a;
+    --accent-light: #e2b778;
+    --accent-dim: rgba(201, 149, 74, 0.15);
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+    --trans: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] {
+    --bg: #0e0e0f;
+    --bg2: #161618;
+    --bg3: #1e1e21;
+    --bg4: #252528;
+    --text: #f0ede8;
+    --text2: #9e9a94;
+    --text3: #5c5a56;
+    --border: rgba(255, 255, 255, 0.07);
+    --border2: rgba(255, 255, 255, 0.12);
+    --shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] {
+    --bg: #f5f2ed;
+    --bg2: #efebe4;
+    --bg3: #e8e3db;
+    --bg4: #ddd7ce;
+    --text: #1a1916;
+    --text2: #6b675f;
+    --text3: #a09b91;
+    --border: rgba(0, 0, 0, 0.07);
+    --border2: rgba(0, 0, 0, 0.12);
+    --shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+    --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* ── RESET ────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    height: 100vh;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "DM Sans", sans-serif;
+    font-size: clamp(13px, 1.6vw, 18px);
+    line-height: 1.5;
+    transition:
+        background var(--trans),
+        color var(--trans);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ── SCREENS ──────────────────────────────────────────────── */
+.screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 0.4s ease,
+        transform 0.4s ease;
+    transform: translateY(8px);
+}
+
+.screen.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateY(0);
+}
+
+/* ── THEME TOGGLE ─────────────────────────────────────────── */
+.theme-btn {
+    position: fixed;
+    top: 1.5vh;
+    right: 1.5vh;
+    z-index: 9999;
+    width: 4.5vh;
+    height: 4.5vh;
+    border-radius: 50%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8vh;
+    transition: all var(--trans);
+}
+
+.theme-btn:hover {
+    background: var(--bg4);
+    color: var(--accent);
+}
+
+/* ── BACK BUTTON ──────────────────────────────────────────── */
+.back-btn {
+    position: absolute;
+    top: 1.5vh;
+    left: 1.5vh;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 50px;
+    padding: 0.8vh 1.4vw 0.8vh 0.8vw;
+    cursor: pointer;
+    font-family: "DM Sans", sans-serif;
+    font-size: clamp(11px, 1.3vw, 15px);
+    transition: all var(--trans);
+}
+
+.back-btn:hover {
+    background: var(--bg4);
+    color: var(--text);
+    border-color: var(--border2);
+}
+
+.back-btn svg {
+    width: 1.4vw;
+    height: 1.4vw;
+    min-width: 12px;
+    min-height: 12px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   SCREEN 1: WELCOME
+═══════════════════════════════════════════════════════════ */
+#screen-welcome {
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    overflow: hidden;
+}
+
+.blob-wrap {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(30px);
+    animation: blobFloat 12s ease-in-out infinite;
+}
+
+[data-theme="dark"] .blob {
+    opacity: 0.12;
+}
+
+[data-theme="light"] .blob {
+    opacity: 0.2;
+}
+
+.blob-1 {
+    width: 35vw;
+    height: 35vw;
+    background: #c9954a;
+    top: -8vh;
+    left: -4vw;
+    animation-delay: 0s;
+}
+
+.blob-2 {
+    width: 25vw;
+    height: 25vw;
+    background: #8b5cf6;
+    bottom: -5vh;
+    right: -3vw;
+    animation-delay: -4s;
+}
+
+.blob-3 {
+    width: 18vw;
+    height: 18vw;
+    background: #c9954a;
+    bottom: 10vh;
+    left: 20vw;
+    animation-delay: -8s;
+}
+
+@keyframes blobFloat {
+
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    33% {
+        transform: translate(2vw, -2vh) scale(1.05);
+    }
+
+    66% {
+        transform: translate(-1.5vw, 2.5vh) scale(0.95);
+    }
+}
+
+.grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 4vw 4vw;
+    mask-image: radial-gradient(ellipse 70% 70% at 50% 50%,
+            black 30%,
+            transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%,
+            black 30%,
+            transparent 100%);
+}
+
+.welcome-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1vh;
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(2vh);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.welcome-eyebrow {
+    font-size: clamp(9px, 1vw, 13px);
+    font-weight: 500;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0;
+    animation: fadeUp 0.6s 0.2s ease both;
+}
+
+.welcome-title {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(52px, 10vw, 110px);
+    font-weight: 300;
+    line-height: 0.9;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    opacity: 0;
+    animation: fadeUp 0.7s 0.35s ease both;
+}
+
+.welcome-title em {
+    font-style: italic;
+    color: var(--accent);
+}
+
+.welcome-sub {
+    font-size: clamp(11px, 1.2vw, 16px);
+    color: var(--text2);
+    margin-top: 0.5vh;
+    opacity: 0;
+    animation: fadeUp 0.7s 0.5s ease both;
+}
+
+.tap-btn {
+    margin-top: 3vh;
+    background: var(--accent);
+    color: #0e0e0f;
+    border: none;
+    border-radius: 50px;
+    padding: 1.6vh 5vw;
+    font-family: "DM Sans", sans-serif;
+    font-size: clamp(12px, 1.3vw, 17px);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--trans);
+    opacity: 0;
+    animation: fadeUp 0.7s 0.7s ease both;
+}
+
+.tap-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.15);
+    opacity: 0;
+    transition: opacity var(--trans);
+}
+
+.tap-btn:hover::after {
+    opacity: 1;
+}
+
+.tap-btn:active {
+    transform: scale(0.97);
+}
+
+.tap-hint {
+    font-size: clamp(9px, 1vw, 13px);
+    color: var(--text3);
+    margin-top: 1vh;
+    opacity: 0;
+    animation:
+        fadeUp 0.7s 0.9s ease both,
+        pulse 3s 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════
+   SCREEN 2: MODE SELECT
+═══════════════════════════════════════════════════════════ */
+#screen-mode {
+    align-items: center;
+    justify-content: center;
+    gap: 3vh;
+    padding: 4vh 4vw;
+}
+
+.mode-header {
+    text-align: center;
+}
+
+.mode-header h2 {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(28px, 4vw, 52px);
+    font-weight: 300;
+    color: var(--text);
+}
+
+.mode-header p {
+    font-size: clamp(11px, 1.1vw, 15px);
+    color: var(--text2);
+    margin-top: 0.5vh;
+}
+
+.mode-cards {
+    display: flex;
+    gap: 2vw;
+}
+
+.mode-card {
+    width: clamp(180px, 22vw, 320px);
+    height: clamp(160px, 22vh, 300px);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5vh;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--trans);
+}
+
+.mode-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%,
+            var(--accent-dim),
+            transparent 70%);
+    opacity: 0;
+    transition: opacity var(--trans);
+}
+
+.mode-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow);
+}
+
+.mode-card:hover::before {
+    opacity: 1;
+}
+
+.mode-card:active {
+    transform: scale(0.98);
+}
+
+.mode-icon {
+    width: clamp(44px, 6vw, 80px);
+    height: clamp(44px, 6vw, 80px);
+    background: var(--accent-dim);
+    border: 1px solid rgba(201, 149, 74, 0.25);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(18px, 2.8vw, 36px);
+    transition: all var(--trans);
+}
+
+.mode-card:hover .mode-icon {
+    background: rgba(201, 149, 74, 0.25);
+    border-color: var(--accent);
+}
+
+.mode-card h3 {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(18px, 2.2vw, 30px);
+    font-weight: 400;
+    color: var(--text);
+    position: relative;
+}
+
+.mode-card p {
+    font-size: clamp(10px, 1vw, 14px);
+    color: var(--text2);
+    text-align: center;
+    padding: 0 1.5vw;
+    position: relative;
+    line-height: 1.4;
+}
+
+/* ════════════════════════════════════════════════════════════
+   SCREEN 3: DEFAULT DRINKS
+═══════════════════════════════════════════════════════════ */
+#screen-drinks {
+    padding: 0;
+    flex-direction: column;
+}
+
+.drinks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1vh 2vw;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.drinks-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1vw;
+}
+
+.drinks-header h2 {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(14px, 1.8vw, 22px);
+    font-weight: 300;
+}
+
+.drinks-count {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid rgba(201, 149, 74, 0.3);
+    border-radius: 20px;
+    padding: 0.2vh 0.7vw;
+    font-size: clamp(8px, 0.75vw, 11px);
+    font-weight: 500;
+}
+
+.drinks-header-hint {
+    font-size: clamp(8px, 0.7vw, 10px);
+    color: var(--text3);
+}
+
+.drinks-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(6px, 0.8vw, 12px);
+    padding: clamp(6px, 1vh, 14px) clamp(8px, 1.2vw, 18px);
+}
+
+.drinks-grid::-webkit-scrollbar {
+    width: 3px;
+}
+
+.drinks-grid::-webkit-scrollbar-thumb {
+    background: var(--border2);
+    border-radius: 2px;
+}
+
+.drink-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: clamp(8px, 1.2vh, 14px) clamp(8px, 1vw, 14px);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--trans);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3px, 0.4vh, 6px);
+}
+
+.drink-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at 30% 0%,
+            var(--accent-dim),
+            transparent 60%);
+    opacity: 0;
+    transition: opacity var(--trans);
+}
+
+.drink-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.drink-card:hover::after {
+    opacity: 1;
+}
+
+.drink-card:active {
+    transform: scale(0.97);
+}
+
+.drink-emoji {
+    font-size: clamp(16px, 2.2vh, 26px);
+    line-height: 1;
+}
+
+.drink-name {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(12px, 1.3vw, 18px);
+    font-weight: 400;
+    color: var(--text);
+}
+
+.drink-desc {
+    font-size: clamp(8px, 0.7vw, 10px);
+    color: var(--text2);
+    line-height: 1.3;
+}
+
+.drink-tags {
+    display: flex;
+    gap: clamp(3px, 0.3vw, 5px);
+    flex-wrap: wrap;
+}
+
+.drink-tag {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.15vh 0.5vw;
+    font-size: clamp(7px, 0.6vw, 9px);
+    color: var(--text3);
+}
+
+.drink-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: clamp(4px, 0.7vh, 8px);
+    border-top: 1px solid var(--border);
+}
+
+.drink-price {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(12px, 1.4vw, 18px);
+    font-weight: 400;
+    color: var(--accent);
+}
+
+.drink-price span {
+    font-size: clamp(8px, 0.7vw, 11px);
+}
+
+.drink-arrow {
+    width: clamp(16px, 2.2vh, 26px);
+    height: clamp(16px, 2.2vh, 26px);
+    background: var(--accent-dim);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-size: clamp(8px, 0.9vw, 12px);
+    transition: all var(--trans);
+}
+
+.drink-card:hover .drink-arrow {
+    background: var(--accent);
+    color: #0e0e0f;
+}
+
+/* ════════════════════════════════════════════════════════════
+   MODAL: DRINK DETAIL
+═══════════════════════════════════════════════════════════ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.modal {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-xl);
+    width: clamp(320px, 48vw, 620px);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translateY(2vh) scale(0.97);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: var(--shadow);
+}
+
+.modal-overlay.open .modal {
+    transform: translateY(0) scale(1);
+}
+
+.modal-hero {
+    padding: clamp(16px, 2.5vh, 32px) clamp(16px, 2.5vw, 32px) clamp(12px, 2vh, 24px);
+    background: linear-gradient(135deg, var(--bg3), var(--bg2));
+    border-bottom: 1px solid var(--border);
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    top: clamp(8px, 1.2vh, 16px);
+    right: clamp(8px, 1.2vw, 16px);
+    width: clamp(26px, 3.5vh, 38px);
+    height: clamp(26px, 3.5vh, 38px);
+    border-radius: 50%;
+    background: var(--bg4);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    cursor: pointer;
+    font-size: clamp(12px, 1.5vh, 18px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--trans);
+}
+
+.modal-close:hover {
+    background: var(--bg3);
+    color: var(--text);
+}
+
+.modal-emoji {
+    font-size: clamp(28px, 5vh, 52px);
+    margin-bottom: clamp(6px, 1vh, 14px);
+}
+
+.modal-name {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(22px, 3.5vw, 42px);
+    font-weight: 300;
+    color: var(--text);
+}
+
+.modal-desc {
+    font-size: clamp(11px, 1.1vw, 14px);
+    color: var(--text2);
+    margin-top: 0.5vh;
+    line-height: 1.5;
+}
+
+.modal-body {
+    padding: clamp(12px, 2vh, 24px) clamp(16px, 2.5vw, 32px);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-body::-webkit-scrollbar {
+    width: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: var(--border2);
+    border-radius: 2px;
+}
+
+.modal-section-label {
+    font-size: clamp(9px, 0.9vw, 12px);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: clamp(6px, 1vh, 12px);
+}
+
+.ingredient-list {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(5px, 0.8vh, 10px);
+    margin-bottom: clamp(12px, 2vh, 22px);
+}
+
+.ingredient-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: clamp(6px, 1vh, 10px) clamp(10px, 1.2vw, 16px);
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    font-size: clamp(11px, 1.1vw, 14px);
+}
+
+.ingredient-name {
+    color: var(--text);
+}
+
+.ingredient-ml {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.addons-row {
+    display: flex;
+    gap: clamp(8px, 1vw, 14px);
+    margin-bottom: clamp(12px, 2vh, 24px);
+}
+
+.addon-chip {
+    display: flex;
+    align-items: center;
+    gap: clamp(6px, 0.7vw, 10px);
+    padding: clamp(8px, 1.2vh, 14px) clamp(12px, 1.4vw, 18px);
+    background: var(--bg3);
+    border: 1.5px solid var(--border);
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: clamp(11px, 1.1vw, 14px);
+    color: var(--text2);
+    transition: all var(--trans);
+    user-select: none;
+}
+
+.addon-chip.selected {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.addon-check {
+    width: clamp(14px, 1.8vh, 20px);
+    height: clamp(14px, 1.8vh, 20px);
+    border-radius: 50%;
+    border: 1.5px solid var(--border2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(9px, 1vh, 12px);
+    transition: all var(--trans);
+}
+
+.addon-chip.selected .addon-check {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0e0e0f;
+}
+
+.modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: clamp(10px, 1.5vh, 20px) clamp(16px, 2.5vw, 32px);
+    border-top: 1px solid var(--border);
+}
+
+.modal-price {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(24px, 3.5vw, 42px);
+    font-weight: 300;
+    color: var(--accent);
+}
+
+.modal-price span {
+    font-size: clamp(12px, 1.2vw, 16px);
+}
+
+.make-btn {
+    background: var(--accent);
+    color: #0e0e0f;
+    border: none;
+    border-radius: 50px;
+    padding: clamp(10px, 1.5vh, 16px) clamp(20px, 2.5vw, 40px);
+    font-family: "DM Sans", sans-serif;
+    font-size: clamp(11px, 1.1vw, 15px);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--trans);
+    position: relative;
+    overflow: hidden;
+}
+
+.make-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.2);
+    opacity: 0;
+    transition: opacity var(--trans);
+}
+
+.make-btn:hover::after {
+    opacity: 1;
+}
+
+.make-btn:active {
+    transform: scale(0.97);
+}
+
+/* ════════════════════════════════════════════════════════════
+   SCREEN 4: CUSTOM DRINK
+═══════════════════════════════════════════════════════════ */
+#screen-custom {
+    flex-direction: column;
+}
+
+.custom-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5vh 2.5vw;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.custom-header h2 {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(20px, 2.8vw, 36px);
+    font-weight: 300;
+}
+
+.custom-header p {
+    font-size: clamp(10px, 1vw, 13px);
+    color: var(--text2);
+    margin-top: 0.3vh;
+}
+
+.custom-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.slots-panel {
+    flex: 1;
+    padding: clamp(10px, 1.5vh, 20px) clamp(10px, 1.5vw, 20px);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(8px, 1.2vw, 16px);
+    overflow-y: auto;
+    align-content: start;
+}
+
+.slots-panel::-webkit-scrollbar {
+    display: none;
+}
+
+.slot-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: clamp(10px, 1.5vh, 18px);
+    transition: all var(--trans);
+}
+
+.slot-card.active-slot {
+    border-color: var(--accent);
+}
+
+.slot-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: clamp(6px, 1vh, 12px);
+}
+
+.slot-label {
+    font-size: clamp(8px, 0.85vw, 11px);
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text3);
+}
+
+.slot-toggle {
+    width: clamp(30px, 3.5vw, 44px);
+    height: clamp(16px, 2vh, 24px);
+    background: var(--bg4);
+    border-radius: 999px;
+    position: relative;
+    cursor: pointer;
+    transition: background var(--trans);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.slot-toggle.on {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.slot-toggle::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: calc(clamp(16px, 2vh, 24px) - 4px);
+    height: calc(clamp(16px, 2vh, 24px) - 4px);
+    border-radius: 50%;
+    background: #fff;
+    transition: transform var(--trans);
+}
+
+.slot-toggle.on::after {
+    transform: translateX(calc(clamp(30px, 3.5vw, 44px) - clamp(16px, 2vh, 24px)));
+}
+
+.slot-name {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(14px, 1.6vw, 20px);
+    font-weight: 400;
+    color: var(--text);
+    margin-bottom: clamp(8px, 1.2vh, 14px);
+}
+
+.slot-stepper {
+    display: flex;
+    align-items: center;
+    background: var(--bg4);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    opacity: 1;
+    transition: opacity var(--trans);
+}
+
+.slot-stepper.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.stepper-btn {
+    width: clamp(38px, 5vw, 60px);
+    height: clamp(36px, 5.5vh, 52px);
+    background: transparent;
+    border: none;
+    color: var(--text2);
+    font-size: clamp(18px, 2.5vh, 28px);
+    font-weight: 300;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--trans);
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.stepper-btn:hover {
+    background: var(--bg3);
+    color: var(--accent);
+}
+
+.stepper-btn:active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    transform: scale(0.9);
+}
+
+.stepper-divider {
+    width: 1px;
+    height: 55%;
+    background: var(--border);
+    flex-shrink: 0;
+}
+
+.stepper-val {
+    flex: 1;
+    text-align: center;
+    font-family: "DM Sans", sans-serif;
+    font-size: clamp(11px, 1.2vw, 16px);
+    font-weight: 500;
+    color: var(--accent);
+    pointer-events: none;
+}
+
+.custom-summary {
+    width: clamp(130px, 17vw, 220px);
+    border-left: 1px solid var(--border);
+    padding: clamp(10px, 1.5vh, 18px) clamp(10px, 1.2vw, 16px);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(8px, 1.2vh, 14px);
+    flex-shrink: 0;
+    overflow-y: auto;
+}
+
+.custom-summary::-webkit-scrollbar {
+    display: none;
+}
+
+.summary-title {
+    font-size: clamp(8px, 0.85vw, 11px);
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text3);
+}
+
+.summary-items {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(4px, 0.6vh, 8px);
+    flex: 1;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: clamp(10px, 1vw, 13px);
+    padding: clamp(4px, 0.7vh, 8px) clamp(6px, 0.8vw, 10px);
+    background: var(--bg3);
+    border-radius: clamp(5px, 0.7vh, 8px);
+}
+
+.summary-item-name {
+    color: var(--text2);
+}
+
+.summary-item-ml {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.summary-empty {
+    font-size: clamp(10px, 1vw, 13px);
+    color: var(--text3);
+    font-style: italic;
+    text-align: center;
+    margin-top: 1.5vh;
+}
+
+.custom-addons {
+    margin-top: 0.5vh;
+}
+
+.custom-addons .summary-title {
+    margin-bottom: clamp(5px, 0.8vh, 10px);
+}
+
+.custom-addons-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(4px, 0.6vw, 8px);
+}
+
+.custom-addon-chip {
+    padding: clamp(5px, 0.8vh, 9px) clamp(8px, 1vw, 14px);
+    border-radius: 50px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    font-size: clamp(10px, 1vw, 13px);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all var(--trans);
+}
+
+.custom-addon-chip.selected {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.custom-make-btn {
+    background: var(--accent);
+    color: #0e0e0f;
+    border: none;
+    border-radius: 50px;
+    padding: clamp(10px, 1.5vh, 16px) clamp(10px, 1.2vw, 16px);
+    font-family: "DM Sans", sans-serif;
+    font-size: clamp(11px, 1.1vw, 15px);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--trans);
+    text-align: center;
+    margin-top: auto;
+    position: relative;
+    overflow: hidden;
+}
+
+.custom-make-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.2);
+    opacity: 0;
+    transition: opacity var(--trans);
+}
+
+.custom-make-btn:hover::after {
+    opacity: 1;
+}
+
+.custom-make-btn:disabled {
+    background: var(--bg4);
+    color: var(--text3);
+    cursor: not-allowed;
+}
+
+.custom-make-btn:disabled::after {
+    display: none;
+}
+
+.custom-total-vol {
+    font-size: clamp(10px, 1vw, 13px);
+    color: var(--text2);
+    text-align: center;
+}
+
+.custom-total-vol strong {
+    color: var(--accent);
+}
+
+/* ════════════════════════════════════════════════════════════
+   SCREEN 5: PROGRESS
+═══════════════════════════════════════════════════════════ */
+#screen-progress {
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0;
+    padding: clamp(16px, 3vh, 40px) clamp(24px, 6vw, 80px);
+}
+
+.progress-header {
+    text-align: center;
+    margin-bottom: clamp(14px, 2.5vh, 32px);
+}
+
+.progress-header .eyebrow {
+    font-size: clamp(9px, 0.9vw, 12px);
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: clamp(4px, 0.8vh, 10px);
+}
+
+.progress-header h2 {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(28px, 4vw, 52px);
+    font-weight: 300;
+    color: var(--text);
+}
+
+.progress-header p {
+    font-size: clamp(11px, 1.1vw, 14px);
+    color: var(--text2);
+    margin-top: 0.5vh;
+}
+
+.progress-slots {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(8px, 1.4vh, 18px);
+    width: 100%;
+    max-width: 60vw;
+}
+
+.progress-slot {
+    display: flex;
+    align-items: center;
+    gap: clamp(10px, 1.5vw, 20px);
+}
+
+.progress-slot-label {
+    width: clamp(80px, 10vw, 140px);
+    flex-shrink: 0;
+    font-size: clamp(11px, 1.1vw, 14px);
+    color: var(--text2);
+    text-align: right;
+}
+
+.progress-track {
+    flex: 1;
+    height: clamp(5px, 1vh, 10px);
+    background: var(--bg4);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    width: 0%;
+    transition: width 0.5s ease;
+}
+
+.progress-fill.done {
+    background: #4ade80;
+}
+
+.progress-ml {
+    width: clamp(34px, 4vw, 52px);
+    flex-shrink: 0;
+    font-size: clamp(10px, 1vw, 13px);
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.progress-overall {
+    margin-top: clamp(14px, 2.5vh, 30px);
+    width: 100%;
+    max-width: 60vw;
+}
+
+.progress-overall-track {
+    width: 100%;
+    height: clamp(2px, 0.4vh, 4px);
+    background: var(--bg4);
+    border-radius: 2px;
+    margin-bottom: clamp(6px, 1vh, 12px);
+}
+
+.progress-overall-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.5s ease;
+}
+
+.progress-overall-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: clamp(10px, 1vw, 13px);
+    color: var(--text2);
+}
+
+.progress-pct {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.progress-anim {
+    margin-top: clamp(12px, 2vh, 24px);
+    display: flex;
+    gap: clamp(4px, 0.6vw, 8px);
+    align-items: center;
+}
+
+.drop {
+    width: clamp(6px, 1vh, 10px);
+    height: clamp(6px, 1vh, 10px);
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.4;
+    animation: dropPulse 1.2s ease-in-out infinite;
+}
+
+.drop:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.drop:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes dropPulse {
+
+    0%,
+    100% {
+        opacity: 0.2;
+        transform: scale(0.7);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ════════════════════════════════════════════════════════════
+   SCREEN 6: DONE
+═══════════════════════════════════════════════════════════ */
+#screen-done {
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: clamp(8px, 1.5vh, 18px);
+}
+
+.done-ring {
+    width: clamp(70px, 12vh, 120px);
+    height: clamp(70px, 12vh, 120px);
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(30px, 6vh, 60px);
+    animation: ringPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes ringPop {
+    from {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.done-title {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(36px, 6vw, 72px);
+    font-weight: 300;
+    color: var(--text);
+    animation: fadeUp 0.6s 0.2s both;
+}
+
+.done-name {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(16px, 2vw, 26px);
+    font-style: italic;
+    color: var(--accent);
+    animation: fadeUp 0.6s 0.35s both;
+}
+
+.done-sub {
+    font-size: clamp(12px, 1.2vw, 16px);
+    color: var(--text2);
+    animation: fadeUp 0.6s 0.45s both;
+}
+
+.done-btn {
+    margin-top: clamp(6px, 1vh, 14px);
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border2);
+    border-radius: 50px;
+    padding: clamp(8px, 1.2vh, 14px) clamp(20px, 3vw, 40px);
+    font-family: "DM Sans", sans-serif;
+    font-size: clamp(11px, 1.1vw, 15px);
+    cursor: pointer;
+    transition: all var(--trans);
+    animation: fadeUp 0.6s 0.6s both;
+}
+
+.done-btn:hover {
+    background: var(--bg3);
+    color: var(--text);
+}
+
+/* ── RESPONSIVE FIXES ─────────────────────────────────── */
+body {
+    min-height: 100vh;
+}
+
+.screen {
+    overflow: hidden;
+}
+
+#screen-mode,
+#screen-custom,
+#screen-progress,
+#screen-done {
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.mode-cards,
+.addons-row,
+.modal-footer,
+.custom-header,
+.drinks-header,
+.progress-slot,
+.progress-overall-text {
+    min-width: 0;
+}
+
+@media (max-width: 1200px),
+(max-height: 700px) {
+    body {
+        font-size: 13px;
+    }
+
+    .theme-btn {
+        top: 10px;
+        right: 10px;
+        width: 38px;
+        height: 38px;
+        font-size: 16px;
+    }
+
+    .back-btn {
+        padding: 8px 12px 8px 10px;
+        gap: 6px;
+        font-size: 12px;
+    }
+
+    .back-btn svg {
+        width: 14px;
+        height: 14px;
+        min-width: 14px;
+        min-height: 14px;
+    }
+
+    #screen-mode {
+        justify-content: flex-start;
+        gap: 18px;
+        padding: 54px 16px 16px;
+    }
+
+    .mode-header h2 {
+        font-size: clamp(24px, 4vw, 34px);
+    }
+
+    .mode-cards {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .mode-card {
+        width: 100%;
+        min-height: 180px;
+        height: auto;
+        padding: 16px 12px;
+    }
+
+    .drinks-header,
+    .custom-header {
+        gap: 10px;
+        padding: 10px 12px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    .drinks-header-left,
+    .custom-header>div:nth-child(2) {
+        min-width: 0;
+    }
+
+    .drinks-header-hint {
+        width: 100%;
+        order: 3;
+    }
+
+    .drinks-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-content: start;
+    }
+
+    .custom-body {
+        flex-direction: column;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .slots-panel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow: visible;
+    }
+
+    .custom-summary {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        max-height: none;
+    }
+
+    .progress-slots,
+    .progress-overall {
+        max-width: 100%;
+    }
+
+    .modal {
+        width: min(94vw, 620px);
+        max-height: 92vh;
+    }
+
+    .modal-body {
+        padding-bottom: 12px;
+    }
+
+    .modal-footer {
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .make-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 1024px),
+(max-height: 600px) {
+    body {
+        font-size: 13px;
+    }
+
+    .theme-btn {
+        width: 42px;
+        height: 42px;
+        font-size: 18px;
+    }
+
+    .back-btn {
+        padding: 9px 14px 9px 12px;
+        font-size: 13px;
+    }
+
+    .welcome-content {
+        gap: 10px;
+        padding: 24px 18px;
+        text-align: center;
+    }
+
+    .welcome-eyebrow {
+        font-size: 12px;
+        letter-spacing: 0.24em;
+    }
+
+    .welcome-title {
+        font-size: clamp(56px, 11vw, 82px);
+        line-height: 0.92;
+    }
+
+    .welcome-sub {
+        font-size: 15px;
+    }
+
+    .tap-btn {
+        margin-top: 20px;
+        padding: 14px 34px;
+        font-size: 15px;
+    }
+
+    .tap-hint {
+        font-size: 12px;
+    }
+
+    #screen-mode {
+        padding: 60px 16px 16px;
+        gap: 16px;
+    }
+
+    .mode-header h2 {
+        font-size: clamp(30px, 4.6vw, 40px);
+        line-height: 1;
+    }
+
+    .mode-header p {
+        font-size: 13px;
+        margin-top: 4px;
+    }
+
+    .mode-cards {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .mode-card {
+        min-height: 170px;
+        padding: 18px 16px;
+        gap: 10px;
+    }
+
+    .mode-icon {
+        width: 62px;
+        height: 62px;
+        font-size: 28px;
+    }
+
+    .mode-card h3 {
+        font-size: 28px;
+        line-height: 1;
+    }
+
+    .mode-card p {
+        font-size: 13px;
+        max-width: 26ch;
+        padding: 0;
+    }
+
+    .drinks-header h2,
+    .custom-header h2 {
+        font-size: 28px;
+        line-height: 1.05;
+    }
+
+    .drinks-count {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+
+    .drinks-header-hint,
+    .custom-header p {
+        font-size: 11px;
+    }
+
+    .drinks-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding: 10px 12px 14px;
+    }
+
+    .drink-card {
+        padding: 11px;
+        gap: 6px;
+    }
+
+    .drink-emoji {
+        font-size: 24px;
+    }
+
+    .drink-name {
+        font-size: 18px;
+        line-height: 1.05;
+    }
+
+    .drink-desc {
+        font-size: 10px;
+    }
+
+    .drink-tag {
+        font-size: 8px;
+        padding: 2px 6px;
+    }
+
+    .drink-price {
+        font-size: 18px;
+    }
+
+    .drink-arrow {
+        width: 24px;
+        height: 24px;
+        font-size: 11px;
+    }
+
+    .drink-footer {
+        padding-top: 7px;
+    }
+
+    .custom-header {
+        position: sticky;
+        top: 0;
+        background: var(--bg);
+        z-index: 20;
+    }
+
+    .custom-body {
+        padding-bottom: 12px;
+    }
+
+    .slots-panel {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 10px 12px;
+    }
+
+    .slot-card {
+        padding: 12px;
+    }
+
+    .slot-label,
+    .summary-title {
+        font-size: 10px;
+    }
+
+    .slot-name {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    .stepper-btn {
+        width: 44px;
+        height: 42px;
+        font-size: 24px;
+    }
+
+    .stepper-val,
+    .summary-item,
+    .custom-addon-chip,
+    .custom-total-vol,
+    .custom-make-btn {
+        font-size: 12px;
+    }
+
+    .custom-summary {
+        padding: 12px;
+        gap: 12px;
+    }
+
+    .custom-make-btn {
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+        padding: 12px 14px;
+    }
+
+    #screen-progress {
+        justify-content: flex-start;
+        padding: 24px 16px 18px;
+        overflow-y: auto;
+    }
+
+    .progress-header h2 {
+        font-size: 34px;
+    }
+
+    .progress-header p,
+    .progress-slot-label,
+    .progress-ml,
+    .progress-overall-text {
+        font-size: 12px;
+    }
+
+    .progress-header {
+        margin-bottom: 18px;
+    }
+
+    .progress-slot {
+        gap: 10px;
+    }
+
+    .progress-slot-label {
+        width: 86px;
+    }
+
+    .progress-ml {
+        width: 46px;
+    }
+
+    #screen-done {
+        padding: 24px 16px;
+        text-align: center;
+    }
+
+    .done-title {
+        font-size: clamp(38px, 7vw, 58px);
+    }
+
+    .done-name {
+        font-size: 22px;
+    }
+
+    .done-sub,
+    .done-btn {
+        font-size: 13px;
+    }
+
+    .modal-overlay {
+        align-items: flex-start;
+        padding: 10px;
+        overflow-y: auto;
+    }
+
+    .modal {
+        width: 100%;
+        max-height: none;
+        min-height: calc(100vh - 20px);
+        border-radius: 20px;
+    }
+
+    .modal-hero {
+        padding: 20px 52px 14px 18px;
+    }
+
+    .modal-close {
+        width: 34px;
+        height: 34px;
+        font-size: 16px;
+    }
+
+    .modal-emoji {
+        font-size: 44px;
+        margin-bottom: 8px;
+    }
+
+    .modal-name {
+        font-size: 34px;
+    }
+
+    .modal-desc,
+    .ingredient-row,
+    .addon-chip,
+    .make-btn {
+        font-size: 13px;
+    }
+
+    .modal-body {
+        overflow: visible;
+        padding: 14px 18px;
+    }
+
+    .addons-row {
+        flex-wrap: wrap;
+    }
+
+    .modal-footer {
+        position: sticky;
+        bottom: 0;
+        background: var(--bg2);
+        padding: 12px 18px;
+    }
+
+    .modal-price {
+        font-size: 32px;
+    }
+
+    .make-btn {
+        padding: 12px 20px;
+    }
+}
+
+@media (max-width: 720px) {
+
+    .drinks-grid,
+    .slots-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .progress-slot {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 6px 10px;
+        align-items: center;
+    }
+
+    .progress-slot-label {
+        width: auto;
+        text-align: left;
+        grid-column: 1 / -1;
+    }
+
+    .progress-track {
+        grid-column: 1 / 2;
+    }
+
+    .progress-ml {
+        grid-column: 2 / 3;
+        width: auto;
+        text-align: right;
+    }
+}
+
+/* ── SIZE UPGRADE: larger default UI while keeping cards packed ── */
+body {
+    font-size: clamp(15px, 1.75vw, 20px);
+}
+
+.welcome-content {
+    gap: 14px;
+    padding: 28px 22px;
+}
+
+.welcome-eyebrow {
+    font-size: clamp(15px, 1.35vw, 20px);
+    letter-spacing: 0.28em;
+}
+
+.welcome-title {
+    font-size: clamp(82px, 13vw, 170px);
+    line-height: 0.88;
+}
+
+.welcome-sub {
+    font-size: clamp(18px, 1.7vw, 26px);
+}
+
+.tap-btn {
+    margin-top: 28px;
+    padding: 18px 54px;
+    font-size: clamp(18px, 1.7vw, 24px);
+}
+
+.tap-hint {
+    font-size: clamp(13px, 1.1vw, 16px);
+}
+
+.mode-header h2 {
+    font-size: clamp(40px, 4.8vw, 62px);
+}
+
+.mode-header p {
+    font-size: clamp(15px, 1.3vw, 19px);
+}
+
+.mode-cards {
+    gap: 18px;
+}
+
+.mode-card {
+    width: clamp(240px, 28vw, 380px);
+    height: clamp(220px, 28vh, 360px);
+    gap: 14px;
+    padding: 20px 18px;
+}
+
+.mode-icon {
+    width: clamp(66px, 7vw, 96px);
+    height: clamp(66px, 7vw, 96px);
+    font-size: clamp(28px, 3.2vw, 42px);
+}
+
+.mode-card h3 {
+    font-size: clamp(28px, 2.8vw, 38px);
+    line-height: 1;
+}
+
+.mode-card p {
+    font-size: clamp(14px, 1.15vw, 17px);
+    line-height: 1.35;
+    max-width: 28ch;
+    padding: 0;
+}
+
+.drinks-header h2,
+.custom-header h2 {
+    font-size: clamp(28px, 3.2vw, 42px);
+}
+
+.drinks-count {
+    font-size: clamp(11px, 0.9vw, 13px);
+    padding: 5px 10px;
+}
+
+.drinks-header-hint,
+.custom-header p {
+    font-size: clamp(13px, 1.05vw, 16px);
+}
+
+.drinks-grid {
+    gap: 12px;
+    padding: 14px 16px 16px;
+}
+
+.drink-card {
+    min-height: 200px;
+    padding: 14px 14px 12px;
+    gap: 8px;
+}
+
+.drink-emoji {
+    font-size: clamp(28px, 3vh, 36px);
+}
+
+.drink-name {
+    font-size: clamp(22px, 1.8vw, 28px);
+    line-height: 1;
+}
+
+.drink-desc {
+    font-size: clamp(11px, 0.9vw, 13px);
+    line-height: 1.28;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.6em;
+}
+
+.drink-tags {
+    gap: 5px;
+    min-height: 30px;
+    align-items: flex-start;
+}
+
+.drink-tag {
+    padding: 3px 8px;
+    font-size: clamp(9px, 0.7vw, 11px);
+}
+
+.drink-footer {
+    padding-top: 8px;
+}
+
+.drink-price {
+    font-size: clamp(22px, 1.9vw, 28px);
+}
+
+.drink-price span {
+    font-size: clamp(10px, 0.85vw, 13px);
+}
+
+.drink-arrow {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+}
+
+.modal {
+    width: clamp(420px, 58vw, 760px);
+}
+
+.modal-hero {
+    padding: 24px 26px 18px;
+}
+
+.modal-close {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+}
+
+.modal-emoji {
+    font-size: clamp(42px, 5.2vh, 60px);
+}
+
+.modal-name {
+    font-size: clamp(34px, 3.9vw, 50px);
+}
+
+.modal-desc {
+    font-size: clamp(14px, 1.15vw, 17px);
+}
+
+.modal-section-label {
+    font-size: clamp(11px, 0.9vw, 13px);
+}
+
+.ingredient-row,
+.addon-chip,
+.make-btn {
+    font-size: clamp(14px, 1.1vw, 17px);
+}
+
+.ingredient-row {
+    padding: 10px 14px;
+}
+
+.addon-chip {
+    padding: 10px 15px;
+}
+
+.modal-price {
+    font-size: clamp(34px, 3.8vw, 48px);
+}
+
+.make-btn {
+    padding: 14px 22px;
+}
+
+.slot-card {
+    padding: 14px;
+}
+
+.slot-label,
+.summary-title {
+    font-size: clamp(10px, 0.85vw, 12px);
+}
+
+.slot-name {
+    font-size: clamp(20px, 1.8vw, 24px);
+}
+
+.stepper-btn {
+    width: 50px;
+    height: 48px;
+    font-size: 26px;
+}
+
+.stepper-val,
+.summary-item,
+.custom-addon-chip,
+.custom-total-vol,
+.custom-make-btn {
+    font-size: clamp(13px, 1.02vw, 15px);
+}
+
+.custom-summary {
+    width: clamp(190px, 22vw, 280px);
+}
+
+.custom-make-btn {
+    padding: 14px 16px;
+}
+
+@media (max-width: 1024px),
+(max-height: 600px) {
+    body {
+        font-size: 14px;
+    }
+
+    .welcome-content {
+        gap: 14px;
+        padding: 22px 18px;
+    }
+
+    .welcome-eyebrow {
+        font-size: 14px;
+        letter-spacing: 0.24em;
+    }
+
+    .welcome-title {
+        font-size: clamp(92px, 14vw, 144px);
+    }
+
+    .welcome-sub {
+        font-size: 17px;
+    }
+
+    .tap-btn {
+        margin-top: 24px;
+        padding: 16px 56px;
+        font-size: 18px;
+    }
+
+    #screen-mode {
+        padding: 56px 16px 16px;
+        gap: 14px;
+    }
+
+    .mode-header h2 {
+        font-size: clamp(34px, 4.8vw, 46px);
+    }
+
+    .mode-header p {
+        font-size: 14px;
+    }
+
+    .mode-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .mode-card {
+        min-height: 190px;
+        padding: 16px 14px;
+        gap: 10px;
+    }
+
+    .mode-icon {
+        width: 68px;
+        height: 68px;
+        font-size: 30px;
+    }
+
+    .mode-card h3 {
+        font-size: 30px;
+    }
+
+    .mode-card p {
+        font-size: 13px;
+        max-width: 24ch;
+    }
+
+    .drinks-header,
+    .custom-header {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+
+    .drinks-header h2,
+    .custom-header h2 {
+        font-size: 30px;
+    }
+
+    .drinks-count {
+        font-size: 11px;
+        padding: 4px 9px;
+    }
+
+    .drinks-header-hint,
+    .custom-header p {
+        font-size: 12px;
+    }
+
+    .drinks-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        padding: 10px 12px 14px;
+    }
+
+    .drink-card {
+        min-height: 158px;
+        padding: 11px 11px 10px;
+        gap: 5px;
+    }
+
+    .drink-emoji {
+        font-size: 24px;
+    }
+
+    .drink-name {
+        font-size: 20px;
+    }
+
+    .drink-desc {
+        font-size: 10px;
+        min-height: 2.5em;
+    }
+
+    .drink-tag {
+        font-size: 8px;
+        padding: 2px 6px;
+    }
+
+    .drink-price {
+        font-size: 20px;
+    }
+
+    .drink-arrow {
+        width: 26px;
+        height: 26px;
+        font-size: 12px;
+    }
+
+    .slot-card {
+        padding: 12px;
+    }
+
+    .slot-name {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    .stepper-btn {
+        width: 46px;
+        height: 44px;
+        font-size: 24px;
+    }
+
+    .custom-summary {
+        width: 100%;
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .modal-overlay {
+        align-items: flex-start;
+        padding: 10px;
+    }
+
+    .modal {
+        width: min(94vw, 760px);
+        min-height: auto;
+        max-height: calc(100vh - 20px);
+        border-radius: 20px;
+    }
+
+    .modal-hero {
+        padding: 18px 52px 14px 18px;
+    }
+
+    .modal-name {
+        font-size: 36px;
+    }
+
+    .modal-desc,
+    .ingredient-row,
+    .addon-chip,
+    .make-btn {
+        font-size: 13px;
+    }
+
+    .modal-body {
+        padding: 14px 18px;
+    }
+
+    .modal-footer {
+        padding: 12px 18px;
+    }
+
+    .modal-price {
+        font-size: 34px;
+    }
+
+    .make-btn {
+        padding: 12px 20px;
+    }
+}
+
+/* ── MODE SCREEN FIX ─────────────────────────────────────── */
+#screen-mode {
+    justify-content: center;
+    align-items: center;
+    padding: 56px 28px 24px;
+    gap: 24px;
+}
+
+.mode-header {
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+}
+
+.mode-cards {
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(320px, 420px));
+    justify-content: center;
+    align-items: stretch;
+    gap: 28px;
+}
+
+.mode-card {
+    width: 100%;
+    max-width: 420px;
+    min-height: 240px;
+    height: auto;
+    margin: 0 auto;
+    justify-content: center;
+}
+
+@media (max-width: 1024px),
+(max-height: 600px) {
+    #screen-mode {
+        justify-content: center;
+        align-items: center;
+        padding: 48px 20px 20px;
+        gap: 18px;
+    }
+
+    .mode-header {
+        max-width: 900px;
+    }
+
+    .mode-cards {
+        max-width: 900px;
+        grid-template-columns: repeat(2, minmax(280px, 390px));
+        gap: 20px;
+    }
+
+    .mode-card {
+        min-height: 210px;
+        max-width: 390px;
+    }
+}
+
+@media (max-width: 720px) {
+    #screen-mode {
+        justify-content: flex-start;
+        padding: 60px 16px 16px;
+    }
+
+    .mode-cards {
+        grid-template-columns: 1fr;
+        max-width: 440px;
+        gap: 14px;
+    }
+
+    .mode-card {
+        max-width: none;
+        min-height: 180px;
+    }
+}
+
+/* ── DRINKS SCREEN FIX ───────────────────────────────────── */
+#screen-drinks {
+    overflow: hidden;
+}
+
+.drinks-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 16px 12px;
+    min-height: 110px;
+}
+
+.drinks-header-left {
+    min-width: 0;
+}
+
+.drinks-header-left h2 {
+    margin: 0;
+}
+
+.drinks-count {
+    justify-self: end;
+    white-space: nowrap;
+}
+
+.drinks-header-hint {
+    grid-column: 1 / 3;
+    margin-top: 2px;
+}
+
+.drinks-grid {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px 16px 16px;
+    align-content: start;
+}
+
+.drink-card {
+    min-height: 180px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 14px 14px 12px;
+    gap: 8px;
+}
+
+.drink-emoji {
+    font-size: 26px;
+    line-height: 1;
+}
+
+.drink-name {
+    font-size: clamp(22px, 1.7vw, 28px);
+    line-height: 1.02;
+    word-break: break-word;
+}
+
+.drink-desc {
+    font-size: 12px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.7em;
+}
+
+.drink-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 32px;
+}
+
+.drink-tag {
+    font-size: 10px;
+    padding: 4px 8px;
+}
+
+.drink-footer {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 10px;
+}
+
+.drink-price {
+    font-size: clamp(24px, 1.8vw, 30px);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.drink-price span {
+    font-size: 12px;
+}
+
+.drink-arrow {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 1024px),
+(max-height: 600px) {
+    .drinks-header {
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        padding: 12px 12px 10px;
+        min-height: 92px;
+    }
+
+    .drinks-header h2 {
+        font-size: 28px;
+        line-height: 1;
+    }
+
+    .drinks-header-hint {
+        grid-column: 1 / 3;
+        font-size: 12px;
+    }
+
+    .drinks-count {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+
+    .drinks-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding: 10px 12px 14px;
+    }
+
+    .drink-card {
+        min-height: 160px;
+        padding: 12px 12px 10px;
+        gap: 6px;
+    }
+
+    .drink-emoji {
+        font-size: 24px;
+    }
+
+    .drink-name {
+        font-size: 20px;
+    }
+
+    .drink-desc {
+        font-size: 11px;
+        min-height: 2.6em;
+    }
+
+    .drink-tags {
+        gap: 5px;
+        min-height: 28px;
+    }
+
+    .drink-tag {
+        font-size: 9px;
+        padding: 3px 7px;
+    }
+
+    .drink-footer {
+        padding-top: 8px;
+    }
+
+    .drink-price {
+        font-size: 22px;
+    }
+
+    .drink-price span {
+        font-size: 11px;
+    }
+
+    .drink-arrow {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 720px) {
+    .drinks-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .drinks-header {
+        grid-template-columns: 1fr auto;
+    }
+
+    .drinks-header-hint {
+        grid-column: 1 / -1;
+    }
+}
