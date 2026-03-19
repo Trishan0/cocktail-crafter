@@ -1,5 +1,5 @@
 html {
-    font-size: 16px;
+    font-size: 28px;
 }
 
 /* ── TOKENS ───────────────────────────────────────────────── */
@@ -7,10 +7,10 @@ html {
     --accent: #c9954a;
     --accent-light: #e2b778;
     --accent-dim: rgba(201, 149, 74, 0.15);
-    --radius-sm: 8px;
-    --radius-md: 14px;
-    --radius-lg: 20px;
-    --radius-xl: 28px;
+    --radius-sm: 14px;
+    --radius-md: 24.5px;
+    --radius-lg: 35px;
+    --radius-xl: 49px;
     --trans: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -24,8 +24,8 @@ html {
     --text3: #5c5a56;
     --border: rgba(255, 255, 255, 0.07);
     --border2: rgba(255, 255, 255, 0.12);
-    --shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
-    --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow: 0 28px 70px rgba(0, 0, 0, 0.6);
+    --shadow-sm: 0 7px 28px rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="light"] {
@@ -38,8 +38,8 @@ html {
     --text3: #a09b91;
     --border: rgba(0, 0, 0, 0.07);
     --border2: rgba(0, 0, 0, 0.12);
-    --shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
-    --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --shadow: 0 28px 70px rgba(0, 0, 0, 0.12);
+    --shadow-sm: 0 7px 28px rgba(0, 0, 0, 0.08);
 }
 
 /* ── RESET ────────────────────────────────────────────────── */
@@ -83,7 +83,7 @@ body {
     transition:
         opacity 0.4s ease,
         transform 0.4s ease;
-    transform: translateY(8px);
+    transform: translateY(14px);
 }
 
 .screen.active {
@@ -98,8 +98,8 @@ body {
     top: 1.5vh;
     right: 1.5vh;
     z-index: 9999;
-    width: 4.5vh;
-    height: 4.5vh;
+    width: 7.88vh;
+    height: 7.88vh;
     border-radius: 50%;
     background: var(--bg3);
     border: 1px solid var(--border2);
@@ -129,7 +129,7 @@ body {
     background: var(--bg3);
     border: 1px solid var(--border);
     color: var(--text2);
-    border-radius: 50px;
+    border-radius: 87.5px;
     padding: 0.8vh 1.4vw 0.8vh 0.8vw;
     cursor: pointer;
     font-family: "DM Sans", sans-serif;
@@ -146,8 +146,8 @@ body {
 .back-btn svg {
     width: 1.4vw;
     height: 1.4vw;
-    min-width: 12px;
-    min-height: 12px;
+    min-width: 21px;
+    min-height: 21px;
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -170,7 +170,7 @@ body {
 .blob {
     position: absolute;
     border-radius: 50%;
-    filter: blur(30px);
+    filter: blur(52.5px);
     animation: blobFloat 12s ease-in-out infinite;
 }
 
@@ -204,7 +204,7 @@ body {
     width: 18vw;
     height: 18vw;
     background: #c9954a;
-    bottom: 10vh;
+    bottom: 17.5vh;
     left: 20vw;
     animation-delay: -8s;
 }
@@ -221,7 +221,7 @@ body {
     }
 
     66% {
-        transform: translate(-1.5vw, 2.5vh) scale(0.95);
+        transform: translate(-1.5vw, 4.38vh) scale(0.95);
     }
 }
 
@@ -252,7 +252,7 @@ body {
 @keyframes fadeUp {
     from {
         opacity: 0;
-        transform: translateY(2vh);
+        transform: translateY(3.5vh);
     }
 
     to {
@@ -296,12 +296,12 @@ body {
 }
 
 .tap-btn {
-    margin-top: 3vh;
+    margin-top: 5.25vh;
     background: var(--accent);
     color: #0e0e0f;
     border: none;
-    border-radius: 50px;
-    padding: 1.6vh 5vw;
+    border-radius: 87.5px;
+    padding: 2.8vh 5vw;
     font-family: "DM Sans", sans-serif;
     font-size: 1.0625rem;
     font-weight: 500;
@@ -359,8 +359,8 @@ body {
 #screen-mode {
     align-items: center;
     justify-content: center;
-    gap: 3vh;
-    padding: 4vh 4vw;
+    gap: 5.25vh;
+    padding: 7vh 4vw;
 }
 
 .mode-header {
@@ -386,8 +386,8 @@ body {
 }
 
 .mode-card {
-    width: clamp(180px, 22vw, 320px);
-    height: clamp(160px, 22vh, 300px);
+    width: clamp(315px, 22vw, 560px);
+    height: clamp(280px, 22vh, 525px);
     background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
@@ -428,8 +428,8 @@ body {
 }
 
 .mode-icon {
-    width: clamp(44px, 6vw, 80px);
-    height: clamp(44px, 6vw, 80px);
+    width: clamp(77px, 6vw, 140px);
+    height: clamp(77px, 6vw, 140px);
     background: var(--accent-dim);
     border: 1px solid rgba(201, 149, 74, 0.25);
     border-radius: 50%;
@@ -495,7 +495,7 @@ body {
     background: var(--accent-dim);
     color: var(--accent);
     border: 1px solid rgba(201, 149, 74, 0.3);
-    border-radius: 20px;
+    border-radius: 35px;
     padding: 0.2vh 0.7vw;
     font-size: 0.6875rem;
     font-weight: 500;
@@ -511,12 +511,12 @@ body {
     overflow-y: auto;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: clamp(6px, 0.8vw, 12px);
-    padding: clamp(6px, 1vh, 14px) clamp(8px, 1.2vw, 18px);
+    gap: clamp(10.5px, 0.8vw, 21px);
+    padding: clamp(10.5px, 1vh, 24.5px) clamp(14px, 1.2vw, 31.5px);
 }
 
 .drinks-grid::-webkit-scrollbar {
-    width: 3px;
+    width: 5.25px;
 }
 
 .drinks-grid::-webkit-scrollbar-thumb {
@@ -528,14 +528,14 @@ body {
     background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: clamp(8px, 1.2vh, 14px) clamp(8px, 1vw, 14px);
+    padding: clamp(14px, 1.2vh, 24.5px) clamp(14px, 1vw, 24.5px);
     cursor: pointer;
     position: relative;
     overflow: hidden;
     transition: all var(--trans);
     display: flex;
     flex-direction: column;
-    gap: clamp(3px, 0.4vh, 6px);
+    gap: clamp(5.25px, 0.4vh, 10.5px);
 }
 
 .drink-card::after {
@@ -584,14 +584,14 @@ body {
 
 .drink-tags {
     display: flex;
-    gap: clamp(3px, 0.3vw, 5px);
+    gap: clamp(5.25px, 0.3vw, 8.75px);
     flex-wrap: wrap;
 }
 
 .drink-tag {
     background: var(--bg3);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 35px;
     padding: 0.15vh 0.5vw;
     font-size: 0.5625rem;
     color: var(--text3);
@@ -602,7 +602,7 @@ body {
     align-items: center;
     justify-content: space-between;
     margin-top: auto;
-    padding-top: clamp(4px, 0.7vh, 8px);
+    padding-top: clamp(7px, 0.7vh, 14px);
     border-top: 1px solid var(--border);
 }
 
@@ -618,8 +618,8 @@ body {
 }
 
 .drink-arrow {
-    width: clamp(16px, 2.2vh, 26px);
-    height: clamp(16px, 2.2vh, 26px);
+    width: clamp(28px, 3.85vh, 45.5px);
+    height: clamp(28px, 3.85vh, 45.5px);
     background: var(--accent-dim);
     border-radius: 50%;
     display: flex;
@@ -643,7 +643,7 @@ body {
     inset: 0;
     z-index: 500;
     background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(14px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -661,12 +661,12 @@ body {
     background: var(--bg2);
     border: 1px solid var(--border2);
     border-radius: var(--radius-xl);
-    width: clamp(320px, 48vw, 620px);
+    width: clamp(560px, 48vw, 1085px);
     max-height: 85vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transform: translateY(2vh) scale(0.97);
+    transform: translateY(3.5vh) scale(0.97);
     transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
     box-shadow: var(--shadow);
 }
@@ -676,7 +676,7 @@ body {
 }
 
 .modal-hero {
-    padding: clamp(16px, 2.5vh, 32px) clamp(16px, 2.5vw, 32px) clamp(12px, 2vh, 24px);
+    padding: clamp(28px, 4.38vh, 56px) clamp(28px, 2.5vw, 56px) clamp(21px, 3.5vh, 42px);
     background: linear-gradient(135deg, var(--bg3), var(--bg2));
     border-bottom: 1px solid var(--border);
     position: relative;
@@ -684,10 +684,10 @@ body {
 
 .modal-close {
     position: absolute;
-    top: clamp(8px, 1.2vh, 16px);
-    right: clamp(8px, 1.2vw, 16px);
-    width: clamp(26px, 3.5vh, 38px);
-    height: clamp(26px, 3.5vh, 38px);
+    top: clamp(14px, 1.2vh, 28px);
+    right: clamp(14px, 1.2vw, 28px);
+    width: clamp(45.5px, 6.12vh, 66.5px);
+    height: clamp(45.5px, 6.12vh, 66.5px);
     border-radius: 50%;
     background: var(--bg4);
     border: 1px solid var(--border);
@@ -707,7 +707,7 @@ body {
 
 .modal-emoji {
     font-size: 3.25rem;
-    margin-bottom: clamp(6px, 1vh, 14px);
+    margin-bottom: clamp(10.5px, 1vh, 24.5px);
 }
 
 .modal-name {
@@ -725,13 +725,13 @@ body {
 }
 
 .modal-body {
-    padding: clamp(12px, 2vh, 24px) clamp(16px, 2.5vw, 32px);
+    padding: clamp(21px, 3.5vh, 42px) clamp(28px, 2.5vw, 56px);
     overflow-y: auto;
     flex: 1;
 }
 
 .modal-body::-webkit-scrollbar {
-    width: 3px;
+    width: 5.25px;
 }
 
 .modal-body::-webkit-scrollbar-thumb {
@@ -745,21 +745,21 @@ body {
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--text3);
-    margin-bottom: clamp(6px, 1vh, 12px);
+    margin-bottom: clamp(10.5px, 1vh, 21px);
 }
 
 .ingredient-list {
     display: flex;
     flex-direction: column;
-    gap: clamp(5px, 0.8vh, 10px);
-    margin-bottom: clamp(12px, 2vh, 22px);
+    gap: clamp(8.75px, 0.8vh, 17.5px);
+    margin-bottom: clamp(21px, 3.5vh, 38.5px);
 }
 
 .ingredient-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: clamp(6px, 1vh, 10px) clamp(10px, 1.2vw, 16px);
+    padding: clamp(10.5px, 1vh, 17.5px) clamp(17.5px, 1.2vw, 28px);
     background: var(--bg3);
     border-radius: var(--radius-sm);
     font-size: 0.875rem;
@@ -776,18 +776,18 @@ body {
 
 .addons-row {
     display: flex;
-    gap: clamp(8px, 1vw, 14px);
-    margin-bottom: clamp(12px, 2vh, 24px);
+    gap: clamp(14px, 1vw, 24.5px);
+    margin-bottom: clamp(21px, 3.5vh, 42px);
 }
 
 .addon-chip {
     display: flex;
     align-items: center;
-    gap: clamp(6px, 0.7vw, 10px);
-    padding: clamp(8px, 1.2vh, 14px) clamp(12px, 1.4vw, 18px);
+    gap: clamp(10.5px, 0.7vw, 17.5px);
+    padding: clamp(14px, 1.2vh, 24.5px) clamp(21px, 1.4vw, 31.5px);
     background: var(--bg3);
     border: 1.5px solid var(--border);
-    border-radius: 50px;
+    border-radius: 87.5px;
     cursor: pointer;
     font-size: 0.875rem;
     color: var(--text2);
@@ -802,8 +802,8 @@ body {
 }
 
 .addon-check {
-    width: clamp(14px, 1.8vh, 20px);
-    height: clamp(14px, 1.8vh, 20px);
+    width: clamp(24.5px, 3.15vh, 35px);
+    height: clamp(24.5px, 3.15vh, 35px);
     border-radius: 50%;
     border: 1.5px solid var(--border2);
     display: flex;
@@ -823,7 +823,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: clamp(10px, 1.5vh, 20px) clamp(16px, 2.5vw, 32px);
+    padding: clamp(17.5px, 1.5vh, 35px) clamp(28px, 2.5vw, 56px);
     border-top: 1px solid var(--border);
 }
 
@@ -842,8 +842,8 @@ body {
     background: var(--accent);
     color: #0e0e0f;
     border: none;
-    border-radius: 50px;
-    padding: clamp(10px, 1.5vh, 16px) clamp(20px, 2.5vw, 40px);
+    border-radius: 87.5px;
+    padding: clamp(17.5px, 1.5vh, 28px) clamp(35px, 2.5vw, 70px);
     font-family: "DM Sans", sans-serif;
     font-size: 0.9375rem;
     font-weight: 500;
@@ -906,10 +906,10 @@ body {
 
 .slots-panel {
     flex: 1;
-    padding: clamp(10px, 1.5vh, 20px) clamp(10px, 1.5vw, 20px);
+    padding: clamp(17.5px, 1.5vh, 35px) clamp(17.5px, 1.5vw, 35px);
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: clamp(8px, 1.2vw, 16px);
+    gap: clamp(14px, 1.2vw, 28px);
     overflow-y: auto;
     align-content: start;
 }
@@ -922,7 +922,7 @@ body {
     background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: clamp(10px, 1.5vh, 18px);
+    padding: clamp(17.5px, 1.5vh, 31.5px);
     transition: all var(--trans);
 }
 
@@ -934,7 +934,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: clamp(6px, 1vh, 12px);
+    margin-bottom: clamp(10.5px, 1vh, 21px);
 }
 
 .slot-label {
@@ -946,10 +946,10 @@ body {
 }
 
 .slot-toggle {
-    width: clamp(30px, 3.5vw, 44px);
-    height: clamp(16px, 2vh, 24px);
+    width: clamp(52.5px, 3.5vw, 77px);
+    height: clamp(28px, 3.5vh, 42px);
     background: var(--bg4);
-    border-radius: 999px;
+    border-radius: 1.75e+03px;
     position: relative;
     cursor: pointer;
     transition: background var(--trans);
@@ -967,15 +967,15 @@ body {
     position: absolute;
     top: 2px;
     left: 2px;
-    width: calc(clamp(16px, 2vh, 24px) - 4px);
-    height: calc(clamp(16px, 2vh, 24px) - 4px);
+    width: calc(clamp(28px, 3.5vh, 42px) - 7px);
+    height: calc(clamp(28px, 3.5vh, 42px) - 7px);
     border-radius: 50%;
     background: #fff;
     transition: transform var(--trans);
 }
 
 .slot-toggle.on::after {
-    transform: translateX(calc(clamp(30px, 3.5vw, 44px) - clamp(16px, 2vh, 24px)));
+    transform: translateX(calc(clamp(52.5px, 3.5vw, 77px) - clamp(28px, 3.5vh, 42px)));
 }
 
 .slot-name {
@@ -983,7 +983,7 @@ body {
     font-size: 1.25rem;
     font-weight: 400;
     color: var(--text);
-    margin-bottom: clamp(8px, 1.2vh, 14px);
+    margin-bottom: clamp(14px, 1.2vh, 24.5px);
 }
 
 .slot-stepper {
@@ -1003,8 +1003,8 @@ body {
 }
 
 .stepper-btn {
-    width: clamp(38px, 5vw, 60px);
-    height: clamp(36px, 5.5vh, 52px);
+    width: clamp(66.5px, 5vw, 105px);
+    height: clamp(63px, 9.62vh, 91px);
     background: transparent;
     border: none;
     color: var(--text2);
@@ -1048,12 +1048,12 @@ body {
 }
 
 .custom-summary {
-    width: clamp(130px, 17vw, 220px);
+    width: clamp(228px, 17vw, 385px);
     border-left: 1px solid var(--border);
-    padding: clamp(10px, 1.5vh, 18px) clamp(10px, 1.2vw, 16px);
+    padding: clamp(17.5px, 1.5vh, 31.5px) clamp(17.5px, 1.2vw, 28px);
     display: flex;
     flex-direction: column;
-    gap: clamp(8px, 1.2vh, 14px);
+    gap: clamp(14px, 1.2vh, 24.5px);
     flex-shrink: 0;
     overflow-y: auto;
 }
@@ -1073,7 +1073,7 @@ body {
 .summary-items {
     display: flex;
     flex-direction: column;
-    gap: clamp(4px, 0.6vh, 8px);
+    gap: clamp(7px, 0.6vh, 14px);
     flex: 1;
 }
 
@@ -1082,9 +1082,9 @@ body {
     justify-content: space-between;
     align-items: center;
     font-size: 0.8125rem;
-    padding: clamp(4px, 0.7vh, 8px) clamp(6px, 0.8vw, 10px);
+    padding: clamp(7px, 0.7vh, 14px) clamp(10.5px, 0.8vw, 17.5px);
     background: var(--bg3);
-    border-radius: clamp(5px, 0.7vh, 8px);
+    border-radius: clamp(8.75px, 0.7vh, 14px);
 }
 
 .summary-item-name {
@@ -1109,18 +1109,18 @@ body {
 }
 
 .custom-addons .summary-title {
-    margin-bottom: clamp(5px, 0.8vh, 10px);
+    margin-bottom: clamp(8.75px, 0.8vh, 17.5px);
 }
 
 .custom-addons-row {
     display: flex;
     flex-wrap: wrap;
-    gap: clamp(4px, 0.6vw, 8px);
+    gap: clamp(7px, 0.6vw, 14px);
 }
 
 .custom-addon-chip {
-    padding: clamp(5px, 0.8vh, 9px) clamp(8px, 1vw, 14px);
-    border-radius: 50px;
+    padding: clamp(8.75px, 0.8vh, 15.8px) clamp(14px, 1vw, 24.5px);
+    border-radius: 87.5px;
     background: var(--bg3);
     border: 1px solid var(--border);
     font-size: 0.8125rem;
@@ -1139,8 +1139,8 @@ body {
     background: var(--accent);
     color: #0e0e0f;
     border: none;
-    border-radius: 50px;
-    padding: clamp(10px, 1.5vh, 16px) clamp(10px, 1.2vw, 16px);
+    border-radius: 87.5px;
+    padding: clamp(17.5px, 1.5vh, 28px) clamp(17.5px, 1.2vw, 28px);
     font-family: "DM Sans", sans-serif;
     font-size: 0.9375rem;
     font-weight: 500;
@@ -1193,12 +1193,12 @@ body {
     justify-content: center;
     flex-direction: column;
     gap: 0;
-    padding: clamp(16px, 3vh, 40px) clamp(24px, 6vw, 80px);
+    padding: clamp(28px, 5.25vh, 70px) clamp(42px, 6vw, 140px);
 }
 
 .progress-header {
     text-align: center;
-    margin-bottom: clamp(14px, 2.5vh, 32px);
+    margin-bottom: clamp(24.5px, 4.38vh, 56px);
 }
 
 .progress-header .eyebrow {
@@ -1207,7 +1207,7 @@ body {
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--accent);
-    margin-bottom: clamp(4px, 0.8vh, 10px);
+    margin-bottom: clamp(7px, 0.8vh, 17.5px);
 }
 
 .progress-header h2 {
@@ -1226,7 +1226,7 @@ body {
 .progress-slots {
     display: flex;
     flex-direction: column;
-    gap: clamp(8px, 1.4vh, 18px);
+    gap: clamp(14px, 1.4vh, 31.5px);
     width: 100%;
     max-width: 60vw;
 }
@@ -1234,11 +1234,11 @@ body {
 .progress-slot {
     display: flex;
     align-items: center;
-    gap: clamp(10px, 1.5vw, 20px);
+    gap: clamp(17.5px, 1.5vw, 35px);
 }
 
 .progress-slot-label {
-    width: clamp(80px, 10vw, 140px);
+    width: clamp(140px, 10vw, 245px);
     flex-shrink: 0;
     font-size: 0.875rem;
     color: var(--text2);
@@ -1247,15 +1247,15 @@ body {
 
 .progress-track {
     flex: 1;
-    height: clamp(5px, 1vh, 10px);
+    height: clamp(8.75px, 1vh, 17.5px);
     background: var(--bg4);
-    border-radius: 5px;
+    border-radius: 8.75px;
     overflow: hidden;
 }
 
 .progress-fill {
     height: 100%;
-    border-radius: 5px;
+    border-radius: 8.75px;
     background: linear-gradient(90deg, var(--accent), var(--accent-light));
     width: 0%;
     transition: width 0.5s ease;
@@ -1266,7 +1266,7 @@ body {
 }
 
 .progress-ml {
-    width: clamp(34px, 4vw, 52px);
+    width: clamp(59.5px, 4vw, 91px);
     flex-shrink: 0;
     font-size: 0.8125rem;
     color: var(--accent);
@@ -1274,17 +1274,17 @@ body {
 }
 
 .progress-overall {
-    margin-top: clamp(14px, 2.5vh, 30px);
+    margin-top: clamp(24.5px, 4.38vh, 52.5px);
     width: 100%;
     max-width: 60vw;
 }
 
 .progress-overall-track {
     width: 100%;
-    height: clamp(2px, 0.4vh, 4px);
+    height: clamp(2px, 0.4vh, 7px);
     background: var(--bg4);
     border-radius: 2px;
-    margin-bottom: clamp(6px, 1vh, 12px);
+    margin-bottom: clamp(10.5px, 1vh, 21px);
 }
 
 .progress-overall-fill {
@@ -1308,15 +1308,15 @@ body {
 }
 
 .progress-anim {
-    margin-top: clamp(12px, 2vh, 24px);
+    margin-top: clamp(21px, 3.5vh, 42px);
     display: flex;
-    gap: clamp(4px, 0.6vw, 8px);
+    gap: clamp(7px, 0.6vw, 14px);
     align-items: center;
 }
 
 .drop {
-    width: clamp(6px, 1vh, 10px);
-    height: clamp(6px, 1vh, 10px);
+    width: clamp(10.5px, 1vh, 17.5px);
+    height: clamp(10.5px, 1vh, 17.5px);
     border-radius: 50%;
     background: var(--accent);
     opacity: 0.4;
@@ -1352,12 +1352,12 @@ body {
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    gap: clamp(8px, 1.5vh, 18px);
+    gap: clamp(14px, 1.5vh, 31.5px);
 }
 
 .done-ring {
-    width: clamp(70px, 12vh, 120px);
-    height: clamp(70px, 12vh, 120px);
+    width: clamp(122px, 21vh, 210px);
+    height: clamp(122px, 21vh, 210px);
     border-radius: 50%;
     border: 2px solid var(--accent);
     display: flex;
@@ -1402,12 +1402,12 @@ body {
 }
 
 .done-btn {
-    margin-top: clamp(6px, 1vh, 14px);
+    margin-top: clamp(10.5px, 1vh, 24.5px);
     background: transparent;
     color: var(--text2);
     border: 1px solid var(--border2);
-    border-radius: 50px;
-    padding: clamp(8px, 1.2vh, 14px) clamp(20px, 3vw, 40px);
+    border-radius: 87.5px;
+    padding: clamp(14px, 1.2vh, 24.5px) clamp(35px, 3vw, 70px);
     font-family: "DM Sans", sans-serif;
     font-size: 0.9375rem;
     cursor: pointer;
@@ -1447,37 +1447,37 @@ body {
     min-width: 0;
 }
 
-@media (max-width: 1200px),
-(max-height: 700px) {
+@media (max-width: 2100px),
+(max-height: 1225px) {
     body {
         font-size: 0.8125rem;
     }
 
     .theme-btn {
-        top: 10px;
-        right: 10px;
-        width: 38px;
-        height: 38px;
+        top: 17.5px;
+        right: 17.5px;
+        width: 66.5px;
+        height: 66.5px;
         font-size: 1rem;
     }
 
     .back-btn {
-        padding: 8px 12px 8px 10px;
-        gap: 6px;
+        padding: 14px 21px 14px 17.5px;
+        gap: 10.5px;
         font-size: 0.75rem;
     }
 
     .back-btn svg {
-        width: 14px;
-        height: 14px;
-        min-width: 14px;
-        min-height: 14px;
+        width: 24.5px;
+        height: 24.5px;
+        min-width: 24.5px;
+        min-height: 24.5px;
     }
 
     #screen-mode {
         justify-content: flex-start;
-        gap: 18px;
-        padding: 54px 16px 16px;
+        gap: 31.5px;
+        padding: 94.5px 28px 28px;
     }
 
     .mode-header h2 {
@@ -1488,20 +1488,20 @@ body {
         width: 100%;
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
+        gap: 21px;
     }
 
     .mode-card {
         width: 100%;
-        min-height: 180px;
+        min-height: 315px;
         height: auto;
-        padding: 16px 12px;
+        padding: 28px 21px;
     }
 
     .drinks-header,
     .custom-header {
-        gap: 10px;
-        padding: 10px 12px;
+        gap: 17.5px;
+        padding: 17.5px 21px;
         flex-wrap: wrap;
         align-items: flex-start;
     }
@@ -1545,16 +1545,16 @@ body {
     }
 
     .modal {
-        width: min(94vw, 620px);
+        width: min(94vw, 1085px);
         max-height: 92vh;
     }
 
     .modal-body {
-        padding-bottom: 12px;
+        padding-bottom: 21px;
     }
 
     .modal-footer {
-        gap: 12px;
+        gap: 21px;
         flex-wrap: wrap;
     }
 
@@ -1564,26 +1564,26 @@ body {
     }
 }
 
-@media (max-width: 1024px),
-(max-height: 600px) {
+@media (max-width: 1792px),
+(max-height: 1050px) {
     body {
         font-size: 0.8125rem;
     }
 
     .theme-btn {
-        width: 42px;
-        height: 42px;
+        width: 73.5px;
+        height: 73.5px;
         font-size: 1.125rem;
     }
 
     .back-btn {
-        padding: 9px 14px 9px 12px;
+        padding: 15.8px 24.5px 15.8px 21px;
         font-size: 0.8125rem;
     }
 
     .welcome-content {
-        gap: 10px;
-        padding: 24px 18px;
+        gap: 17.5px;
+        padding: 42px 31.5px;
         text-align: center;
     }
 
@@ -1602,8 +1602,8 @@ body {
     }
 
     .tap-btn {
-        margin-top: 20px;
-        padding: 14px 34px;
+        margin-top: 35px;
+        padding: 24.5px 59.5px;
         font-size: 0.9375rem;
     }
 
@@ -1612,8 +1612,8 @@ body {
     }
 
     #screen-mode {
-        padding: 60px 16px 16px;
-        gap: 16px;
+        padding: 105px 28px 28px;
+        gap: 28px;
     }
 
     .mode-header h2 {
@@ -1623,23 +1623,23 @@ body {
 
     .mode-header p {
         font-size: 0.8125rem;
-        margin-top: 4px;
+        margin-top: 7px;
     }
 
     .mode-cards {
         grid-template-columns: 1fr;
-        gap: 14px;
+        gap: 24.5px;
     }
 
     .mode-card {
-        min-height: 170px;
-        padding: 18px 16px;
-        gap: 10px;
+        min-height: 298px;
+        padding: 31.5px 28px;
+        gap: 17.5px;
     }
 
     .mode-icon {
-        width: 62px;
-        height: 62px;
+        width: 108px;
+        height: 108px;
         font-size: 1.75rem;
     }
 
@@ -1662,7 +1662,7 @@ body {
 
     .drinks-count {
         font-size: 0.625rem;
-        padding: 3px 8px;
+        padding: 5.25px 14px;
     }
 
     .drinks-header-hint,
@@ -1672,13 +1672,13 @@ body {
 
     .drinks-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        padding: 10px 12px 14px;
+        gap: 17.5px;
+        padding: 17.5px 21px 24.5px;
     }
 
     .drink-card {
-        padding: 11px;
-        gap: 6px;
+        padding: 19.2px;
+        gap: 10.5px;
     }
 
     .drink-emoji {
@@ -1696,7 +1696,7 @@ body {
 
     .drink-tag {
         font-size: 0.5rem;
-        padding: 2px 6px;
+        padding: 2px 10.5px;
     }
 
     .drink-price {
@@ -1704,13 +1704,13 @@ body {
     }
 
     .drink-arrow {
-        width: 24px;
-        height: 24px;
+        width: 42px;
+        height: 42px;
         font-size: 0.6875rem;
     }
 
     .drink-footer {
-        padding-top: 7px;
+        padding-top: 12.2px;
     }
 
     .custom-header {
@@ -1721,17 +1721,17 @@ body {
     }
 
     .custom-body {
-        padding-bottom: 12px;
+        padding-bottom: 21px;
     }
 
     .slots-panel {
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        padding: 10px 12px;
+        gap: 17.5px;
+        padding: 17.5px 21px;
     }
 
     .slot-card {
-        padding: 12px;
+        padding: 21px;
     }
 
     .slot-label,
@@ -1741,12 +1741,12 @@ body {
 
     .slot-name {
         font-size: 1.125rem;
-        margin-bottom: 10px;
+        margin-bottom: 17.5px;
     }
 
     .stepper-btn {
-        width: 44px;
-        height: 42px;
+        width: 77px;
+        height: 73.5px;
         font-size: 1.5rem;
     }
 
@@ -1759,20 +1759,20 @@ body {
     }
 
     .custom-summary {
-        padding: 12px;
-        gap: 12px;
+        padding: 21px;
+        gap: 21px;
     }
 
     .custom-make-btn {
         position: sticky;
         bottom: 0;
         z-index: 10;
-        padding: 12px 14px;
+        padding: 21px 24.5px;
     }
 
     #screen-progress {
         justify-content: flex-start;
-        padding: 24px 16px 18px;
+        padding: 42px 28px 31.5px;
         overflow-y: auto;
     }
 
@@ -1788,23 +1788,23 @@ body {
     }
 
     .progress-header {
-        margin-bottom: 18px;
+        margin-bottom: 31.5px;
     }
 
     .progress-slot {
-        gap: 10px;
+        gap: 17.5px;
     }
 
     .progress-slot-label {
-        width: 86px;
+        width: 150px;
     }
 
     .progress-ml {
-        width: 46px;
+        width: 80.5px;
     }
 
     #screen-done {
-        padding: 24px 16px;
+        padding: 42px 28px;
         text-align: center;
     }
 
@@ -1823,30 +1823,30 @@ body {
 
     .modal-overlay {
         align-items: flex-start;
-        padding: 10px;
+        padding: 17.5px;
         overflow-y: auto;
     }
 
     .modal {
         width: 100%;
         max-height: none;
-        min-height: calc(100vh - 20px);
-        border-radius: 20px;
+        min-height: calc(100vh - 35px);
+        border-radius: 35px;
     }
 
     .modal-hero {
-        padding: 20px 52px 14px 18px;
+        padding: 35px 91px 24.5px 31.5px;
     }
 
     .modal-close {
-        width: 34px;
-        height: 34px;
+        width: 59.5px;
+        height: 59.5px;
         font-size: 1rem;
     }
 
     .modal-emoji {
         font-size: 2.75rem;
-        margin-bottom: 8px;
+        margin-bottom: 14px;
     }
 
     .modal-name {
@@ -1862,7 +1862,7 @@ body {
 
     .modal-body {
         overflow: visible;
-        padding: 14px 18px;
+        padding: 24.5px 31.5px;
     }
 
     .addons-row {
@@ -1873,7 +1873,7 @@ body {
         position: sticky;
         bottom: 0;
         background: var(--bg2);
-        padding: 12px 18px;
+        padding: 21px 31.5px;
     }
 
     .modal-price {
@@ -1881,11 +1881,11 @@ body {
     }
 
     .make-btn {
-        padding: 12px 20px;
+        padding: 21px 35px;
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1260px) {
 
     .drinks-grid,
     .slots-panel {
@@ -1895,7 +1895,7 @@ body {
     .progress-slot {
         display: grid;
         grid-template-columns: 1fr auto;
-        gap: 6px 10px;
+        gap: 10.5px 17.5px;
         align-items: center;
     }
 
@@ -1922,8 +1922,8 @@ body {
 }
 
 .welcome-content {
-    gap: 14px;
-    padding: 28px 22px;
+    gap: 24.5px;
+    padding: 49px 38.5px;
 }
 
 .welcome-eyebrow {
@@ -1941,8 +1941,8 @@ body {
 }
 
 .tap-btn {
-    margin-top: 28px;
-    padding: 18px 54px;
+    margin-top: 49px;
+    padding: 31.5px 94.5px;
     font-size: 1.5rem;
 }
 
@@ -1959,19 +1959,19 @@ body {
 }
 
 .mode-cards {
-    gap: 18px;
+    gap: 31.5px;
 }
 
 .mode-card {
-    width: clamp(240px, 28vw, 380px);
-    height: clamp(220px, 28vh, 360px);
-    gap: 14px;
-    padding: 20px 18px;
+    width: clamp(420px, 28vw, 665px);
+    height: clamp(385px, 28vh, 630px);
+    gap: 24.5px;
+    padding: 35px 31.5px;
 }
 
 .mode-icon {
-    width: clamp(66px, 7vw, 96px);
-    height: clamp(66px, 7vw, 96px);
+    width: clamp(116px, 7vw, 168px);
+    height: clamp(116px, 7vw, 168px);
     font-size: 2.625rem;
 }
 
@@ -1994,7 +1994,7 @@ body {
 
 .drinks-count {
     font-size: 0.8125rem;
-    padding: 5px 10px;
+    padding: 8.75px 17.5px;
 }
 
 .drinks-header-hint,
@@ -2003,14 +2003,14 @@ body {
 }
 
 .drinks-grid {
-    gap: 12px;
-    padding: 14px 16px 16px;
+    gap: 21px;
+    padding: 24.5px 28px 28px;
 }
 
 .drink-card {
-    min-height: 200px;
-    padding: 14px 14px 12px;
-    gap: 8px;
+    min-height: 350px;
+    padding: 24.5px 24.5px 21px;
+    gap: 14px;
 }
 
 .drink-emoji {
@@ -2033,18 +2033,18 @@ body {
 }
 
 .drink-tags {
-    gap: 5px;
-    min-height: 30px;
+    gap: 8.75px;
+    min-height: 52.5px;
     align-items: flex-start;
 }
 
 .drink-tag {
-    padding: 3px 8px;
+    padding: 5.25px 14px;
     font-size: 0.6875rem;
 }
 
 .drink-footer {
-    padding-top: 8px;
+    padding-top: 14px;
 }
 
 .drink-price {
@@ -2056,22 +2056,22 @@ body {
 }
 
 .drink-arrow {
-    width: 30px;
-    height: 30px;
+    width: 52.5px;
+    height: 52.5px;
     font-size: 0.8125rem;
 }
 
 .modal {
-    width: clamp(420px, 58vw, 760px);
+    width: clamp(735px, 58vw, 1330px);
 }
 
 .modal-hero {
-    padding: 24px 26px 18px;
+    padding: 42px 45.5px 31.5px;
 }
 
 .modal-close {
-    width: 40px;
-    height: 40px;
+    width: 70px;
+    height: 70px;
     font-size: 1.125rem;
 }
 
@@ -2098,11 +2098,11 @@ body {
 }
 
 .ingredient-row {
-    padding: 10px 14px;
+    padding: 17.5px 24.5px;
 }
 
 .addon-chip {
-    padding: 10px 15px;
+    padding: 17.5px 26.2px;
 }
 
 .modal-price {
@@ -2110,11 +2110,11 @@ body {
 }
 
 .make-btn {
-    padding: 14px 22px;
+    padding: 24.5px 38.5px;
 }
 
 .slot-card {
-    padding: 14px;
+    padding: 24.5px;
 }
 
 .slot-label,
@@ -2127,8 +2127,8 @@ body {
 }
 
 .stepper-btn {
-    width: 50px;
-    height: 48px;
+    width: 87.5px;
+    height: 84px;
     font-size: 1.625rem;
 }
 
@@ -2141,22 +2141,22 @@ body {
 }
 
 .custom-summary {
-    width: clamp(190px, 22vw, 280px);
+    width: clamp(332px, 22vw, 490px);
 }
 
 .custom-make-btn {
-    padding: 14px 16px;
+    padding: 24.5px 28px;
 }
 
-@media (max-width: 1024px),
-(max-height: 600px) {
+@media (max-width: 1792px),
+(max-height: 1050px) {
     body {
         font-size: 0.875rem;
     }
 
     .welcome-content {
-        gap: 14px;
-        padding: 22px 18px;
+        gap: 24.5px;
+        padding: 38.5px 31.5px;
     }
 
     .welcome-eyebrow {
@@ -2173,14 +2173,14 @@ body {
     }
 
     .tap-btn {
-        margin-top: 24px;
-        padding: 16px 56px;
+        margin-top: 42px;
+        padding: 28px 98px;
         font-size: 1.125rem;
     }
 
     #screen-mode {
-        padding: 56px 16px 16px;
-        gap: 14px;
+        padding: 98px 28px 28px;
+        gap: 24.5px;
     }
 
     .mode-header h2 {
@@ -2193,18 +2193,18 @@ body {
 
     .mode-cards {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
+        gap: 21px;
     }
 
     .mode-card {
-        min-height: 190px;
-        padding: 16px 14px;
-        gap: 10px;
+        min-height: 332px;
+        padding: 28px 24.5px;
+        gap: 17.5px;
     }
 
     .mode-icon {
-        width: 68px;
-        height: 68px;
+        width: 119px;
+        height: 119px;
         font-size: 1.875rem;
     }
 
@@ -2219,8 +2219,8 @@ body {
 
     .drinks-header,
     .custom-header {
-        padding: 10px 12px;
-        gap: 8px;
+        padding: 17.5px 21px;
+        gap: 14px;
     }
 
     .drinks-header h2,
@@ -2230,7 +2230,7 @@ body {
 
     .drinks-count {
         font-size: 0.6875rem;
-        padding: 4px 9px;
+        padding: 7px 15.8px;
     }
 
     .drinks-header-hint,
@@ -2240,14 +2240,14 @@ body {
 
     .drinks-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-        padding: 10px 12px 14px;
+        gap: 17.5px;
+        padding: 17.5px 21px 24.5px;
     }
 
     .drink-card {
-        min-height: 158px;
-        padding: 11px 11px 10px;
-        gap: 5px;
+        min-height: 276px;
+        padding: 19.2px 19.2px 17.5px;
+        gap: 8.75px;
     }
 
     .drink-emoji {
@@ -2265,7 +2265,7 @@ body {
 
     .drink-tag {
         font-size: 0.5rem;
-        padding: 2px 6px;
+        padding: 2px 10.5px;
     }
 
     .drink-price {
@@ -2273,46 +2273,46 @@ body {
     }
 
     .drink-arrow {
-        width: 26px;
-        height: 26px;
+        width: 45.5px;
+        height: 45.5px;
         font-size: 0.75rem;
     }
 
     .slot-card {
-        padding: 12px;
+        padding: 21px;
     }
 
     .slot-name {
         font-size: 1.125rem;
-        margin-bottom: 10px;
+        margin-bottom: 17.5px;
     }
 
     .stepper-btn {
-        width: 46px;
-        height: 44px;
+        width: 80.5px;
+        height: 77px;
         font-size: 1.5rem;
     }
 
     .custom-summary {
         width: 100%;
-        padding: 12px;
-        gap: 10px;
+        padding: 21px;
+        gap: 17.5px;
     }
 
     .modal-overlay {
         align-items: flex-start;
-        padding: 10px;
+        padding: 17.5px;
     }
 
     .modal {
-        width: min(94vw, 760px);
+        width: min(94vw, 1330px);
         min-height: auto;
-        max-height: calc(100vh - 20px);
-        border-radius: 20px;
+        max-height: calc(100vh - 35px);
+        border-radius: 35px;
     }
 
     .modal-hero {
-        padding: 18px 52px 14px 18px;
+        padding: 31.5px 91px 24.5px 31.5px;
     }
 
     .modal-name {
@@ -2327,11 +2327,11 @@ body {
     }
 
     .modal-body {
-        padding: 14px 18px;
+        padding: 24.5px 31.5px;
     }
 
     .modal-footer {
-        padding: 12px 18px;
+        padding: 21px 31.5px;
     }
 
     .modal-price {
@@ -2339,7 +2339,7 @@ body {
     }
 
     .make-btn {
-        padding: 12px 20px;
+        padding: 21px 35px;
     }
 }
 
@@ -2347,76 +2347,76 @@ body {
 #screen-mode {
     justify-content: center;
     align-items: center;
-    padding: 56px 28px 24px;
-    gap: 24px;
+    padding: 98px 49px 42px;
+    gap: 42px;
 }
 
 .mode-header {
     width: 100%;
-    max-width: 980px;
+    max-width: 1715px;
     margin: 0 auto;
 }
 
 .mode-cards {
     width: 100%;
-    max-width: 980px;
+    max-width: 1715px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: repeat(2, minmax(320px, 420px));
+    grid-template-columns: repeat(2, minmax(560px, 735px));
     justify-content: center;
     align-items: stretch;
-    gap: 28px;
+    gap: 49px;
 }
 
 .mode-card {
     width: 100%;
-    max-width: 420px;
-    min-height: 240px;
+    max-width: 735px;
+    min-height: 420px;
     height: auto;
     margin: 0 auto;
     justify-content: center;
 }
 
-@media (max-width: 1024px),
-(max-height: 600px) {
+@media (max-width: 1792px),
+(max-height: 1050px) {
     #screen-mode {
         justify-content: center;
         align-items: center;
-        padding: 48px 20px 20px;
-        gap: 18px;
+        padding: 84px 35px 35px;
+        gap: 31.5px;
     }
 
     .mode-header {
-        max-width: 900px;
+        max-width: 1575px;
     }
 
     .mode-cards {
-        max-width: 900px;
-        grid-template-columns: repeat(2, minmax(280px, 390px));
-        gap: 20px;
+        max-width: 1575px;
+        grid-template-columns: repeat(2, minmax(490px, 682px));
+        gap: 35px;
     }
 
     .mode-card {
-        min-height: 210px;
-        max-width: 390px;
+        min-height: 368px;
+        max-width: 682px;
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1260px) {
     #screen-mode {
         justify-content: flex-start;
-        padding: 60px 16px 16px;
+        padding: 105px 28px 28px;
     }
 
     .mode-cards {
         grid-template-columns: 1fr;
-        max-width: 440px;
-        gap: 14px;
+        max-width: 770px;
+        gap: 24.5px;
     }
 
     .mode-card {
         max-width: none;
-        min-height: 180px;
+        min-height: 315px;
     }
 }
 
@@ -2429,9 +2429,9 @@ body {
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: 12px;
-    padding: 18px 16px 12px;
-    min-height: 110px;
+    gap: 21px;
+    padding: 31.5px 28px 21px;
+    min-height: 192px;
 }
 
 .drinks-header-left {
@@ -2457,19 +2457,19 @@ body {
     min-height: 0;
     overflow-y: auto;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    padding: 12px 16px 16px;
+    gap: 21px;
+    padding: 21px 28px 28px;
     align-content: start;
 }
 
 .drink-card {
-    min-height: 180px;
+    min-height: 315px;
     height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    padding: 14px 14px 12px;
-    gap: 8px;
+    padding: 24.5px 24.5px 21px;
+    gap: 14px;
 }
 
 .drink-emoji {
@@ -2496,13 +2496,13 @@ body {
 .drink-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    min-height: 32px;
+    gap: 10.5px;
+    min-height: 56px;
 }
 
 .drink-tag {
     font-size: 0.625rem;
-    padding: 4px 8px;
+    padding: 7px 14px;
 }
 
 .drink-footer {
@@ -2510,8 +2510,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    padding-top: 10px;
+    gap: 17.5px;
+    padding-top: 17.5px;
 }
 
 .drink-price {
@@ -2525,18 +2525,18 @@ body {
 }
 
 .drink-arrow {
-    width: 32px;
-    height: 32px;
+    width: 56px;
+    height: 56px;
     flex-shrink: 0;
 }
 
-@media (max-width: 1024px),
-(max-height: 600px) {
+@media (max-width: 1792px),
+(max-height: 1050px) {
     .drinks-header {
         grid-template-columns: auto 1fr auto;
-        gap: 10px;
-        padding: 12px 12px 10px;
-        min-height: 92px;
+        gap: 17.5px;
+        padding: 21px 21px 17.5px;
+        min-height: 161px;
     }
 
     .drinks-header h2 {
@@ -2551,19 +2551,19 @@ body {
 
     .drinks-count {
         font-size: 0.6875rem;
-        padding: 4px 8px;
+        padding: 7px 14px;
     }
 
     .drinks-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        padding: 10px 12px 14px;
+        gap: 17.5px;
+        padding: 17.5px 21px 24.5px;
     }
 
     .drink-card {
-        min-height: 160px;
-        padding: 12px 12px 10px;
-        gap: 6px;
+        min-height: 280px;
+        padding: 21px 21px 17.5px;
+        gap: 10.5px;
     }
 
     .drink-emoji {
@@ -2580,17 +2580,17 @@ body {
     }
 
     .drink-tags {
-        gap: 5px;
-        min-height: 28px;
+        gap: 8.75px;
+        min-height: 49px;
     }
 
     .drink-tag {
         font-size: 0.5625rem;
-        padding: 3px 7px;
+        padding: 5.25px 12.2px;
     }
 
     .drink-footer {
-        padding-top: 8px;
+        padding-top: 14px;
     }
 
     .drink-price {
@@ -2602,13 +2602,13 @@ body {
     }
 
     .drink-arrow {
-        width: 28px;
-        height: 28px;
+        width: 49px;
+        height: 49px;
         font-size: 0.75rem;
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1260px) {
     .drinks-grid {
         grid-template-columns: 1fr;
     }
