@@ -1,3 +1,7 @@
+html {
+    font-size: 16px;
+}
+
 /* ── TOKENS ───────────────────────────────────────────────── */
 :root {
     --accent: #c9954a;
@@ -59,7 +63,7 @@ body {
     background: var(--bg);
     color: var(--text);
     font-family: "DM Sans", sans-serif;
-    font-size: clamp(13px, 1.6vw, 18px);
+    font-size: 1.125rem;
     line-height: 1.5;
     transition:
         background var(--trans),
@@ -104,7 +108,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.8vh;
+    font-size: 0.675rem;
     transition: all var(--trans);
 }
 
@@ -129,7 +133,7 @@ body {
     padding: 0.8vh 1.4vw 0.8vh 0.8vw;
     cursor: pointer;
     font-family: "DM Sans", sans-serif;
-    font-size: clamp(11px, 1.3vw, 15px);
+    font-size: 0.9375rem;
     transition: all var(--trans);
 }
 
@@ -258,7 +262,7 @@ body {
 }
 
 .welcome-eyebrow {
-    font-size: clamp(9px, 1vw, 13px);
+    font-size: 0.8125rem;
     font-weight: 500;
     letter-spacing: 0.3em;
     text-transform: uppercase;
@@ -269,7 +273,7 @@ body {
 
 .welcome-title {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(52px, 10vw, 110px);
+    font-size: 6.875rem;
     font-weight: 300;
     line-height: 0.9;
     letter-spacing: -0.03em;
@@ -284,7 +288,7 @@ body {
 }
 
 .welcome-sub {
-    font-size: clamp(11px, 1.2vw, 16px);
+    font-size: 1rem;
     color: var(--text2);
     margin-top: 0.5vh;
     opacity: 0;
@@ -299,7 +303,7 @@ body {
     border-radius: 50px;
     padding: 1.6vh 5vw;
     font-family: "DM Sans", sans-serif;
-    font-size: clamp(12px, 1.3vw, 17px);
+    font-size: 1.0625rem;
     font-weight: 500;
     letter-spacing: 0.03em;
     cursor: pointer;
@@ -328,7 +332,7 @@ body {
 }
 
 .tap-hint {
-    font-size: clamp(9px, 1vw, 13px);
+    font-size: 0.8125rem;
     color: var(--text3);
     margin-top: 1vh;
     opacity: 0;
@@ -365,13 +369,13 @@ body {
 
 .mode-header h2 {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(28px, 4vw, 52px);
+    font-size: 3.25rem;
     font-weight: 300;
     color: var(--text);
 }
 
 .mode-header p {
-    font-size: clamp(11px, 1.1vw, 15px);
+    font-size: 0.9375rem;
     color: var(--text2);
     margin-top: 0.5vh;
 }
@@ -432,7 +436,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: clamp(18px, 2.8vw, 36px);
+    font-size: 2.25rem;
     transition: all var(--trans);
 }
 
@@ -443,14 +447,14 @@ body {
 
 .mode-card h3 {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(18px, 2.2vw, 30px);
+    font-size: 1.875rem;
     font-weight: 400;
     color: var(--text);
     position: relative;
 }
 
 .mode-card p {
-    font-size: clamp(10px, 1vw, 14px);
+    font-size: 0.875rem;
     color: var(--text2);
     text-align: center;
     padding: 0 1.5vw;
@@ -483,7 +487,7 @@ body {
 
 .drinks-header h2 {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(14px, 1.8vw, 22px);
+    font-size: 1.375rem;
     font-weight: 300;
 }
 
@@ -493,12 +497,12 @@ body {
     border: 1px solid rgba(201, 149, 74, 0.3);
     border-radius: 20px;
     padding: 0.2vh 0.7vw;
-    font-size: clamp(8px, 0.75vw, 11px);
+    font-size: 0.6875rem;
     font-weight: 500;
 }
 
 .drinks-header-hint {
-    font-size: clamp(8px, 0.7vw, 10px);
+    font-size: 0.625rem;
     color: var(--text3);
 }
 
@@ -561,19 +565,19 @@ body {
 }
 
 .drink-emoji {
-    font-size: clamp(16px, 2.2vh, 26px);
+    font-size: 1.625rem;
     line-height: 1;
 }
 
 .drink-name {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(12px, 1.3vw, 18px);
+    font-size: 3rem;
     font-weight: 400;
     color: var(--text);
 }
 
 .drink-desc {
-    font-size: clamp(8px, 0.7vw, 10px);
+    font-size: 0.625rem;
     color: var(--text2);
     line-height: 1.3;
 }
@@ -589,7 +593,7 @@ body {
     border: 1px solid var(--border);
     border-radius: 20px;
     padding: 0.15vh 0.5vw;
-    font-size: clamp(7px, 0.6vw, 9px);
+    font-size: 0.5625rem;
     color: var(--text3);
 }
 
@@ -604,13 +608,13 @@ body {
 
 .drink-price {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(12px, 1.4vw, 18px);
+    font-size: 1.125rem;
     font-weight: 400;
     color: var(--accent);
 }
 
 .drink-price span {
-    font-size: clamp(8px, 0.7vw, 11px);
+    font-size: 0.6875rem;
 }
 
 .drink-arrow {
@@ -622,7 +626,7 @@ body {
     align-items: center;
     justify-content: center;
     color: var(--accent);
-    font-size: clamp(8px, 0.9vw, 12px);
+    font-size: 0.75rem;
     transition: all var(--trans);
 }
 
@@ -689,7 +693,7 @@ body {
     border: 1px solid var(--border);
     color: var(--text2);
     cursor: pointer;
-    font-size: clamp(12px, 1.5vh, 18px);
+    font-size: 1.125rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -702,19 +706,19 @@ body {
 }
 
 .modal-emoji {
-    font-size: clamp(28px, 5vh, 52px);
+    font-size: 3.25rem;
     margin-bottom: clamp(6px, 1vh, 14px);
 }
 
 .modal-name {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(22px, 3.5vw, 42px);
+    font-size: 2.625rem;
     font-weight: 300;
     color: var(--text);
 }
 
 .modal-desc {
-    font-size: clamp(11px, 1.1vw, 14px);
+    font-size: 0.875rem;
     color: var(--text2);
     margin-top: 0.5vh;
     line-height: 1.5;
@@ -736,7 +740,7 @@ body {
 }
 
 .modal-section-label {
-    font-size: clamp(9px, 0.9vw, 12px);
+    font-size: 0.75rem;
     font-weight: 500;
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -758,7 +762,7 @@ body {
     padding: clamp(6px, 1vh, 10px) clamp(10px, 1.2vw, 16px);
     background: var(--bg3);
     border-radius: var(--radius-sm);
-    font-size: clamp(11px, 1.1vw, 14px);
+    font-size: 0.875rem;
 }
 
 .ingredient-name {
@@ -785,7 +789,7 @@ body {
     border: 1.5px solid var(--border);
     border-radius: 50px;
     cursor: pointer;
-    font-size: clamp(11px, 1.1vw, 14px);
+    font-size: 0.875rem;
     color: var(--text2);
     transition: all var(--trans);
     user-select: none;
@@ -805,7 +809,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: clamp(9px, 1vh, 12px);
+    font-size: 0.75rem;
     transition: all var(--trans);
 }
 
@@ -825,13 +829,13 @@ body {
 
 .modal-price {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(24px, 3.5vw, 42px);
+    font-size: 2.625rem;
     font-weight: 300;
     color: var(--accent);
 }
 
 .modal-price span {
-    font-size: clamp(12px, 1.2vw, 16px);
+    font-size: 1rem;
 }
 
 .make-btn {
@@ -841,7 +845,7 @@ body {
     border-radius: 50px;
     padding: clamp(10px, 1.5vh, 16px) clamp(20px, 2.5vw, 40px);
     font-family: "DM Sans", sans-serif;
-    font-size: clamp(11px, 1.1vw, 15px);
+    font-size: 0.9375rem;
     font-weight: 500;
     cursor: pointer;
     transition: all var(--trans);
@@ -884,12 +888,12 @@ body {
 
 .custom-header h2 {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(20px, 2.8vw, 36px);
+    font-size: 2.25rem;
     font-weight: 300;
 }
 
 .custom-header p {
-    font-size: clamp(10px, 1vw, 13px);
+    font-size: 0.8125rem;
     color: var(--text2);
     margin-top: 0.3vh;
 }
@@ -934,7 +938,7 @@ body {
 }
 
 .slot-label {
-    font-size: clamp(8px, 0.85vw, 11px);
+    font-size: 0.6875rem;
     font-weight: 500;
     letter-spacing: 0.15em;
     text-transform: uppercase;
@@ -976,7 +980,7 @@ body {
 
 .slot-name {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(14px, 1.6vw, 20px);
+    font-size: 1.25rem;
     font-weight: 400;
     color: var(--text);
     margin-bottom: clamp(8px, 1.2vh, 14px);
@@ -1004,7 +1008,7 @@ body {
     background: transparent;
     border: none;
     color: var(--text2);
-    font-size: clamp(18px, 2.5vh, 28px);
+    font-size: 1.75rem;
     font-weight: 300;
     cursor: pointer;
     display: flex;
@@ -1037,7 +1041,7 @@ body {
     flex: 1;
     text-align: center;
     font-family: "DM Sans", sans-serif;
-    font-size: clamp(11px, 1.2vw, 16px);
+    font-size: 1rem;
     font-weight: 500;
     color: var(--accent);
     pointer-events: none;
@@ -1059,7 +1063,7 @@ body {
 }
 
 .summary-title {
-    font-size: clamp(8px, 0.85vw, 11px);
+    font-size: 0.6875rem;
     font-weight: 500;
     letter-spacing: 0.15em;
     text-transform: uppercase;
@@ -1077,7 +1081,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: clamp(10px, 1vw, 13px);
+    font-size: 0.8125rem;
     padding: clamp(4px, 0.7vh, 8px) clamp(6px, 0.8vw, 10px);
     background: var(--bg3);
     border-radius: clamp(5px, 0.7vh, 8px);
@@ -1093,7 +1097,7 @@ body {
 }
 
 .summary-empty {
-    font-size: clamp(10px, 1vw, 13px);
+    font-size: 0.8125rem;
     color: var(--text3);
     font-style: italic;
     text-align: center;
@@ -1119,7 +1123,7 @@ body {
     border-radius: 50px;
     background: var(--bg3);
     border: 1px solid var(--border);
-    font-size: clamp(10px, 1vw, 13px);
+    font-size: 0.8125rem;
     color: var(--text2);
     cursor: pointer;
     transition: all var(--trans);
@@ -1138,7 +1142,7 @@ body {
     border-radius: 50px;
     padding: clamp(10px, 1.5vh, 16px) clamp(10px, 1.2vw, 16px);
     font-family: "DM Sans", sans-serif;
-    font-size: clamp(11px, 1.1vw, 15px);
+    font-size: 0.9375rem;
     font-weight: 500;
     cursor: pointer;
     transition: all var(--trans);
@@ -1172,7 +1176,7 @@ body {
 }
 
 .custom-total-vol {
-    font-size: clamp(10px, 1vw, 13px);
+    font-size: 0.8125rem;
     color: var(--text2);
     text-align: center;
 }
@@ -1198,7 +1202,7 @@ body {
 }
 
 .progress-header .eyebrow {
-    font-size: clamp(9px, 0.9vw, 12px);
+    font-size: 0.75rem;
     font-weight: 500;
     letter-spacing: 0.2em;
     text-transform: uppercase;
@@ -1208,13 +1212,13 @@ body {
 
 .progress-header h2 {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(28px, 4vw, 52px);
+    font-size: 3.25rem;
     font-weight: 300;
     color: var(--text);
 }
 
 .progress-header p {
-    font-size: clamp(11px, 1.1vw, 14px);
+    font-size: 0.875rem;
     color: var(--text2);
     margin-top: 0.5vh;
 }
@@ -1236,7 +1240,7 @@ body {
 .progress-slot-label {
     width: clamp(80px, 10vw, 140px);
     flex-shrink: 0;
-    font-size: clamp(11px, 1.1vw, 14px);
+    font-size: 0.875rem;
     color: var(--text2);
     text-align: right;
 }
@@ -1264,7 +1268,7 @@ body {
 .progress-ml {
     width: clamp(34px, 4vw, 52px);
     flex-shrink: 0;
-    font-size: clamp(10px, 1vw, 13px);
+    font-size: 0.8125rem;
     color: var(--accent);
     font-weight: 500;
 }
@@ -1294,7 +1298,7 @@ body {
 .progress-overall-text {
     display: flex;
     justify-content: space-between;
-    font-size: clamp(10px, 1vw, 13px);
+    font-size: 0.8125rem;
     color: var(--text2);
 }
 
@@ -1359,7 +1363,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: clamp(30px, 6vh, 60px);
+    font-size: 3.75rem;
     animation: ringPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
@@ -1377,7 +1381,7 @@ body {
 
 .done-title {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(36px, 6vw, 72px);
+    font-size: 4.5rem;
     font-weight: 300;
     color: var(--text);
     animation: fadeUp 0.6s 0.2s both;
@@ -1385,14 +1389,14 @@ body {
 
 .done-name {
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(16px, 2vw, 26px);
+    font-size: 1.625rem;
     font-style: italic;
     color: var(--accent);
     animation: fadeUp 0.6s 0.35s both;
 }
 
 .done-sub {
-    font-size: clamp(12px, 1.2vw, 16px);
+    font-size: 1rem;
     color: var(--text2);
     animation: fadeUp 0.6s 0.45s both;
 }
@@ -1405,7 +1409,7 @@ body {
     border-radius: 50px;
     padding: clamp(8px, 1.2vh, 14px) clamp(20px, 3vw, 40px);
     font-family: "DM Sans", sans-serif;
-    font-size: clamp(11px, 1.1vw, 15px);
+    font-size: 0.9375rem;
     cursor: pointer;
     transition: all var(--trans);
     animation: fadeUp 0.6s 0.6s both;
@@ -1446,7 +1450,7 @@ body {
 @media (max-width: 1200px),
 (max-height: 700px) {
     body {
-        font-size: 13px;
+        font-size: 0.8125rem;
     }
 
     .theme-btn {
@@ -1454,13 +1458,13 @@ body {
         right: 10px;
         width: 38px;
         height: 38px;
-        font-size: 16px;
+        font-size: 1rem;
     }
 
     .back-btn {
         padding: 8px 12px 8px 10px;
         gap: 6px;
-        font-size: 12px;
+        font-size: 0.75rem;
     }
 
     .back-btn svg {
@@ -1477,7 +1481,7 @@ body {
     }
 
     .mode-header h2 {
-        font-size: clamp(24px, 4vw, 34px);
+        font-size: 2.125rem;
     }
 
     .mode-cards {
@@ -1563,18 +1567,18 @@ body {
 @media (max-width: 1024px),
 (max-height: 600px) {
     body {
-        font-size: 13px;
+        font-size: 0.8125rem;
     }
 
     .theme-btn {
         width: 42px;
         height: 42px;
-        font-size: 18px;
+        font-size: 1.125rem;
     }
 
     .back-btn {
         padding: 9px 14px 9px 12px;
-        font-size: 13px;
+        font-size: 0.8125rem;
     }
 
     .welcome-content {
@@ -1584,27 +1588,27 @@ body {
     }
 
     .welcome-eyebrow {
-        font-size: 12px;
+        font-size: 0.75rem;
         letter-spacing: 0.24em;
     }
 
     .welcome-title {
-        font-size: clamp(56px, 11vw, 82px);
+        font-size: 5.125rem;
         line-height: 0.92;
     }
 
     .welcome-sub {
-        font-size: 15px;
+        font-size: 0.9375rem;
     }
 
     .tap-btn {
         margin-top: 20px;
         padding: 14px 34px;
-        font-size: 15px;
+        font-size: 0.9375rem;
     }
 
     .tap-hint {
-        font-size: 12px;
+        font-size: 0.75rem;
     }
 
     #screen-mode {
@@ -1613,12 +1617,12 @@ body {
     }
 
     .mode-header h2 {
-        font-size: clamp(30px, 4.6vw, 40px);
+        font-size: 2.5rem;
         line-height: 1;
     }
 
     .mode-header p {
-        font-size: 13px;
+        font-size: 0.8125rem;
         margin-top: 4px;
     }
 
@@ -1636,34 +1640,34 @@ body {
     .mode-icon {
         width: 62px;
         height: 62px;
-        font-size: 28px;
+        font-size: 1.75rem;
     }
 
     .mode-card h3 {
-        font-size: 28px;
+        font-size: 1.75rem;
         line-height: 1;
     }
 
     .mode-card p {
-        font-size: 13px;
+        font-size: 0.8125rem;
         max-width: 26ch;
         padding: 0;
     }
 
     .drinks-header h2,
     .custom-header h2 {
-        font-size: 28px;
+        font-size: 1.75rem;
         line-height: 1.05;
     }
 
     .drinks-count {
-        font-size: 10px;
+        font-size: 0.625rem;
         padding: 3px 8px;
     }
 
     .drinks-header-hint,
     .custom-header p {
-        font-size: 11px;
+        font-size: 0.6875rem;
     }
 
     .drinks-grid {
@@ -1678,31 +1682,31 @@ body {
     }
 
     .drink-emoji {
-        font-size: 24px;
+        font-size: 1.5rem;
     }
 
     .drink-name {
-        font-size: 18px;
+        font-size: 3rem;
         line-height: 1.05;
     }
 
     .drink-desc {
-        font-size: 10px;
+        font-size: 0.625rem;
     }
 
     .drink-tag {
-        font-size: 8px;
+        font-size: 0.5rem;
         padding: 2px 6px;
     }
 
     .drink-price {
-        font-size: 18px;
+        font-size: 1.125rem;
     }
 
     .drink-arrow {
         width: 24px;
         height: 24px;
-        font-size: 11px;
+        font-size: 0.6875rem;
     }
 
     .drink-footer {
@@ -1732,18 +1736,18 @@ body {
 
     .slot-label,
     .summary-title {
-        font-size: 10px;
+        font-size: 0.625rem;
     }
 
     .slot-name {
-        font-size: 18px;
+        font-size: 1.125rem;
         margin-bottom: 10px;
     }
 
     .stepper-btn {
         width: 44px;
         height: 42px;
-        font-size: 24px;
+        font-size: 1.5rem;
     }
 
     .stepper-val,
@@ -1751,7 +1755,7 @@ body {
     .custom-addon-chip,
     .custom-total-vol,
     .custom-make-btn {
-        font-size: 12px;
+        font-size: 0.75rem;
     }
 
     .custom-summary {
@@ -1773,14 +1777,14 @@ body {
     }
 
     .progress-header h2 {
-        font-size: 34px;
+        font-size: 2.125rem;
     }
 
     .progress-header p,
     .progress-slot-label,
     .progress-ml,
     .progress-overall-text {
-        font-size: 12px;
+        font-size: 0.75rem;
     }
 
     .progress-header {
@@ -1805,16 +1809,16 @@ body {
     }
 
     .done-title {
-        font-size: clamp(38px, 7vw, 58px);
+        font-size: 3.625rem;
     }
 
     .done-name {
-        font-size: 22px;
+        font-size: 1.375rem;
     }
 
     .done-sub,
     .done-btn {
-        font-size: 13px;
+        font-size: 0.8125rem;
     }
 
     .modal-overlay {
@@ -1837,23 +1841,23 @@ body {
     .modal-close {
         width: 34px;
         height: 34px;
-        font-size: 16px;
+        font-size: 1rem;
     }
 
     .modal-emoji {
-        font-size: 44px;
+        font-size: 2.75rem;
         margin-bottom: 8px;
     }
 
     .modal-name {
-        font-size: 34px;
+        font-size: 2.125rem;
     }
 
     .modal-desc,
     .ingredient-row,
     .addon-chip,
     .make-btn {
-        font-size: 13px;
+        font-size: 0.8125rem;
     }
 
     .modal-body {
@@ -1873,7 +1877,7 @@ body {
     }
 
     .modal-price {
-        font-size: 32px;
+        font-size: 2rem;
     }
 
     .make-btn {
@@ -1914,7 +1918,7 @@ body {
 
 /* ── SIZE UPGRADE: larger default UI while keeping cards packed ── */
 body {
-    font-size: clamp(15px, 1.75vw, 20px);
+    font-size: 1.25rem;
 }
 
 .welcome-content {
@@ -1923,35 +1927,35 @@ body {
 }
 
 .welcome-eyebrow {
-    font-size: clamp(15px, 1.35vw, 20px);
+    font-size: 1.25rem;
     letter-spacing: 0.28em;
 }
 
 .welcome-title {
-    font-size: clamp(82px, 13vw, 170px);
+    font-size: 10.625rem;
     line-height: 0.88;
 }
 
 .welcome-sub {
-    font-size: clamp(18px, 1.7vw, 26px);
+    font-size: 1.625rem;
 }
 
 .tap-btn {
     margin-top: 28px;
     padding: 18px 54px;
-    font-size: clamp(18px, 1.7vw, 24px);
+    font-size: 1.5rem;
 }
 
 .tap-hint {
-    font-size: clamp(13px, 1.1vw, 16px);
+    font-size: 1rem;
 }
 
 .mode-header h2 {
-    font-size: clamp(40px, 4.8vw, 62px);
+    font-size: 3.875rem;
 }
 
 .mode-header p {
-    font-size: clamp(15px, 1.3vw, 19px);
+    font-size: 1.1875rem;
 }
 
 .mode-cards {
@@ -1968,16 +1972,16 @@ body {
 .mode-icon {
     width: clamp(66px, 7vw, 96px);
     height: clamp(66px, 7vw, 96px);
-    font-size: clamp(28px, 3.2vw, 42px);
+    font-size: 2.625rem;
 }
 
 .mode-card h3 {
-    font-size: clamp(28px, 2.8vw, 38px);
+    font-size: 2.375rem;
     line-height: 1;
 }
 
 .mode-card p {
-    font-size: clamp(14px, 1.15vw, 17px);
+    font-size: 1.0625rem;
     line-height: 1.35;
     max-width: 28ch;
     padding: 0;
@@ -1985,17 +1989,17 @@ body {
 
 .drinks-header h2,
 .custom-header h2 {
-    font-size: clamp(28px, 3.2vw, 42px);
+    font-size: 2.625rem;
 }
 
 .drinks-count {
-    font-size: clamp(11px, 0.9vw, 13px);
+    font-size: 0.8125rem;
     padding: 5px 10px;
 }
 
 .drinks-header-hint,
 .custom-header p {
-    font-size: clamp(13px, 1.05vw, 16px);
+    font-size: 1rem;
 }
 
 .drinks-grid {
@@ -2010,16 +2014,16 @@ body {
 }
 
 .drink-emoji {
-    font-size: clamp(28px, 3vh, 36px);
+    font-size: 2.25rem;
 }
 
 .drink-name {
-    font-size: clamp(22px, 1.8vw, 28px);
+    font-size: 3rem;
     line-height: 1;
 }
 
 .drink-desc {
-    font-size: clamp(11px, 0.9vw, 13px);
+    font-size: 0.8125rem;
     line-height: 1.28;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -2036,7 +2040,7 @@ body {
 
 .drink-tag {
     padding: 3px 8px;
-    font-size: clamp(9px, 0.7vw, 11px);
+    font-size: 0.6875rem;
 }
 
 .drink-footer {
@@ -2044,17 +2048,17 @@ body {
 }
 
 .drink-price {
-    font-size: clamp(22px, 1.9vw, 28px);
+    font-size: 1.75rem;
 }
 
 .drink-price span {
-    font-size: clamp(10px, 0.85vw, 13px);
+    font-size: 0.8125rem;
 }
 
 .drink-arrow {
     width: 30px;
     height: 30px;
-    font-size: 13px;
+    font-size: 0.8125rem;
 }
 
 .modal {
@@ -2068,29 +2072,29 @@ body {
 .modal-close {
     width: 40px;
     height: 40px;
-    font-size: 18px;
+    font-size: 1.125rem;
 }
 
 .modal-emoji {
-    font-size: clamp(42px, 5.2vh, 60px);
+    font-size: 3.75rem;
 }
 
 .modal-name {
-    font-size: clamp(34px, 3.9vw, 50px);
+    font-size: 3.125rem;
 }
 
 .modal-desc {
-    font-size: clamp(14px, 1.15vw, 17px);
+    font-size: 1.0625rem;
 }
 
 .modal-section-label {
-    font-size: clamp(11px, 0.9vw, 13px);
+    font-size: 0.8125rem;
 }
 
 .ingredient-row,
 .addon-chip,
 .make-btn {
-    font-size: clamp(14px, 1.1vw, 17px);
+    font-size: 1.0625rem;
 }
 
 .ingredient-row {
@@ -2102,7 +2106,7 @@ body {
 }
 
 .modal-price {
-    font-size: clamp(34px, 3.8vw, 48px);
+    font-size: 3rem;
 }
 
 .make-btn {
@@ -2115,17 +2119,17 @@ body {
 
 .slot-label,
 .summary-title {
-    font-size: clamp(10px, 0.85vw, 12px);
+    font-size: 0.75rem;
 }
 
 .slot-name {
-    font-size: clamp(20px, 1.8vw, 24px);
+    font-size: 1.5rem;
 }
 
 .stepper-btn {
     width: 50px;
     height: 48px;
-    font-size: 26px;
+    font-size: 1.625rem;
 }
 
 .stepper-val,
@@ -2133,7 +2137,7 @@ body {
 .custom-addon-chip,
 .custom-total-vol,
 .custom-make-btn {
-    font-size: clamp(13px, 1.02vw, 15px);
+    font-size: 0.9375rem;
 }
 
 .custom-summary {
@@ -2147,7 +2151,7 @@ body {
 @media (max-width: 1024px),
 (max-height: 600px) {
     body {
-        font-size: 14px;
+        font-size: 0.875rem;
     }
 
     .welcome-content {
@@ -2156,22 +2160,22 @@ body {
     }
 
     .welcome-eyebrow {
-        font-size: 14px;
+        font-size: 0.875rem;
         letter-spacing: 0.24em;
     }
 
     .welcome-title {
-        font-size: clamp(92px, 14vw, 144px);
+        font-size: 9rem;
     }
 
     .welcome-sub {
-        font-size: 17px;
+        font-size: 1.0625rem;
     }
 
     .tap-btn {
         margin-top: 24px;
         padding: 16px 56px;
-        font-size: 18px;
+        font-size: 1.125rem;
     }
 
     #screen-mode {
@@ -2180,11 +2184,11 @@ body {
     }
 
     .mode-header h2 {
-        font-size: clamp(34px, 4.8vw, 46px);
+        font-size: 2.875rem;
     }
 
     .mode-header p {
-        font-size: 14px;
+        font-size: 0.875rem;
     }
 
     .mode-cards {
@@ -2201,15 +2205,15 @@ body {
     .mode-icon {
         width: 68px;
         height: 68px;
-        font-size: 30px;
+        font-size: 1.875rem;
     }
 
     .mode-card h3 {
-        font-size: 30px;
+        font-size: 1.875rem;
     }
 
     .mode-card p {
-        font-size: 13px;
+        font-size: 0.8125rem;
         max-width: 24ch;
     }
 
@@ -2221,17 +2225,17 @@ body {
 
     .drinks-header h2,
     .custom-header h2 {
-        font-size: 30px;
+        font-size: 1.875rem;
     }
 
     .drinks-count {
-        font-size: 11px;
+        font-size: 0.6875rem;
         padding: 4px 9px;
     }
 
     .drinks-header-hint,
     .custom-header p {
-        font-size: 12px;
+        font-size: 0.75rem;
     }
 
     .drinks-grid {
@@ -2247,31 +2251,31 @@ body {
     }
 
     .drink-emoji {
-        font-size: 24px;
+        font-size: 1.5rem;
     }
 
     .drink-name {
-        font-size: 20px;
+        font-size: 3rem;
     }
 
     .drink-desc {
-        font-size: 10px;
+        font-size: 0.625rem;
         min-height: 2.5em;
     }
 
     .drink-tag {
-        font-size: 8px;
+        font-size: 0.5rem;
         padding: 2px 6px;
     }
 
     .drink-price {
-        font-size: 20px;
+        font-size: 1.25rem;
     }
 
     .drink-arrow {
         width: 26px;
         height: 26px;
-        font-size: 12px;
+        font-size: 0.75rem;
     }
 
     .slot-card {
@@ -2279,14 +2283,14 @@ body {
     }
 
     .slot-name {
-        font-size: 18px;
+        font-size: 1.125rem;
         margin-bottom: 10px;
     }
 
     .stepper-btn {
         width: 46px;
         height: 44px;
-        font-size: 24px;
+        font-size: 1.5rem;
     }
 
     .custom-summary {
@@ -2312,14 +2316,14 @@ body {
     }
 
     .modal-name {
-        font-size: 36px;
+        font-size: 2.25rem;
     }
 
     .modal-desc,
     .ingredient-row,
     .addon-chip,
     .make-btn {
-        font-size: 13px;
+        font-size: 0.8125rem;
     }
 
     .modal-body {
@@ -2331,7 +2335,7 @@ body {
     }
 
     .modal-price {
-        font-size: 34px;
+        font-size: 2.125rem;
     }
 
     .make-btn {
@@ -2469,18 +2473,18 @@ body {
 }
 
 .drink-emoji {
-    font-size: 26px;
+    font-size: 1.625rem;
     line-height: 1;
 }
 
 .drink-name {
-    font-size: clamp(22px, 1.7vw, 28px);
+    font-size: 3rem;
     line-height: 1.02;
     word-break: break-word;
 }
 
 .drink-desc {
-    font-size: 12px;
+    font-size: 0.75rem;
     line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -2497,7 +2501,7 @@ body {
 }
 
 .drink-tag {
-    font-size: 10px;
+    font-size: 0.625rem;
     padding: 4px 8px;
 }
 
@@ -2511,13 +2515,13 @@ body {
 }
 
 .drink-price {
-    font-size: clamp(24px, 1.8vw, 30px);
+    font-size: 1.875rem;
     line-height: 1;
     white-space: nowrap;
 }
 
 .drink-price span {
-    font-size: 12px;
+    font-size: 0.75rem;
 }
 
 .drink-arrow {
@@ -2536,17 +2540,17 @@ body {
     }
 
     .drinks-header h2 {
-        font-size: 28px;
+        font-size: 1.75rem;
         line-height: 1;
     }
 
     .drinks-header-hint {
         grid-column: 1 / 3;
-        font-size: 12px;
+        font-size: 0.75rem;
     }
 
     .drinks-count {
-        font-size: 11px;
+        font-size: 0.6875rem;
         padding: 4px 8px;
     }
 
@@ -2563,15 +2567,15 @@ body {
     }
 
     .drink-emoji {
-        font-size: 24px;
+        font-size: 1.5rem;
     }
 
     .drink-name {
-        font-size: 20px;
+        font-size: 3rem;
     }
 
     .drink-desc {
-        font-size: 11px;
+        font-size: 0.6875rem;
         min-height: 2.6em;
     }
 
@@ -2581,7 +2585,7 @@ body {
     }
 
     .drink-tag {
-        font-size: 9px;
+        font-size: 0.5625rem;
         padding: 3px 7px;
     }
 
@@ -2590,17 +2594,17 @@ body {
     }
 
     .drink-price {
-        font-size: 22px;
+        font-size: 1.375rem;
     }
 
     .drink-price span {
-        font-size: 11px;
+        font-size: 0.6875rem;
     }
 
     .drink-arrow {
         width: 28px;
         height: 28px;
-        font-size: 12px;
+        font-size: 0.75rem;
     }
 }
 
@@ -2616,4 +2620,18 @@ body {
     .drinks-header-hint {
         grid-column: 1 / -1;
     }
+}
+
+/* ── REM OVERRIDES ───────────────────────────────────────── */
+.drink-name {
+    font-size: 3rem !important;
+}
+
+.drink-tag {
+    font-size: 0.75rem;
+}
+
+.progress-anim span {
+    font-size: 0.8125rem !important;
+    margin-left: 0.5rem !important;
 }
