@@ -2562,3 +2562,437 @@ body {
     text-align: center;
     padding: 0;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   1024×768 TARGET DEVICE — PRIMARY DISPLAY
+   All rem values scale from html { font-size } which we reduce
+   to 14px so the rem-based type system fits the smaller canvas.
+══════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) and (max-height: 768px),
+(max-width: 1024px),
+(max-height: 768px) {
+
+    /* ── Base scale-down ─────────────────────────────── */
+    html {
+        font-size: 14px !important;
+    }
+
+    body {
+        font-size: 1rem;
+    }
+
+    /* ── Theme toggle ────────────────────────────────── */
+    .theme-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 1.1rem;
+        top: 10px;
+        right: 10px;
+    }
+
+    /* ── Back button ─────────────────────────────────── */
+    .back-btn {
+        font-size: 0.85rem;
+        padding: 6px 14px 6px 10px;
+        gap: 4px;
+    }
+
+    .back-btn svg {
+        width: 16px;
+        height: 16px;
+        min-width: 16px;
+        min-height: 16px;
+    }
+
+    /* ── SCREEN 1: WELCOME ───────────────────────────── */
+    .welcome-eyebrow {
+        font-size: 0.65rem;
+        letter-spacing: 0.28em;
+    }
+
+    .welcome-title {
+        font-size: 5rem;
+        line-height: 0.92;
+    }
+
+    .welcome-sub {
+        font-size: 1rem;
+        margin-top: 4px;
+    }
+
+    .tap-btn {
+        margin-top: 28px;
+        padding: 14px 44px;
+        font-size: 1rem;
+    }
+
+    .tap-hint {
+        font-size: 0.8rem;
+    }
+
+    /* ── SCREEN 2: MODE SELECT ───────────────────────── */
+    #screen-mode {
+        padding: 56px 24px 24px;
+        gap: 20px;
+        justify-content: center;
+    }
+
+    .mode-header h2 {
+        font-size: 2.2rem;
+    }
+
+    .mode-header p {
+        font-size: 0.9rem;
+    }
+
+    .mode-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-width: 820px;
+        gap: 20px;
+    }
+
+    .mode-card {
+        min-height: 200px;
+        max-width: none;
+        padding: 24px 20px;
+        gap: 12px;
+    }
+
+    .mode-icon {
+        width: 56px;
+        height: 56px;
+        font-size: 1.6rem;
+    }
+
+    .mode-card h3 {
+        font-size: 1.4rem;
+    }
+
+    .mode-card p {
+        font-size: 0.82rem;
+        padding: 0;
+    }
+
+    /* ── SCREEN 3: DEFAULT DRINKS ────────────────────── */
+    #screen-drinks {
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .drinks-header {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px 8px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+    }
+
+    .drinks-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .drinks-header-left h2 {
+        font-size: 1.6rem;
+        margin: 0;
+    }
+
+    .drinks-count {
+        font-size: 0.75rem;
+        padding: 3px 10px;
+    }
+
+    .drinks-header-hint {
+        grid-column: 2 / 4;
+        font-size: 0.75rem;
+        color: var(--text3);
+        margin-top: 0;
+    }
+
+    /* ── THE KEY FIX: drinks grid scrolls correctly ── */
+    .drinks-grid {
+        flex: 1;
+        min-height: 0;
+        /* lets flex child shrink */
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-auto-rows: minmax(180px, auto);
+        /* auto rows = scrollable */
+        grid-template-rows: unset !important;
+        /* kill the fixed 2-row constraint */
+        align-content: start;
+        gap: 10px;
+        padding: 12px 16px 16px;
+    }
+
+    .drinks-grid::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .drinks-grid::-webkit-scrollbar-thumb {
+        background: var(--border2);
+        border-radius: 2px;
+    }
+
+    /* ── Drink cards ─────────────────────────────────── */
+    .drink-card {
+        height: auto !important;
+        min-height: 0;
+        padding: 14px 14px 12px;
+        gap: 6px;
+        border-radius: 16px;
+    }
+
+    .drink-emoji {
+        font-size: 1.5rem !important;
+        line-height: 1;
+    }
+
+    .drink-name {
+        font-size: 1.15rem !important;
+        line-height: 1.1;
+        word-break: break-word;
+    }
+
+    .drink-desc {
+        font-size: 0.78rem;
+        line-height: 1.35;
+        -webkit-line-clamp: 2;
+    }
+
+    .drink-tags {
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
+    .drink-tag {
+        font-size: 0.68rem !important;
+        padding: 2px 8px;
+    }
+
+    .drink-footer {
+        padding-top: 8px;
+        margin-top: auto;
+    }
+
+    .drink-price {
+        font-size: 1rem;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .drink-price span {
+        font-size: 0.75rem;
+    }
+
+    .drink-arrow {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* ── SCREEN 4: CUSTOM DRINK ──────────────────────── */
+    .custom-header {
+        padding: 10px 16px;
+        gap: 12px;
+    }
+
+    .custom-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .custom-header p {
+        font-size: 0.78rem;
+        margin-top: 2px;
+    }
+
+    .custom-body {
+        gap: 12px;
+        padding: 12px 16px;
+    }
+
+    .slots-panel {
+        gap: 10px;
+    }
+
+    .slot-card {
+        padding: 12px 14px;
+        border-radius: 14px;
+    }
+
+    .slot-label {
+        font-size: 0.7rem;
+    }
+
+    .slot-name {
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+    }
+
+    .stepper-btn {
+        width: 40px;
+        height: 38px;
+        font-size: 1.1rem;
+    }
+
+    .stepper-val {
+        font-size: 0.85rem;
+    }
+
+    .custom-summary {
+        padding: 14px;
+        gap: 10px;
+        border-radius: 16px;
+    }
+
+    .summary-title {
+        font-size: 0.7rem;
+        letter-spacing: 0.18em;
+    }
+
+    .summary-item {
+        font-size: 0.82rem;
+        padding: 6px 10px;
+    }
+
+    .custom-total-vol {
+        font-size: 0.85rem;
+    }
+
+    .custom-make-btn {
+        padding: 12px 20px;
+        font-size: 0.9rem;
+    }
+
+    .custom-addon-chip {
+        font-size: 0.78rem;
+        padding: 8px 14px;
+    }
+
+    /* ── SCREEN 5: PROGRESS ──────────────────────────── */
+    .progress-header {
+        padding: 24px 24px 12px;
+    }
+
+    .progress-header h2 {
+        font-size: 2rem;
+    }
+
+    .progress-slot {
+        font-size: 0.85rem;
+    }
+
+    .progress-overall-text {
+        font-size: 0.82rem;
+    }
+
+    .progress-anim span {
+        font-size: 0.8rem !important;
+    }
+
+    /* ── SCREEN 6: DONE ──────────────────────────────── */
+    .done-ring {
+        font-size: 4rem;
+    }
+
+    .done-title {
+        font-size: 3rem;
+    }
+
+    .done-name {
+        font-size: 1.5rem;
+    }
+
+    .done-sub {
+        font-size: 0.9rem;
+    }
+
+    .done-btn {
+        padding: 14px 36px;
+        font-size: 0.95rem;
+    }
+
+    /* ── MODAL ───────────────────────────────────────── */
+    .modal {
+        width: min(92vw, 600px);
+        max-height: calc(100vh - 40px);
+        border-radius: 24px;
+    }
+
+    .modal-hero {
+        padding: 20px 60px 16px 20px;
+    }
+
+    .modal-close {
+        width: 34px;
+        height: 34px;
+        font-size: 0.85rem;
+        top: 12px;
+        right: 12px;
+    }
+
+    .modal-emoji {
+        font-size: 2rem;
+        margin-bottom: 8px;
+    }
+
+    .modal-name {
+        font-size: 1.6rem;
+    }
+
+    .modal-desc {
+        font-size: 0.82rem;
+        margin-top: 4px;
+    }
+
+    .modal-body {
+        padding: 14px 20px;
+    }
+
+    .modal-section-label {
+        font-size: 0.68rem;
+        margin-bottom: 8px;
+    }
+
+    .ingredient-row {
+        font-size: 0.82rem;
+        padding: 8px 12px;
+        border-radius: 10px;
+    }
+
+    .addon-chip {
+        font-size: 0.82rem;
+        padding: 8px 14px;
+        gap: 8px;
+    }
+
+    .addon-check {
+        width: 20px;
+        height: 20px;
+        font-size: 0.7rem;
+    }
+
+    .modal-footer {
+        padding: 12px 20px;
+    }
+
+    .modal-price {
+        font-size: 1.6rem;
+    }
+
+    .modal-price span {
+        font-size: 1rem;
+    }
+
+    .make-btn {
+        padding: 12px 24px;
+        font-size: 0.9rem;
+        border-radius: 50px;
+    }
+}
