@@ -39,3 +39,12 @@
 
 # debug information files
 *.dwo
+*.db-shm
+*.db-wal
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
