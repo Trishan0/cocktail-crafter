@@ -209,6 +209,7 @@ def publish_order(order_id: int, recipe_name: str, ingredients: dict, options: d
         "timestamp":   datetime.now().isoformat(),
     }
     _publish(TOPIC_ORDER, payload, qos=1)
+    print("Publishing order to MQTT:", payload)
     print(f"[MQTT] Order published → #{order_id} {recipe_name}")
 
 
