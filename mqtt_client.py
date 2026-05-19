@@ -9,24 +9,25 @@ import threading
 import time
 import paho.mqtt.client as mqtt
 from datetime import datetime
+import config
 
 # ─────────────────────────────────────────────
-#  MQTT CONFIG
+#  MQTT CONFIG  (sourced from config.py)
 # ─────────────────────────────────────────────
 
-BROKER_HOST = "localhost"
-BROKER_PORT = 1883
-KEEPALIVE   = 60
-CLIENT_ID   = "cocktailcraft_rpi"
+BROKER_HOST = config.MQTT_BROKER_HOST
+BROKER_PORT = config.MQTT_BROKER_PORT
+KEEPALIVE   = config.MQTT_KEEPALIVE
+CLIENT_ID   = config.MQTT_CLIENT_ID
 
 # Topics
-TOPIC_ORDER   = "cocktail/order"    # RPi → ESP32  : send recipe
-TOPIC_STATUS  = "cocktail/status"   # ESP32 → RPi  : machine status updates
-TOPIC_SENSOR  = "cocktail/sensor"   # ESP32 → RPi  : glass + bottle levels
-TOPIC_ABORT   = "cocktail/abort"    # RPi → ESP32  : emergency stop
-TOPIC_CLEAN   = "cocktail/clean"    # RPi → ESP32  : trigger cleaning cycle
-TOPIC_PING    = "cocktail/ping"     # RPi → ESP32  : heartbeat
-TOPIC_PONG    = "cocktail/pong"     # ESP32 → RPi  : heartbeat reply
+TOPIC_ORDER   = config.TOPIC_ORDER
+TOPIC_STATUS  = config.TOPIC_STATUS
+TOPIC_SENSOR  = config.TOPIC_SENSOR
+TOPIC_ABORT   = config.TOPIC_ABORT
+TOPIC_CLEAN   = config.TOPIC_CLEAN
+TOPIC_PING    = config.TOPIC_PING
+TOPIC_PONG    = config.TOPIC_PONG
 
 SUBSCRIBE_TOPICS = [
     (TOPIC_STATUS, 1),

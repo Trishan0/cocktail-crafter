@@ -8,9 +8,10 @@ import sqlite3
 import json
 import os
 from datetime import datetime, timedelta
+import config
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "cocktailcraft.db")
-CUSTOM_DRINK_EXPIRY_DAYS = 3
+CUSTOM_DRINK_EXPIRY_DAYS = config.CUSTOM_EXPIRY_DAYS
 
 
 # ─────────────────────────────────────────────
@@ -336,18 +337,9 @@ def get_order_by_id(order_id):
 #  BOTTLE CONFIG  (maps bottle slots to liquid names)
 # ─────────────────────────────────────────────
 
-BOTTLE_LABELS = {
-    "bottle_1": "Rum",
-    "bottle_2": "Tequila",
-    "bottle_3": "Vodka",
-    "bottle_4": "Gin",
-    "bottle_5": "Juice / Mixer",
-    "bottle_6": "Syrup / Lime",
-}
-
-
 def get_bottle_labels():
-    return BOTTLE_LABELS
+    """Bottle label map sourced from config.py."""
+    return config.BOTTLE_LABELS
 
 
 # ─────────────────────────────────────────────
