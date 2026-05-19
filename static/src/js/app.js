@@ -242,6 +242,8 @@
       setProgress(d.progress || 0);
     }
 
+    let _doneAutoReturn = null;
+
     function handleStatusUpdate(d) {
       const status = d.machine_status;
       State.machineStatus = status;
@@ -257,6 +259,13 @@
         glassPrompt.classList.toggle("hidden", status !== "waiting_glass");
       }
 
+      // Transition to making screen for any active state
+      const activeStates = ["waiting_glass", "dispensing", "mixing", "pouring"];
+      const currentScreen = document.querySelector(".screen.active")?.id;
+      if (activeStates.includes(status) && currentScreen !== "screen-making") {
+        showScreen("screen-making");
+      }
+
       if (status === "done") {
         setProgress(100);
         setTimeout(() => {
@@ -264,12 +273,20 @@
           document.getElementById("done-emoji").textContent = drink ? (drink.emoji || "🍹") : "🍹";
           document.getElementById("done-name").textContent = drink ? drink.name : "";
           showScreen("screen-done");
+          // Auto-return to welcome after 60s
+          clearTimeout(_doneAutoReturn);
+          _doneAutoReturn = setTimeout(() => showScreen("screen-welcome"), 60000);
         }, 600);
+      }
+
+      if (status === "aborted") {
+        showToast("Drink stopped", "info");
+        showScreen("screen-path");
       }
 
       if (status === "error") {
         showToast(d.message || "Something went wrong", "error");
-        showScreen("screen-menu");
+        showScreen("screen-path");
       }
     }
 
