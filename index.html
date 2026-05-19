@@ -8,23 +8,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="./static/src/css/style.css" />
   <script src="./static/src/js/app.js" defer></script>
-
 </head>
 
 <body>
-  <!-- ══════════════════════════════════════════ -->
-  <!--  STATUS BAR                                -->
-  <!-- ══════════════════════════════════════════ -->
   <header class="status-bar">
-    <div class="brand">
-      <span class="brand-icon">◈</span>
-      <span class="brand-name">CocktailCraft</span>
+    <div class="brand" aria-label="CocktailCraft home">
+      <span class="brand-mark" aria-hidden="true">CC</span>
+      <div class="brand-copy">
+        <span class="brand-name">CocktailCraft</span>
+        <span class="brand-subtitle">Smart beverage station</span>
+      </div>
     </div>
-    <div class="status-indicators">
+
+    <div class="status-indicators" aria-label="Machine status">
       <div class="indicator" id="ind-glass">
         <span class="ind-dot"></span>
         <span class="ind-label">Glass</span>
@@ -37,204 +37,197 @@
     </div>
   </header>
 
-  <!-- ══════════════════════════════════════════ -->
-  <!--  SCREENS WRAPPER                          -->
-  <!-- ══════════════════════════════════════════ -->
   <main class="screens">
-    <!-- ─────────────────── SCREEN 0: WELCOME ─── -->
     <section class="screen active" id="screen-welcome">
-      <div
-        style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 1.333rem;">
-        <div style="text-align: center;">
-          <div style="font-size: 6.333rem; margin-bottom: 1.333rem;">🍹</div>
-          <h1
-            style="font-family: var(--font-display); font-size: 3.2rem; font-weight: 900; color: var(--gold-light); margin-bottom: 0.667rem;">
-            CocktailCraft</h1>
-          <p style="font-size: 1.6rem; color: var(--text-2); letter-spacing: 0.05em;">Craft Your Perfect Drink
-          </p>
+      <div class="welcome-layout">
+        <div class="welcome-panel">
+          <p class="eyebrow">Automated mixology</p>
+          <h1>CocktailCraft</h1>
+          <p class="welcome-lede">Choose a recipe or design a custom pour from the bottles connected to the station.</p>
+          <button class="btn-confirm btn-large" id="btn-welcome-start">
+            <span>Start order</span>
+            <span class="btn-confirm-icon">&#8594;</span>
+          </button>
         </div>
-        <button class="btn-confirm" id="btn-welcome-start"
-          style="padding: 1.067rem 3.2rem; font-size: 1.5rem; margin-top: 1.333rem;">
-          Get Started ▶
-        </button>
+
+        <div class="welcome-visual" aria-hidden="true">
+          <div class="glass-art">
+            <div class="glass-rim"></div>
+            <div class="glass-body">
+              <div class="glass-liquid"></div>
+              <div class="ice ice-one"></div>
+              <div class="ice ice-two"></div>
+            </div>
+            <div class="glass-stem"></div>
+          </div>
+          <div class="metric-strip">
+            <span>6 bottles</span>
+            <span>180 ml max</span>
+            <span>Live status</span>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- ────────────── SCREEN 0.5: PATH SELECTION ─── -->
     <section class="screen" id="screen-path">
-      <div
-        style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 16px;">
-        <h2 style="font-family: var(--font-display); font-size: 3rem; color: var(--text-1); margin-bottom: 10px;">
-          What
-          would you like?</h2>
-        <div style="display: flex; gap: 20px; margin-top: 30px;">
-          <button class="btn-confirm" id="btn-choose-default"
-            style="padding: 20px 40px; font-size: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 180px; height: auto;">
-            <span style="font-size: 2.4rem;">🥃</span>
-            <span>Classic Drinks</span>
+      <div class="path-layout">
+        <div class="screen-heading centered">
+          <p class="eyebrow">Select mode</p>
+          <h2>What would you like?</h2>
+        </div>
+
+        <div class="path-options">
+          <button class="choice-card" id="btn-choose-default">
+            <span class="choice-icon">&#127864;</span>
+            <span class="choice-title">Classic Drinks</span>
+            <span class="choice-text">Browse the curated recipe menu.</span>
           </button>
-          <button class="btn-confirm" id="btn-choose-custom"
-            style="padding: 20px 40px; font-size: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 180px; height: auto; background: #9b59b6; border: 1px solid #9b59b6;">
-            <span style="font-size: 2.4rem;">✨</span>
-            <span>Create Custom</span>
+
+          <button class="choice-card accent-choice" id="btn-choose-custom">
+            <span class="choice-icon">&#10022;</span>
+            <span class="choice-title">Create Custom</span>
+            <span class="choice-text">Build a drink with exact pours.</span>
           </button>
         </div>
       </div>
     </section>
 
-    <!-- ─────────────────── SCREEN 1: MENU ─── -->
     <section class="screen" id="screen-menu">
       <div class="screen-header">
-        <h1 class="screen-title">What are you having?</h1>
-        <div class="tab-bar" id="tab-bar">
-          <!-- tabs injected by JS -->
+        <div>
+          <p class="eyebrow">Recipe menu</p>
+          <h1 class="screen-title">Choose a drink</h1>
         </div>
+        <div class="tab-bar" id="tab-bar" aria-label="Drink categories"></div>
       </div>
 
-      <div class="drink-grid" id="drink-grid">
-        <!-- drink cards injected by JS -->
-      </div>
+      <div class="drink-grid" id="drink-grid"></div>
 
       <div class="bottom-bar">
-        <button class="btn-ghost btn-small" id="btn-clean">↺ Clean</button>
-        <button class="btn-back btn-small" id="btn-menu-back">← Back</button>
-
+        <button class="btn-ghost btn-small" id="btn-clean">&#8635; Clean cycle</button>
+        <button class="btn-back btn-small" id="btn-menu-back">&#8592; Back</button>
       </div>
     </section>
 
-    <!-- ──────────────── SCREEN 2: CONFIRM ─── -->
     <section class="screen" id="screen-confirm">
       <div class="confirm-card">
-        <div class="confirm-emoji" id="confirm-emoji">🍹</div>
-        <h2 class="confirm-name" id="confirm-name">Mojito</h2>
-        <p class="confirm-desc" id="confirm-desc">Fresh mint, lime & rum</p>
-
-        <div class="ingredient-pills" id="confirm-ingredients">
-          <!-- pills injected by JS -->
+        <div class="confirm-topline">
+          <div class="confirm-emoji" id="confirm-emoji">&#127865;</div>
+          <div>
+            <p class="eyebrow">Confirm recipe</p>
+            <h2 class="confirm-name" id="confirm-name">Mojito</h2>
+          </div>
         </div>
 
+        <p class="confirm-desc" id="confirm-desc">Fresh mint, lime &amp; rum</p>
+
+        <div class="ingredient-pills" id="confirm-ingredients"></div>
+
         <div class="options-row">
-          <button class="option-toggle" id="opt-ice" data-active="false">
-            🧊 Ice
-          </button>
-          <button class="option-toggle" id="opt-lime" data-active="false">
-            🍋 Lime
-          </button>
+          <button class="option-toggle" id="opt-ice" data-active="false">&#10052; Ice</button>
+          <button class="option-toggle" id="opt-lime" data-active="false">&#9675; Lime</button>
         </div>
 
         <div class="confirm-actions">
-          <button class="btn-back" id="btn-back">← Back</button>
+          <button class="btn-back" id="btn-back">&#8592; Back</button>
           <button class="btn-confirm" id="btn-confirm">
             <span class="btn-confirm-text">Make It</span>
-            <span class="btn-confirm-icon">▶</span>
+            <span class="btn-confirm-icon">&#9654;</span>
           </button>
         </div>
       </div>
     </section>
 
-    <!-- ──────────────── SCREEN 3: MAKING ──── -->
     <section class="screen" id="screen-making">
       <div class="making-inner">
-        <div class="making-emoji" id="making-emoji">🍹</div>
+        <div class="making-emoji" id="making-emoji">&#127865;</div>
+        <p class="eyebrow">In progress</p>
         <h2 class="making-title" id="making-title">Making your drink...</h2>
 
-        <div class="progress-track">
-          <div class="progress-fill" id="progress-fill"></div>
+        <div class="progress-wrap">
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p class="progress-label" id="progress-label">0%</p>
         </div>
-        <p class="progress-label" id="progress-label">0%</p>
 
         <p class="making-message" id="making-message">Please wait</p>
 
         <div class="glass-prompt" id="glass-prompt">
-          <div class="glass-icon">🥃</div>
+          <div class="glass-icon">&#129347;</div>
           <p>Place your glass on the platform</p>
         </div>
 
-        <button class="btn-abort" id="btn-abort">■ Stop</button>
+        <button class="btn-abort" id="btn-abort">&#9632; Stop</button>
       </div>
     </section>
 
-    <!-- ──────────────── SCREEN 4: DONE ─────  -->
     <section class="screen" id="screen-done">
       <div class="done-inner">
         <div class="done-burst">
-          <div class="done-emoji" id="done-emoji">🍹</div>
+          <div class="done-emoji" id="done-emoji">&#127865;</div>
         </div>
-        <h2 class="done-title">Enjoy your drink!</h2>
+        <p class="eyebrow">Order complete</p>
+        <h2 class="done-title">Enjoy your drink</h2>
         <p class="done-name" id="done-name">Mojito</p>
         <button class="btn-home" id="btn-home">Order Another</button>
       </div>
     </section>
 
-    <!-- ──────────── SCREEN 5: CUSTOM BUILDER  -->
     <section class="screen" id="screen-custom">
       <div class="custom-inner">
-        <h2 class="screen-title">Build Your Drink</h2>
-
-        <div class="custom-name-row">
-          <div class="custom-name-display" id="custom-name-display">
-            Tap to name your drink...
+        <div class="custom-header">
+          <div>
+            <p class="eyebrow">Custom builder</p>
+            <h2 class="screen-title">Build Your Drink</h2>
           </div>
-          <!-- Virtual keyboard handled by custom JS keyboard below -->
+          <div class="custom-total-row">
+            <span><b id="custom-total">0</b> ml</span>
+            <span class="custom-max">/ 180 ml</span>
+          </div>
         </div>
 
-        <div class="sliders-grid" id="sliders-grid">
-          <!-- Bottle sliders injected by JS -->
-        </div>
+        <button class="custom-name-display" id="custom-name-display">Tap to name your drink...</button>
 
-        <div class="custom-total-row">
-          <span>Total: <b id="custom-total">0</b> ml</span>
-          <span class="custom-max">/ 180 ml max</span>
-        </div>
+        <div class="sliders-grid" id="sliders-grid"></div>
 
         <div class="custom-actions">
-          <button class="btn-back" id="btn-custom-back">← Back</button>
+          <button class="btn-back" id="btn-custom-back">&#8592; Back</button>
           <button class="btn-confirm" id="btn-custom-confirm">
             <span class="btn-confirm-text">Use This Mix</span>
-            <span class="btn-confirm-icon">▶</span>
+            <span class="btn-confirm-icon">&#9654;</span>
           </button>
         </div>
       </div>
     </section>
 
-    <!-- ──────────── SCREEN 6: KEYBOARD ─────  -->
     <section class="screen" id="screen-keyboard">
       <div class="keyboard-inner">
+        <p class="eyebrow">Drink name</p>
         <h3 class="keyboard-prompt">Name your creation</h3>
         <div class="keyboard-input-display" id="kb-display">|</div>
-        <div class="keyboard-grid" id="keyboard-grid">
-          <!-- Keys injected by JS -->
-        </div>
+        <div class="keyboard-grid" id="keyboard-grid"></div>
         <div class="keyboard-actions">
           <button class="btn-back" id="btn-kb-cancel">Cancel</button>
           <button class="btn-confirm" id="btn-kb-done">
             <span class="btn-confirm-text">Done</span>
-            <span class="btn-confirm-icon">✓</span>
+            <span class="btn-confirm-icon">&#10003;</span>
           </button>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- ══════════════════════════════════════════ -->
-  <!--  TOAST NOTIFICATIONS                      -->
-  <!-- ══════════════════════════════════════════ -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- ══════════════════════════════════════════ -->
-  <!--  BOTTLE WARNING OVERLAY                   -->
-  <!-- ══════════════════════════════════════════ -->
   <div class="overlay hidden" id="overlay-bottle">
     <div class="overlay-card">
-      <div class="overlay-icon">⚠️</div>
+      <div class="overlay-icon">&#9888;</div>
       <h3>Ingredient Unavailable</h3>
       <p id="overlay-bottle-msg">Some bottles are empty. Please refill.</p>
-      <button class="btn-confirm" onclick="hideOverlay('overlay-bottle')">
-        OK
-      </button>
+      <button class="btn-confirm" onclick="hideOverlay('overlay-bottle')">OK</button>
     </div>
   </div>
-
 </body>
 
 </html>
