@@ -577,7 +577,7 @@ function CaseStudy() {
   return (
     <main className="min-h-screen bg-page text-page-foreground">
       {/* Cover */}
-      <section className="max-w-[1120px] mx-auto px-10 pt-24 pb-16">
+      <section className="max-w-[1240px] mx-auto px-10 pt-24 pb-16">
         <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.32em] text-page-foreground/50">
           <span>Case Study · 2026</span>
           <span>Hospitality Robotics · Touchscreen UI</span>
@@ -605,7 +605,7 @@ function CaseStudy() {
       </section>
 
       {/* Design tokens strip */}
-      <section className="max-w-[1120px] mx-auto px-10 pb-20">
+      <section className="max-w-[1240px] mx-auto px-10 pb-20">
         <ScreenLabel n="00" title="Design system" sub="Tokens · Surface · Accent" />
         <div className="grid grid-cols-6 gap-3">
           {[
@@ -629,7 +629,7 @@ function CaseStudy() {
       </section>
 
       {/* Screens grid: 1 big + pairs */}
-      <section className="max-w-[1120px] mx-auto px-10 pb-32 space-y-20">
+      <section className="max-w-[1240px] mx-auto px-10 pb-32 space-y-20">
         {screens.map(s => (
           <div key={s.n}>
             <ScreenLabel n={s.n} title={s.t} sub={s.s} />
@@ -650,7 +650,7 @@ function CaseStudy() {
       </section>
 
       <footer className="border-t border-page-foreground/10">
-        <div className="max-w-[1120px] mx-auto px-10 py-10 flex items-center justify-between text-[11px] uppercase tracking-[0.3em] text-page-foreground/40">
+        <div className="max-w-[1240px] mx-auto px-10 py-10 flex items-center justify-between text-[11px] uppercase tracking-[0.3em] text-page-foreground/40">
           <span>ATRIA · Hospitality Robotics</span>
           <span>Product Design Case Study · 2026</span>
         </div>
