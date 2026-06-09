@@ -40,30 +40,42 @@ type Drink = {
 };
 
 const DRINKS: Drink[] = [
-  { id: "old-fashioned", name: "Old Fashioned", desc: "Bourbon, demerara, orange.", img: c1, abv: 4, time: 75, price: 18, origin: "Est. 1880 · Louisville, KY",
+  {
+    id: "old-fashioned", name: "Old Fashioned", desc: "Bourbon, demerara, orange.", img: c1, abv: 4, time: 75, price: 18, origin: "Est. 1880 · Louisville, KY",
     story: "Bourbon stirred with demerara and aromatic bitters, expressed with orange oil. Spirit-forward, gently sweet.",
     ingredients: ["Woodford Bourbon 60ml", "Demerara 10ml", "Angostura 2 dash", "Orange peel"],
-    flavor: { sweet: 30, bitter: 60, smoky: 45 } },
-  { id: "negroni", name: "Negroni", desc: "Gin, Campari, sweet vermouth.", img: c2, abv: 4, time: 65, price: 17, origin: "Est. 1919 · Florence, IT",
+    flavor: { sweet: 30, bitter: 60, smoky: 45 }
+  },
+  {
+    id: "negroni", name: "Negroni", desc: "Gin, Campari, sweet vermouth.", img: c2, abv: 4, time: 65, price: 17, origin: "Est. 1919 · Florence, IT",
     story: "Equal parts gin, Campari and sweet vermouth, stirred over a single block of ice.",
     ingredients: ["Tanqueray 30ml", "Campari 30ml", "Carpano Antica 30ml", "Orange peel"],
-    flavor: { sweet: 35, bitter: 80, smoky: 20 } },
-  { id: "dry-martini", name: "Dry Martini", desc: "Gin, dry vermouth, lemon.", img: c3, abv: 5, time: 55, price: 19.5, origin: "Est. 1905 · New York, NY",
+    flavor: { sweet: 35, bitter: 80, smoky: 20 }
+  },
+  {
+    id: "dry-martini", name: "Dry Martini", desc: "Gin, dry vermouth, lemon.", img: c3, abv: 5, time: 55, price: 19.5, origin: "Est. 1905 · New York, NY",
     story: "Tanqueray No. Ten stirred to a glassy −4°C with Dolin Dry. Crystalline, austere, perfectly balanced.",
     ingredients: ["Tanqueray No. Ten 60ml", "Dolin Dry 15ml", "Lemon twist"],
-    flavor: { sweet: 10, bitter: 30, smoky: 5 } },
-  { id: "margarita", name: "Margarita", desc: "Tequila, lime, agave, salt.", img: c4, abv: 3, time: 70, price: 16, origin: "Est. 1938 · Tijuana, MX",
+    flavor: { sweet: 10, bitter: 30, smoky: 5 }
+  },
+  {
+    id: "margarita", name: "Margarita", desc: "Tequila, lime, agave, salt.", img: c4, abv: 3, time: 70, price: 16, origin: "Est. 1938 · Tijuana, MX",
     story: "Blanco tequila shaken with fresh lime and a whisper of agave. A salt rim adds the final note.",
     ingredients: ["Don Julio Blanco 50ml", "Lime 25ml", "Agave 10ml", "Salt rim"],
-    flavor: { sweet: 45, bitter: 20, smoky: 15 } },
-  { id: "whiskey-sour", name: "Whiskey Sour", desc: "Rye, lemon, sugar, egg white.", img: c5, abv: 3, time: 85, price: 17, origin: "Est. 1870 · Wisconsin, US",
+    flavor: { sweet: 45, bitter: 20, smoky: 15 }
+  },
+  {
+    id: "whiskey-sour", name: "Whiskey Sour", desc: "Rye, lemon, sugar, egg white.", img: c5, abv: 3, time: 85, price: 17, origin: "Est. 1870 · Wisconsin, US",
     story: "Rye whiskey shaken with fresh lemon, sugar, and a silky egg-white foam.",
     ingredients: ["Rittenhouse Rye 50ml", "Lemon 25ml", "Sugar 15ml", "Egg white"],
-    flavor: { sweet: 55, bitter: 25, smoky: 30 } },
-  { id: "espresso-martini", name: "Espresso Martini", desc: "Vodka, espresso, coffee liqueur.", img: c6, abv: 3, time: 80, price: 18, origin: "Est. 1983 · London, UK",
+    flavor: { sweet: 55, bitter: 25, smoky: 30 }
+  },
+  {
+    id: "espresso-martini", name: "Espresso Martini", desc: "Vodka, espresso, coffee liqueur.", img: c6, abv: 3, time: 80, price: 18, origin: "Est. 1983 · London, UK",
     story: "Vodka shaken with single-origin espresso and Mr Black for a glossy, dark crown.",
     ingredients: ["Belvedere 40ml", "Espresso 30ml", "Mr Black 20ml", "Coffee beans"],
-    flavor: { sweet: 50, bitter: 55, smoky: 35 } },
+    flavor: { sweet: 50, bitter: 55, smoky: 35 }
+  },
 ];
 
 type ScreenKey =
@@ -71,7 +83,7 @@ type ScreenKey =
   | "compose" | "review" | "preparing" | "ready";
 
 /* ============================================================
-   Kiosk shell — responsive 1024×600 frame that scales to fit
+   Kiosk shell — responsive frame that scales to fit
    ============================================================ */
 
 function useKioskScale() {
@@ -80,8 +92,8 @@ function useKioskScale() {
     const recompute = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const pad = 48;
-      const s = Math.min((w - pad) / 1024, (h - pad) / 600, 1.2);
+      const pad = 0;
+      const s = Math.min((w - pad) / 1024, (h - pad) / 600, 1.5);
       setScale(s);
     };
     recompute();
@@ -115,7 +127,7 @@ function KioskApp() {
     if (screen !== "preparing") return;
     setProgress(0);
     const start = Date.now();
-    const total = 12000; // 12s simulated
+    const total = 6000; // 6s simulated to be fast
     const id = setInterval(() => {
       const p = Math.min(1, (Date.now() - start) / total);
       setProgress(p);
@@ -137,35 +149,22 @@ function KioskApp() {
   };
 
   return (
-    <main className="min-h-screen bg-page text-page-foreground flex items-center justify-center overflow-hidden">
-      {/* ambient page glow */}
+    <main className="min-h-screen bg-page text-page-foreground flex items-center justify-center overflow-hidden touch-none select-none">
       <div className="pointer-events-none fixed inset-0 opacity-60"
         style={{ background: "radial-gradient(60% 50% at 50% 40%, oklch(0.83 0.09 85 / 8%), transparent 70%)" }} />
 
       <div
-        className="kiosk-frame transition-transform"
+        className="kiosk-frame transition-transform w-[1024px] h-[600px] relative"
         style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
       >
-        {screen === "welcome"    && <Welcome    {...ctx} />}
+        {screen === "welcome" && <Welcome    {...ctx} />}
         {screen === "experience" && <Experience {...ctx} />}
-        {screen === "catalog"    && <Catalog    {...ctx} />}
-        {screen === "detail"     && <Detail     {...ctx} />}
-        {screen === "compose"    && <Compose    {...ctx} />}
-        {screen === "review"     && <Review     {...ctx} />}
-        {screen === "preparing"  && <Preparing  {...ctx} />}
-        {screen === "ready"      && <Ready      {...ctx} />}
-      </div>
-
-      {/* dev helper: tiny step indicator at bottom */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-50">
-        {(["welcome","experience","catalog","detail","compose","review","preparing","ready"] as ScreenKey[]).map(k => (
-          <button
-            key={k}
-            onClick={() => setScreen(k)}
-            aria-label={k}
-            className={`h-1.5 rounded-full transition-all ${screen===k ? "w-8 bg-accent" : "w-1.5 bg-page-foreground/20 hover:bg-page-foreground/40"}`}
-          />
-        ))}
+        {screen === "catalog" && <Catalog    {...ctx} />}
+        {screen === "detail" && <Detail     {...ctx} />}
+        {screen === "compose" && <Compose    {...ctx} />}
+        {screen === "review" && <Review     {...ctx} />}
+        {screen === "preparing" && <Preparing  {...ctx} />}
+        {screen === "ready" && <Ready      {...ctx} />}
       </div>
     </main>
   );
@@ -193,15 +192,15 @@ function formatTime(d: Date) {
 
 function StatusBar({ title, now }: { title: string; now: Date }) {
   return (
-    <div className="absolute top-0 inset-x-0 h-10 px-7 flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-muted-foreground/90 font-medium z-20">
-      <div className="flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_currentColor]" />
+    <div className="absolute top-0 inset-x-0 h-14 px-8 flex items-center justify-between text-sm uppercase tracking-[0.2em] text-muted-foreground/90 font-medium z-20 bg-gradient-to-b from-background/80 to-transparent">
+      <div className="flex items-center gap-3">
+        <span className="w-2 h-2 rounded-full bg-accent shadow-[0_0_12px_currentColor]" />
         <span>ATRIA · {title}</span>
       </div>
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-6">
         <span>Station 04</span>
         <span>Online</span>
-        <span>{formatTime(now)}</span>
+        <span className="font-bold text-foreground">{formatTime(now)}</span>
       </div>
     </div>
   );
@@ -209,9 +208,9 @@ function StatusBar({ title, now }: { title: string; now: Date }) {
 
 function Logo() {
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <span className="brushed-gold w-5 h-5 rounded-full" />
-      <span className="font-display tracking-[0.35em] uppercase">Atria</span>
+    <div className="flex items-center gap-3 text-2xl">
+      <span className="brushed-gold w-8 h-8 rounded-full shadow-md" />
+      <span className="font-display tracking-[0.35em] uppercase font-light drop-shadow-md text-foreground">Atria</span>
     </div>
   );
 }
@@ -222,12 +221,12 @@ function GoldButton({
   children: React.ReactNode; onClick?: () => void; big?: boolean;
   variant?: "primary" | "ghost"; disabled?: boolean;
 }) {
-  const base = "inline-flex items-center justify-center gap-3 rounded-full font-medium uppercase tracking-[0.22em] transition-all active:scale-[0.98] select-none";
-  const size = big ? "px-12 h-16 text-base" : "px-8 h-12 text-sm";
+  const base = "inline-flex items-center justify-center gap-3 font-bold uppercase tracking-[0.2em] transition-all active:scale-[0.95] select-none shadow-xl";
+  const size = big ? "px-24 h-32 text-4xl rounded-[3rem]" : "px-10 h-16 text-lg rounded-[2rem]";
   if (variant === "ghost") {
     return (
       <button onClick={onClick} disabled={disabled}
-        className={`${base} ${size} border border-border-strong text-foreground/90 hover:bg-foreground/5`}>
+        className={`${base} ${size} border-2 border-border-strong text-foreground/90 hover:bg-foreground/5`}>
         {children}
       </button>
     );
@@ -243,7 +242,7 @@ function GoldButton({
 function BackChip({ onClick, label = "Back" }: { onClick: () => void; label?: string }) {
   return (
     <button onClick={onClick}
-      className="absolute top-10 right-7 z-30 text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground flex items-center gap-2 px-4 h-9 rounded-full border border-border/60 hover:border-border-strong">
+      className="absolute top-10 right-8 z-30 text-lg uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground flex items-center gap-3 px-8 h-16 rounded-full border-2 border-border/60 hover:border-border-strong bg-background/50 backdrop-blur-md active:scale-[0.95] transition-all">
       ← {label}
     </button>
   );
@@ -257,31 +256,20 @@ function Welcome({ now, go }: Ctx) {
   return (
     <div className="absolute inset-0">
       <StatusBar title="Welcome" now={now} />
-      <img src={robotHero} alt="" className="absolute inset-y-0 right-0 h-full w-[58%] object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-transparent" />
-      <div className="absolute top-10 left-7"><Logo /></div>
+      <img src={robotHero} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-background/40" />
+      <div className="absolute top-10 left-8"><Logo /></div>
 
-      <button onClick={() => go("experience")} className="absolute inset-0 cursor-pointer text-left">
-        <div className="relative h-full flex flex-col justify-center px-16 max-w-[58%] z-10">
-          <div className="text-[10px] uppercase tracking-[0.4em] text-accent mb-6">An evening, perfectly poured</div>
-          <h1 className="font-display text-[68px] leading-[0.95] font-light tracking-tight">
-            Good <em className="italic font-normal">evening.</em><br />
-            Shall we begin?
+      <button onClick={() => go("experience")} className="absolute inset-0 w-full h-full cursor-pointer text-left focus:outline-none">
+        <div className="relative h-full flex flex-col items-center justify-center z-10">
+          <h1 className="font-display text-[80px] leading-[1] font-light tracking-tight text-center drop-shadow-2xl">
+            Good <em className="italic font-normal">evening.</em>
           </h1>
-          <p className="mt-6 text-muted-foreground text-[15px] leading-relaxed max-w-md">
-            A signature cocktail, mixed to your preference by ATRIA — our resident
-            robotic mixologist. Ready in under ninety seconds.
-          </p>
-          <div className="mt-10 flex items-center gap-4">
-            <GoldButton big onClick={() => go("experience")}>Start Experience →</GoldButton>
-            <span className="text-xs text-muted-foreground tracking-widest uppercase">EN · FR · JP</span>
+          <div className="mt-16 animate-pulse hover:animate-none">
+            <GoldButton big>Touch anywhere to order</GoldButton>
           </div>
         </div>
       </button>
-
-      <div className="absolute bottom-6 inset-x-0 flex items-center justify-center gap-3 text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70 pointer-events-none">
-        <span className="h-px w-10 hairline" /> Touch anywhere to begin <span className="h-px w-10 hairline" />
-      </div>
     </div>
   );
 }
@@ -294,23 +282,16 @@ function Experience({ now, go, setMode }: Ctx) {
   return (
     <div className="absolute inset-0">
       <StatusBar title="Choose Experience" now={now} />
-      <div className="absolute top-10 left-7"><Logo /></div>
+      <div className="absolute top-10 left-8"><Logo /></div>
       <BackChip onClick={() => go("welcome")} label="Home" />
 
-      <div className="h-full pt-20 pb-10 px-12 flex flex-col">
-        <div className="mb-8">
-          <div className="text-[10px] uppercase tracking-[0.4em] text-accent">Step 01 of 04</div>
-          <h2 className="font-display text-4xl mt-3 font-light">How would you like to be served tonight?</h2>
-        </div>
-        <div className="flex-1 grid grid-cols-2 gap-6">
+      <div className="h-full pt-28 pb-12 px-16 flex flex-col">
+        <h2 className="font-display text-5xl font-light text-center mb-12 drop-shadow-md">What are we pouring?</h2>
+        <div className="flex-1 grid grid-cols-2 gap-10">
           <ExperienceCard onClick={() => choose("signature")}
-            eyebrow="The Library" title="Signature Cocktails"
-            sub="Twelve recipes from our master mixologists, served with quiet precision."
-            image={c2} hint="12 curated · refreshed weekly" />
+            title="House Classics" image={c2} />
           <ExperienceCard onClick={() => choose("custom")}
-            eyebrow="The Studio" title="Create a Custom Drink"
-            sub="Compose your own — base spirit, sweetness, garnish. Saved to your profile."
-            image={c5} hint="Tailor every note" />
+            title="Custom Creation" image={c5} />
         </div>
       </div>
     </div>
@@ -318,83 +299,48 @@ function Experience({ now, go, setMode }: Ctx) {
 }
 
 function ExperienceCard({
-  title, sub, eyebrow, image, hint, onClick,
-}: { title: string; sub: string; eyebrow: string; image: string; hint: string; onClick: () => void }) {
+  title, image, onClick,
+}: { title: string; image: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="surface-card text-left relative flex-1 rounded-3xl overflow-hidden h-full p-8 flex flex-col justify-between hover:ring-1 hover:ring-accent/60 transition">
-      <div>
-        <div className="text-[10px] uppercase tracking-[0.32em] text-accent">{eyebrow}</div>
-        <h3 className="font-display text-4xl mt-3 font-light leading-tight">{title}</h3>
-        <p className="text-muted-foreground text-[13px] mt-3 max-w-[260px] leading-relaxed">{sub}</p>
-      </div>
-      <div className="absolute -right-10 -bottom-10 w-[260px] h-[260px] rounded-full overflow-hidden opacity-90">
-        <img src={image} alt="" className="w-full h-full object-cover" loading="lazy" />
-        <div className="absolute inset-0 bg-gradient-to-tl from-transparent via-transparent to-background/60" />
-      </div>
-      <div className="relative z-10 flex items-center justify-between">
-        <span className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{hint}</span>
-        <span className="brushed-gold w-12 h-12 rounded-full flex items-center justify-center text-accent-foreground text-lg">→</span>
+    <button onClick={onClick} className="relative rounded-[3rem] overflow-hidden group hover:ring-4 hover:ring-accent/80 transition-all active:scale-[0.98] shadow-2xl">
+      <img src={image} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" loading="lazy" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
+      <div className="absolute inset-0 flex flex-col items-center justify-end pb-16">
+        <h3 className="font-display text-[56px] font-light text-center leading-tight drop-shadow-lg px-8">{title}</h3>
+        <div className="mt-8">
+          <span className="brushed-gold w-20 h-20 rounded-full flex items-center justify-center text-accent-foreground text-4xl shadow-xl">→</span>
+        </div>
       </div>
     </button>
   );
 }
 
-function AbvDots({ level }: { level: number }) {
-  return (
-    <div className="flex items-center gap-1">
-      {[1,2,3,4,5].map(i => (
-        <span key={i} className={`w-1.5 h-1.5 rounded-full ${i <= level ? "bg-accent" : "bg-foreground/15"}`} />
-      ))}
-    </div>
-  );
-}
-
-const FILTERS = ["All","Classic","Citrus","Smoky","Sweet"];
-
 function Catalog({ now, go, setSelectedId }: Ctx) {
-  const [filter, setFilter] = useState(0);
   return (
     <div className="absolute inset-0">
-      <StatusBar title="Signature Catalog" now={now} />
-      <div className="absolute top-10 left-7"><Logo /></div>
+      <StatusBar title="House Classics" now={now} />
+      <div className="absolute top-10 left-8"><Logo /></div>
       <BackChip onClick={() => go("experience")} />
 
-      <div className="h-full pt-20 pb-6 px-10 flex flex-col">
-        <div className="flex items-end justify-between mb-5">
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.4em] text-accent">The Library</div>
-            <h2 className="font-display text-3xl mt-2 font-light">Signature Cocktails</h2>
-          </div>
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em]">
-            {FILTERS.map((t,i) => (
-              <button key={t} onClick={() => setFilter(i)}
-                className={`px-4 py-2 rounded-full transition ${i===filter ? "brushed-gold text-accent-foreground font-medium" : "border border-border text-muted-foreground hover:text-foreground"}`}>
-                {t}
+      <div className="h-full pt-28 pb-10 px-12 flex flex-col">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pr-4 pb-12 custom-scrollbar">
+          <div className="grid grid-cols-2 gap-8">
+            {DRINKS.map(d => (
+              <button key={d.id} onClick={() => { setSelectedId(d.id); go("detail"); }}
+                className="surface-card relative text-left rounded-[2rem] overflow-hidden flex flex-col h-[380px] hover:ring-4 hover:ring-accent/80 transition active:scale-[0.98] group shadow-xl">
+                <img src={d.img} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent" />
+
+                <div className="absolute bottom-0 inset-x-0 p-8 flex justify-between items-end">
+                  <div>
+                    <h4 className="font-display text-[44px] leading-none mb-2 text-foreground">{d.name}</h4>
+                    <div className="text-2xl text-accent font-light">€{d.price.toFixed(2)}</div>
+                  </div>
+                  <div className="brushed-gold w-16 h-16 rounded-full flex items-center justify-center text-accent-foreground text-2xl shadow-lg">→</div>
+                </div>
               </button>
             ))}
           </div>
-        </div>
-        <div className="grid grid-cols-3 gap-4 flex-1">
-          {DRINKS.map(d => (
-            <button key={d.id} onClick={() => { setSelectedId(d.id); go("detail"); }}
-              className="surface-card text-left rounded-2xl overflow-hidden flex flex-col hover:ring-1 hover:ring-accent/60 transition">
-              <div className="relative h-[130px] overflow-hidden">
-                <img src={d.img} alt="" className="w-full h-full object-cover" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-              </div>
-              <div className="p-4 flex flex-col gap-2 flex-1">
-                <div className="flex items-baseline justify-between">
-                  <h4 className="font-display text-xl leading-none">{d.name}</h4>
-                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{d.time}s</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-snug min-h-[28px]">{d.desc}</p>
-                <div className="flex items-center justify-between pt-1 mt-auto">
-                  <AbvDots level={d.abv} />
-                  <span className="brushed-gold text-accent-foreground text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded-full font-medium">Order</span>
-                </div>
-              </div>
-            </button>
-          ))}
         </div>
       </div>
     </div>
@@ -405,86 +351,31 @@ function Detail({ selected, now, go }: Ctx) {
   return (
     <div className="absolute inset-0">
       <StatusBar title={selected.name} now={now} />
-      <div className="absolute top-10 left-7"><Logo /></div>
+      <div className="absolute top-10 left-8 z-30"><Logo /></div>
       <BackChip onClick={() => go("catalog")} />
 
-      <div className="h-full pt-20 grid grid-cols-[1.1fr_1fr]">
-        <div className="relative">
+      <div className="h-full flex">
+        <div className="w-[55%] relative">
           <img src={selected.img} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-background/40" />
-          <div className="absolute bottom-6 left-8 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{selected.origin}</div>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-background/20 to-background" />
         </div>
 
-        <div className="px-10 py-6 flex flex-col">
-          <div className="text-[10px] uppercase tracking-[0.4em] text-accent">House Classic</div>
-          <h2 className="font-display text-5xl font-light mt-2 leading-none">{selected.name}</h2>
-          <p className="text-[13px] text-muted-foreground mt-3 leading-relaxed">{selected.story}</p>
-
-          <div className="mt-5 grid grid-cols-2 gap-3 text-[11px]">
-            <div className="glass-card rounded-xl px-4 py-3">
-              <div className="text-muted-foreground uppercase tracking-widest text-[9px]">Strength</div>
-              <div className="mt-1 font-medium">Bold · {20 + selected.abv * 4}% ABV</div>
-            </div>
-            <div className="glass-card rounded-xl px-4 py-3">
-              <div className="text-muted-foreground uppercase tracking-widest text-[9px]">Prep time</div>
-              <div className="mt-1 font-medium">{selected.time} seconds</div>
-            </div>
+        <div className="w-[45%] px-12 py-28 flex flex-col justify-center bg-background relative z-10">
+          <h2 className="font-display text-[72px] font-light leading-none mb-4">{selected.name}</h2>
+          <div className="font-display text-5xl text-accent mb-12">
+            €{Math.floor(selected.price)}
+            <span className="text-3xl">.{(selected.price % 1).toFixed(2).slice(2)}</span>
           </div>
 
-          <div className="mt-5">
-            <div className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Ingredients</div>
-            <div className="flex flex-wrap gap-2 text-[11px]">
-              {selected.ingredients.map(i =>
-                <span key={i} className="px-3 py-1.5 rounded-full border border-border text-foreground/90">{i}</span>
-              )}
-            </div>
+          <div className="flex flex-wrap gap-4 mb-16">
+            {selected.ingredients.map(i =>
+              <span key={i} className="px-6 py-3 rounded-2xl bg-surface-2 text-xl font-medium border border-border-strong text-foreground whitespace-nowrap">{i}</span>
+            )}
+            <span className="px-6 py-3 rounded-2xl bg-surface-2 text-xl font-medium border border-border-strong text-muted-foreground whitespace-nowrap">{selected.abv * 4 + 20}% ABV</span>
           </div>
 
-          <div className="mt-5">
-            <div className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Flavor profile</div>
-            <div className="space-y-1.5">
-              {([["Sweet", selected.flavor.sweet],["Bitter", selected.flavor.bitter],["Smoky", selected.flavor.smoky]] as const).map(([k,v]) => (
-                <div key={k} className="flex items-center gap-3 text-[11px]">
-                  <span className="w-14 text-muted-foreground">{k}</span>
-                  <span className="flex-1 h-[3px] bg-foreground/10 rounded-full overflow-hidden">
-                    <span className="block h-full brushed-gold transition-all" style={{ width: `${v}%` }} />
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-auto flex items-center justify-between pt-4">
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Price</div>
-              <div className="font-display text-3xl font-light">
-                €{Math.floor(selected.price)}
-                <span className="text-base text-muted-foreground">.{(selected.price % 1).toFixed(2).slice(2)}</span>
-              </div>
-            </div>
-            <GoldButton onClick={() => go("review")}>Prepare Drink →</GoldButton>
-          </div>
+          <GoldButton big onClick={() => go("review")}>ORDER NOW</GoldButton>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function Segmented({
-  label, options, active, onChange,
-}: { label: string; options: string[]; active: number; onChange: (i: number) => void }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{label}</span>
-      </div>
-      <div className="flex bg-surface rounded-full p-1 border border-border">
-        {options.map((o, i) => (
-          <button key={o} onClick={() => onChange(i)}
-            className={`flex-1 text-center py-2 rounded-full text-[11px] uppercase tracking-[0.18em] transition ${i===active ? "brushed-gold text-accent-foreground font-medium" : "text-muted-foreground"}`}>
-            {o}
-          </button>
-        ))}
       </div>
     </div>
   );
@@ -499,65 +390,78 @@ const SPIRITS = [
 
 function Compose({ now, go, custom, setCustom }: Ctx) {
   const spirit = SPIRITS[custom.spirit];
-  const labels = ["Dry","Medium","Sweet"];
-  const strengths = ["Light","Standard","Bold"];
+  const labels = ["Dry", "Balanced", "Sweet"];
+  const strengths = ["Light", "Standard", "Bold"];
+  const iceOptions = ["None", "Cubes", "Sphere"];
+  const garnishOptions = ["Twist", "Peel", "Cherry"];
+
   return (
     <div className="absolute inset-0">
-      <StatusBar title="Compose · The Studio" now={now} />
-      <div className="absolute top-10 left-7"><Logo /></div>
+      <StatusBar title="Custom Creation" now={now} />
+      <div className="absolute top-10 left-8"><Logo /></div>
       <BackChip onClick={() => go("experience")} />
 
-      <div className="h-full pt-20 pb-6 px-10 grid grid-cols-[1fr_320px] gap-8">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.4em] text-accent">Step 02 of 04</div>
-          <h2 className="font-display text-3xl font-light mt-1">Compose your drink</h2>
-
-          <div className="mt-5">
-            <div className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-3">Base Spirit</div>
-            <div className="grid grid-cols-4 gap-3">
+      <div className="h-full pt-28 pb-10 px-12 grid grid-cols-[1fr_400px] gap-12">
+        <div className="flex flex-col gap-10 overflow-y-auto pr-4 pb-8 custom-scrollbar">
+          <div>
+            <div className="text-2xl uppercase tracking-[0.2em] text-muted-foreground mb-4">Base Spirit</div>
+            <div className="grid grid-cols-2 gap-4">
               {SPIRITS.map((s, i) => (
                 <button key={s.name} onClick={() => setCustom(c => ({ ...c, spirit: i }))}
-                  className={`surface-card text-left rounded-2xl p-4 transition ${i===custom.spirit ? "ring-1 ring-accent" : "hover:ring-1 hover:ring-border-strong"}`}>
-                  <div className={`w-7 h-7 rounded-full mb-3 ${i===custom.spirit ? "brushed-gold" : "bg-surface-3"}`} />
-                  <div className="font-display text-lg leading-none">{s.name}</div>
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">{s.sub}</div>
+                  className={`surface-card text-left rounded-[2rem] p-6 transition-all active:scale-[0.98] ${i === custom.spirit ? "ring-4 ring-accent bg-accent/10" : "hover:bg-surface-2"}`}>
+                  <div className="flex items-center gap-5">
+                    <img src={s.img} alt="" className="w-20 h-20 rounded-full object-cover" />
+                    <div>
+                      <div className="font-display text-3xl mb-1">{s.name}</div>
+                      <div className="text-lg text-muted-foreground">{s.sub}</div>
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-4">
-            <Segmented label="Sweetness" options={["Dry","Med","Sweet"]} active={custom.sweet}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-10">
+            <BigSegmented label="Sweetness" options={labels} active={custom.sweet}
               onChange={i => setCustom(c => ({ ...c, sweet: i }))} />
-            <Segmented label="Strength" options={["Light","Std","Bold"]} active={custom.strength}
+            <BigSegmented label="Strength" options={strengths} active={custom.strength}
               onChange={i => setCustom(c => ({ ...c, strength: i }))} />
-            <Segmented label="Ice" options={["None","Cubes","Sphere"]} active={custom.ice}
+            <BigSegmented label="Ice" options={iceOptions} active={custom.ice}
               onChange={i => setCustom(c => ({ ...c, ice: i }))} />
-            <Segmented label="Garnish" options={["Twist","Peel","Cherry"]} active={custom.garnish}
+            <BigSegmented label="Garnish" options={garnishOptions} active={custom.garnish}
               onChange={i => setCustom(c => ({ ...c, garnish: i }))} />
           </div>
         </div>
 
-        <div className="glass-card rounded-3xl p-5 flex flex-col">
-          <div className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Live preview</div>
-          <div className="relative flex-1 rounded-2xl overflow-hidden mt-3 bg-surface">
-            <img src={spirit.img} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90 transition" loading="lazy" />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
-            <div className="absolute bottom-3 left-4 right-4">
-              <div className="font-display text-xl">Custom №14</div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                {spirit.name} · {labels[custom.sweet]} · {strengths[custom.strength]}
-              </div>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground uppercase tracking-widest text-[10px]">Est. 80s</span>
-            <span className="font-display text-2xl">€16</span>
-          </div>
-          <div className="mt-3 flex justify-center">
-            <GoldButton onClick={() => go("review")}>Review Order →</GoldButton>
+        <div className="relative rounded-[3rem] overflow-hidden flex flex-col justify-end shadow-2xl">
+          <img src={spirit.img} alt="" className="absolute inset-0 w-full h-full object-cover transition" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
+
+          <div className="relative z-10 p-10 flex flex-col">
+            <div className="font-display text-5xl mb-2 text-foreground">Custom Drink</div>
+            <div className="text-2xl text-accent mb-8">€16.00</div>
+
+            <GoldButton big onClick={() => go("review")}>REVIEW</GoldButton>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BigSegmented({
+  label, options, active, onChange,
+}: { label: string; options: string[]; active: number; onChange: (i: number) => void }) {
+  return (
+    <div>
+      <div className="text-xl uppercase tracking-[0.2em] text-muted-foreground mb-4">{label}</div>
+      <div className="flex flex-col gap-3">
+        {options.map((o, i) => (
+          <button key={o} onClick={() => onChange(i)}
+            className={`py-4 px-6 rounded-2xl text-xl font-medium transition-all text-left border-2 ${i === active ? "brushed-gold border-transparent text-accent-foreground shadow-lg" : "bg-surface border-border-strong text-muted-foreground hover:bg-surface-2"}`}>
+            {o}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -567,65 +471,49 @@ function Review({ selected, mode, custom, now, go }: Ctx) {
   const spirit = SPIRITS[custom.spirit];
   const rows: [string, string][] = mode === "signature"
     ? [
-        ["Cocktail", selected.name],
-        ["Base spirit", selected.ingredients[0]],
-        ["Method", "Stirred · −4°C"],
-        ["Glassware", "Crystal coupe"],
-        ["Origin", selected.origin],
-      ]
+      ["Cocktail", selected.name],
+      ["Base spirit", selected.ingredients[0]],
+    ]
     : [
-        ["Base spirit", spirit.name],
-        ["Sweetness", ["Dry","Medium","Sweet"][custom.sweet]],
-        ["Strength", ["Light","Standard","Bold"][custom.strength]],
-        ["Ice", ["None","Cubes","Sphere"][custom.ice]],
-        ["Garnish", ["Twist","Peel","Cherry"][custom.garnish]],
-      ];
+      ["Base spirit", spirit.name],
+      ["Sweetness", ["Dry", "Balanced", "Sweet"][custom.sweet]],
+      ["Strength", ["Light", "Standard", "Bold"][custom.strength]],
+      ["Ice", ["None", "Cubes", "Sphere"][custom.ice]],
+      ["Garnish", ["Twist", "Peel", "Cherry"][custom.garnish]],
+    ];
   const price = mode === "signature" ? selected.price : 16;
-  const time = mode === "signature" ? selected.time : 80;
   const image = mode === "signature" ? selected.img : spirit.img;
-  const title = mode === "signature" ? selected.name : "Custom №14";
+  const title = mode === "signature" ? selected.name : "Custom Drink";
+
   return (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0 flex flex-col justify-center items-center bg-background">
       <StatusBar title="Confirm Order" now={now} />
-      <div className="absolute top-10 left-7"><Logo /></div>
+      <div className="absolute top-10 left-8"><Logo /></div>
       <BackChip onClick={() => go(mode === "signature" ? "detail" : "compose")} label="Edit" />
 
-      <div className="h-full pt-20 pb-8 px-12 grid grid-cols-[360px_1fr] gap-10">
-        <div className="relative rounded-3xl overflow-hidden surface-card">
+      <div className="w-full max-w-[850px] flex gap-12 items-center">
+        <div className="w-[380px] h-[380px] rounded-[3rem] overflow-hidden relative shrink-0 shadow-2xl">
           <img src={image} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-          <div className="absolute bottom-5 left-5 right-5">
-            <div className="text-[10px] uppercase tracking-[0.4em] text-accent">Your selection</div>
-            <div className="font-display text-3xl font-light mt-1">{title}</div>
-            <div className="text-[11px] text-muted-foreground">Reimagined for you</div>
-          </div>
         </div>
 
-        <div className="flex flex-col">
-          <div className="text-[10px] uppercase tracking-[0.4em] text-accent">Step 04 of 04</div>
-          <h2 className="font-display text-4xl font-light mt-1">Review your order</h2>
+        <div className="flex-1 flex flex-col">
+          <h2 className="font-display text-[56px] font-light leading-none mb-8">{title}</h2>
 
-          <div className="mt-6 divide-y divide-border">
-            {rows.map(([k,v]) => (
-              <div key={k} className="flex justify-between py-3 text-sm">
-                <span className="text-muted-foreground uppercase tracking-widest text-[10px] mt-1">{k}</span>
-                <span className="text-foreground font-medium">{v}</span>
+          <div className="flex flex-col gap-4 mb-12">
+            {rows.map(([k, v]) => (
+              <div key={k} className="flex justify-between items-center text-2xl border-b border-border/40 pb-4">
+                <span className="text-muted-foreground uppercase tracking-widest text-lg">{k}</span>
+                <span className="font-medium">{v}</span>
               </div>
             ))}
           </div>
 
-          <div className="mt-auto flex items-end justify-between pt-6 border-t border-border-strong/40">
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Total · Prep time {time}s</div>
-              <div className="font-display text-4xl font-light mt-1">
-                €{Math.floor(price)}<span className="text-lg text-muted-foreground">.{(price % 1).toFixed(2).slice(2)}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <GoldButton variant="ghost" onClick={() => go(mode === "signature" ? "detail" : "compose")}>Edit</GoldButton>
-              <GoldButton big onClick={() => go("preparing")}>Confirm & Prepare →</GoldButton>
-            </div>
+          <div className="flex items-center justify-between mb-8">
+            <span className="text-2xl uppercase tracking-[0.2em] text-muted-foreground">Total</span>
+            <span className="font-display text-[56px] text-accent">€{price.toFixed(2)}</span>
           </div>
+
+          <GoldButton big onClick={() => go("preparing")}>CONFIRM ORDER</GoldButton>
         </div>
       </div>
     </div>
@@ -633,12 +521,12 @@ function Review({ selected, mode, custom, now, go }: Ctx) {
 }
 
 function ProgressRing({ pct }: { pct: number }) {
-  const r = 92;
+  const r = 180;
   const c = 2 * Math.PI * r;
   return (
-    <svg width="220" height="220" viewBox="0 0 220 220" className="-rotate-90">
-      <circle cx="110" cy="110" r={r} stroke="oklch(1 0 0 / 8%)" strokeWidth="3" fill="none" />
-      <circle cx="110" cy="110" r={r} stroke="url(#gold)" strokeWidth="3" fill="none" strokeLinecap="round"
+    <svg width="400" height="400" viewBox="0 0 400 400" className="-rotate-90 drop-shadow-2xl">
+      <circle cx="200" cy="200" r={r} stroke="oklch(1 0 0 / 10%)" strokeWidth="6" fill="none" />
+      <circle cx="200" cy="200" r={r} stroke="url(#gold)" strokeWidth="12" fill="none" strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={c * (1 - pct)} style={{ transition: "stroke-dashoffset 120ms linear" }} />
       <defs>
         <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
@@ -653,108 +541,58 @@ function ProgressRing({ pct }: { pct: number }) {
 function Preparing({ selected, mode, progress, now }: Ctx) {
   const total = mode === "signature" ? selected.time : 80;
   const remaining = Math.max(0, Math.ceil(total * (1 - progress)));
-  const title = mode === "signature" ? selected.name : "Custom №14";
-  const stepIndex = progress < 0.25 ? 0 : progress < 0.55 ? 1 : progress < 0.9 ? 2 : 3;
-  const steps = [
-    ["01","Chilling glass"],
-    ["02","Measuring base spirit"],
-    ["03","Stirring · 18 rotations"],
-    ["04","Garnish & serve"],
-  ] as const;
+  const title = mode === "signature" ? selected.name : "Custom Drink";
+
   return (
-    <div className="absolute inset-0">
-      <StatusBar title={`Preparing · 00:${remaining.toString().padStart(2,"0")} remaining`} now={now} />
-      <div className="absolute top-10 left-7"><Logo /></div>
+    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
+      <StatusBar title="Preparing" now={now} />
+      <div className="absolute top-10 left-8"><Logo /></div>
 
-      <div className="h-full pt-20 pb-8 px-10 grid grid-cols-[1fr_1fr]">
-        <div className="relative flex flex-col items-center justify-center">
-          <div className="relative">
-            <ProgressRing pct={progress} />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <div className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Ready in</div>
-              <div className="font-display text-6xl font-light mt-1 leading-none tabular-nums">
-                {remaining}<span className="text-2xl text-muted-foreground">s</span>
-              </div>
-              <div className="text-[10px] uppercase tracking-[0.3em] text-accent mt-2">{Math.round(progress * 100)}% complete</div>
+      <div className="relative flex flex-col items-center justify-center">
+        <div className="relative">
+          <ProgressRing pct={progress} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="font-display text-[120px] font-light leading-none tabular-nums text-foreground">
+              {remaining}
             </div>
-          </div>
-          <div className="mt-6 text-center">
-            <div className="font-display text-2xl">{title}</div>
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mt-1">Station 04 · Crystal coupe</div>
+            <div className="text-3xl text-accent mt-2">seconds</div>
           </div>
         </div>
 
-        <div className="flex flex-col">
-          <div className="relative h-[200px] rounded-2xl overflow-hidden surface-card">
-            <img src={robotHero} alt="" className="absolute inset-0 w-full h-full object-cover scale-110" loading="lazy" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-background/70 via-transparent to-background/40" />
-            <div className="absolute top-3 left-3 text-[10px] uppercase tracking-[0.3em] text-accent flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" /> Live · Arm 02
-            </div>
-            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[10px] uppercase tracking-widest text-muted-foreground">
-              <span>Torque {(10 + progress * 5).toFixed(1)} Nm</span>
-              <span>Temp −{(2 + progress * 2).toFixed(1)}°C</span>
-              <span>Cycle {Math.min(4, stepIndex + 1)} / 04</span>
-            </div>
-          </div>
-
-          <div className="mt-5 flex-1 flex flex-col gap-2">
-            {steps.map(([n,t], i) => {
-              const state = i < stepIndex ? "done" : i === stepIndex ? "active" : "queued";
-              return (
-                <div key={n} className={`flex items-center gap-4 px-4 py-3 rounded-xl ${state === "active" ? "surface-card" : ""}`}>
-                  <span className={`font-mono text-[10px] ${state === "done" ? "text-accent" : state === "active" ? "text-foreground" : "text-muted-foreground/60"}`}>{n}</span>
-                  <span className={`flex-1 text-sm ${state === "queued" ? "text-muted-foreground/60" : ""}`}>{t}</span>
-                  <span className={`text-[10px] uppercase tracking-widest ${state === "active" ? "text-accent" : "text-muted-foreground"}`}>
-                    {state === "done" ? "Complete" : state === "active" ? "In progress" : "Queued"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <h2 className="font-display text-[56px] mt-16 font-light">{title}</h2>
+        <div className="text-2xl uppercase tracking-[0.3em] text-muted-foreground mt-4 animate-pulse">Pouring now...</div>
       </div>
     </div>
   );
 }
 
 function Ready({ selected, mode, now, go }: Ctx) {
-  const title = mode === "signature" ? selected.name : "Custom №14";
   const orderNo = useMemo(() => 2400 + Math.floor(Math.random() * 99), []);
   return (
     <div className="absolute inset-0">
       <StatusBar title="Ready" now={now} />
       <img src={readyHero} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-background/30" />
-      <div className="absolute top-10 left-7"><Logo /></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-background/30" />
+      <div className="absolute top-10 left-8"><Logo /></div>
 
-      <div className="relative h-full flex flex-col justify-center px-16 max-w-[60%] z-10">
-        <div className="text-[10px] uppercase tracking-[0.4em] text-accent mb-5">Order №{orderNo} · Complete</div>
-        <h1 className="font-display text-[64px] leading-[0.95] font-light tracking-tight">
+      <div className="relative h-full flex flex-col justify-center px-20 max-w-[70%] z-10">
+        <div className="text-2xl uppercase tracking-[0.4em] text-accent mb-8">Order Complete</div>
+        <h1 className="font-display text-[100px] leading-[1] font-light tracking-tight mb-12 drop-shadow-lg">
           Your drink is <em className="italic font-normal gold-text">ready.</em>
         </h1>
-        <p className="mt-5 text-muted-foreground text-[15px] leading-relaxed max-w-md">
-          Please collect your {title} from the serving window on your right.
-          Mind the chilled glass — it is at −4°C.
-        </p>
 
-        <div className="mt-6 flex items-center gap-3">
-          <div className="glass-card rounded-2xl px-5 py-3">
-            <div className="text-[9px] uppercase tracking-widest text-muted-foreground">Window</div>
-            <div className="font-display text-xl">B · 04</div>
+        <div className="flex gap-8 mb-16">
+          <div className="glass-card rounded-[2rem] px-10 py-8 border-2 border-accent/40 shadow-xl">
+            <div className="text-xl uppercase tracking-widest text-muted-foreground mb-2">Collect at Window</div>
+            <div className="font-display text-7xl text-accent">B · 04</div>
           </div>
-          <div className="glass-card rounded-2xl px-5 py-3">
-            <div className="text-[9px] uppercase tracking-widest text-muted-foreground">Receipt</div>
-            <div className="font-display text-xl">{orderNo}</div>
+          <div className="glass-card rounded-[2rem] px-10 py-8 border border-border-strong/50 shadow-xl">
+            <div className="text-xl uppercase tracking-widest text-muted-foreground mb-2">Order No.</div>
+            <div className="font-display text-7xl">{orderNo}</div>
           </div>
         </div>
 
-        <div className="mt-8 flex items-center gap-3">
-          <GoldButton onClick={() => go("welcome")}>Order Another →</GoldButton>
-          <GoldButton variant="ghost">Email Receipt</GoldButton>
-        </div>
-
-        <div className="mt-8 text-[11px] uppercase tracking-[0.3em] text-muted-foreground/80">Thank you — enjoy your evening.</div>
+        <GoldButton big onClick={() => go("welcome")}>FINISH</GoldButton>
       </div>
     </div>
   );
