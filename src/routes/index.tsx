@@ -360,21 +360,23 @@ function Detail({ selected, now, go }: Ctx) {
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-background/20 to-background" />
         </div>
 
-        <div className="w-[45%] px-12 py-28 flex flex-col justify-center bg-background relative z-10">
-          <h2 className="font-display text-[72px] font-light leading-none mb-4">{selected.name}</h2>
-          <div className="font-display text-5xl text-accent mb-12">
+        <div className="w-[45%] px-10 pb-12 pt-24 flex flex-col justify-end bg-background relative z-10">
+          <h2 className="font-display text-[64px] font-light leading-none mb-2">{selected.name}</h2>
+          <div className="font-display text-5xl text-accent mb-6">
             €{Math.floor(selected.price)}
             <span className="text-3xl">.{(selected.price % 1).toFixed(2).slice(2)}</span>
           </div>
 
-          <div className="flex flex-wrap gap-4 mb-16">
+          <div className="flex flex-wrap gap-2 mb-8">
             {selected.ingredients.map(i =>
-              <span key={i} className="px-6 py-3 rounded-2xl bg-surface-2 text-xl font-medium border border-border-strong text-foreground whitespace-nowrap">{i}</span>
+              <span key={i} className="px-5 py-2 rounded-2xl bg-surface-2 text-lg font-medium border border-border-strong text-foreground whitespace-nowrap">{i}</span>
             )}
-            <span className="px-6 py-3 rounded-2xl bg-surface-2 text-xl font-medium border border-border-strong text-muted-foreground whitespace-nowrap">{selected.abv * 4 + 20}% ABV</span>
+            <span className="px-5 py-2 rounded-2xl bg-surface-2 text-lg font-medium border border-border-strong text-muted-foreground whitespace-nowrap">{selected.abv * 4 + 20}% ABV</span>
           </div>
 
-          <GoldButton big onClick={() => go("review")}>ORDER NOW</GoldButton>
+          <div>
+            <GoldButton big onClick={() => go("review")}>ORDER NOW</GoldButton>
+          </div>
         </div>
       </div>
     </div>
@@ -437,9 +439,9 @@ function Compose({ now, go, custom, setCustom }: Ctx) {
           <img src={spirit.img} alt="" className="absolute inset-0 w-full h-full object-cover transition" loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
 
-          <div className="relative z-10 p-10 flex flex-col">
+          <div className="relative z-10 p-8 flex flex-col">
             <div className="font-display text-5xl mb-2 text-foreground">Custom Drink</div>
-            <div className="text-2xl text-accent mb-8">€16.00</div>
+            <div className="text-2xl text-accent mb-6">€16.00</div>
 
             <GoldButton big onClick={() => go("review")}>REVIEW</GoldButton>
           </div>
@@ -497,9 +499,9 @@ function Review({ selected, mode, custom, now, go }: Ctx) {
         </div>
 
         <div className="flex-1 flex flex-col">
-          <h2 className="font-display text-[56px] font-light leading-none mb-8">{title}</h2>
+          <h2 className="font-display text-[56px] font-light leading-none mb-6">{title}</h2>
 
-          <div className="flex flex-col gap-4 mb-12">
+          <div className="flex flex-col gap-3 mb-8">
             {rows.map(([k, v]) => (
               <div key={k} className="flex justify-between items-center text-2xl border-b border-border/40 pb-4">
                 <span className="text-muted-foreground uppercase tracking-widest text-lg">{k}</span>
@@ -508,7 +510,7 @@ function Review({ selected, mode, custom, now, go }: Ctx) {
             ))}
           </div>
 
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6 mt-4">
             <span className="text-2xl uppercase tracking-[0.2em] text-muted-foreground">Total</span>
             <span className="font-display text-[56px] text-accent">€{price.toFixed(2)}</span>
           </div>
@@ -572,27 +574,29 @@ function Ready({ selected, mode, now, go }: Ctx) {
     <div className="absolute inset-0">
       <StatusBar title="Ready" now={now} />
       <img src={readyHero} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-background/30" />
-      <div className="absolute top-10 left-8"><Logo /></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/30" />
+      <div className="absolute top-10 left-8 z-20"><Logo /></div>
 
-      <div className="relative h-full flex flex-col justify-center px-20 max-w-[70%] z-10">
-        <div className="text-2xl uppercase tracking-[0.4em] text-accent mb-8">Order Complete</div>
-        <h1 className="font-display text-[100px] leading-[1] font-light tracking-tight mb-12 drop-shadow-lg">
+      <div className="relative h-full flex flex-col justify-end pb-12 px-16 max-w-[80%] z-10">
+        <div className="text-xl uppercase tracking-[0.4em] text-accent mb-2">Order Complete</div>
+        <h1 className="font-display text-[72px] leading-[1] font-light tracking-tight mb-8 drop-shadow-lg">
           Your drink is <em className="italic font-normal gold-text">ready.</em>
         </h1>
 
-        <div className="flex gap-8 mb-16">
-          <div className="glass-card rounded-[2rem] px-10 py-8 border-2 border-accent/40 shadow-xl">
-            <div className="text-xl uppercase tracking-widest text-muted-foreground mb-2">Collect at Window</div>
-            <div className="font-display text-7xl text-accent">B · 04</div>
+        <div className="flex gap-6 mb-10">
+          <div className="glass-card rounded-[2rem] px-8 py-5 border-2 border-accent/40 shadow-xl">
+            <div className="text-sm uppercase tracking-widest text-muted-foreground mb-1">Collect at Window</div>
+            <div className="font-display text-[56px] text-accent leading-none">B · 04</div>
           </div>
-          <div className="glass-card rounded-[2rem] px-10 py-8 border border-border-strong/50 shadow-xl">
-            <div className="text-xl uppercase tracking-widest text-muted-foreground mb-2">Order No.</div>
-            <div className="font-display text-7xl">{orderNo}</div>
+          <div className="glass-card rounded-[2rem] px-8 py-5 border border-border-strong/50 shadow-xl">
+            <div className="text-sm uppercase tracking-widest text-muted-foreground mb-1">Order No.</div>
+            <div className="font-display text-[56px] leading-none">{orderNo}</div>
           </div>
         </div>
 
-        <GoldButton big onClick={() => go("welcome")}>FINISH</GoldButton>
+        <div>
+          <GoldButton big onClick={() => go("welcome")}>FINISH</GoldButton>
+        </div>
       </div>
     </div>
   );

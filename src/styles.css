@@ -38,10 +38,10 @@
   /* Inside the kiosk frames */
   --background: oklch(0.13 0.003 90);
   --foreground: oklch(0.96 0.008 90);
-  --surface:   oklch(0.17 0.004 90);
+  --surface: oklch(0.17 0.004 90);
   --surface-2: oklch(0.21 0.005 90);
   --surface-3: oklch(0.26 0.006 90);
-  --border:    oklch(0.28 0.006 90 / 60%);
+  --border: oklch(0.28 0.006 90 / 60%);
   --border-strong: oklch(0.42 0.008 90 / 80%);
   --muted: oklch(0.22 0.005 90);
   --muted-foreground: oklch(0.68 0.01 90);
@@ -53,9 +53,24 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html, body { background: var(--color-page); color: var(--color-page-foreground); }
-  body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+  * {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body {
+    background: var(--color-page);
+    color: var(--color-page-foreground);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+* {
+  cursor: none;
 }
 
 /* --- Presentation utilities --- */
@@ -80,24 +95,24 @@
 
 @utility hairline {
   background: linear-gradient(90deg,
-    transparent,
-    oklch(0.83 0.09 85 / 50%) 20%,
-    oklch(0.83 0.09 85 / 50%) 80%,
-    transparent);
+      transparent,
+      oklch(0.83 0.09 85 / 50%) 20%,
+      oklch(0.83 0.09 85 / 50%) 80%,
+      transparent);
 }
 
 @utility brushed-gold {
   background: linear-gradient(135deg,
-    oklch(0.78 0.08 85) 0%,
-    oklch(0.88 0.09 88) 40%,
-    oklch(0.72 0.07 80) 70%,
-    oklch(0.85 0.09 85) 100%);
+      oklch(0.78 0.08 85) 0%,
+      oklch(0.88 0.09 88) 40%,
+      oklch(0.72 0.07 80) 70%,
+      oklch(0.85 0.09 85) 100%);
 }
 
 @utility glass-card {
   background: linear-gradient(180deg,
-    oklch(1 0 0 / 4%),
-    oklch(1 0 0 / 1%));
+      oklch(1 0 0 / 4%),
+      oklch(1 0 0 / 1%));
   border: 1px solid oklch(1 0 0 / 8%);
   backdrop-filter: blur(20px);
 }
