@@ -1,4 +1,4 @@
-const API_BASE = `http://${window.location.hostname}:5000/api`;
+const API_BASE = "http://localhost:5000/api";
 
 export async function fetchApi(endpoint: string, options?: RequestInit) {
   const res = await fetch(`${API_BASE}${endpoint}`, {
