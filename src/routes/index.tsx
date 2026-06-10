@@ -64,7 +64,7 @@ function KioskApp() {
 
   // SSE Connection
   useEffect(() => {
-    const evtSource = new EventSource("http://localhost:5000/stream");
+    const evtSource = new EventSource(`http://${window.location.hostname}:5000/stream`);
     
     evtSource.addEventListener("init", (e) => {
       const data = JSON.parse(e.data);
@@ -79,16 +79,18 @@ function KioskApp() {
       setMessage(data.message || "");
 
       // Auto-transition screens based on machine status
-      if (data.machine_status === "waiting_glass") setScreen("waiting_glass");
-      else if (["dispensing", "mixing", "pouring"].includes(data.machine_status)) setScreen("preparing");
-      else if (data.machine_status === "done") setScreen("ready");
-      else if (data.machine_status === "error") setScreen("error");
-      else if (data.machine_status === "idle" && screen !== "welcome") {
-        // Only reset to welcome if we were in a post-order state and now idle
-        if (["ready", "error", "preparing", "waiting_glass"].includes(screen)) {
-           setScreen("welcome");
+      setScreen(prev => {
+        if (data.machine_status === "waiting_glass") return "waiting_glass";
+        if (["dispensing", "mixing", "pouring"].includes(data.machine_status)) return "preparing";
+        if (data.machine_status === "done") return "ready";
+        if (data.machine_status === "error") return "error";
+        if (data.machine_status === "idle" && prev !== "welcome") {
+          if (["ready", "error", "preparing", "waiting_glass"].includes(prev)) {
+             return "welcome";
+          }
         }
-      }
+        return prev;
+      });
     });
 
     evtSource.addEventListener("sensor", (e) => {
@@ -97,7 +99,7 @@ function KioskApp() {
     });
 
     return () => evtSource.close();
-  }, [screen]);
+  }, []);
 
   const selected = useMemo(
     () => drinks.find(d => d.id === selectedId) || drinks[0],
