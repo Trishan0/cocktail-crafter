@@ -230,16 +230,23 @@ def _handle_sensor(data: dict):
 
 def _open_port() -> serial.Serial:
     """Open the serial port. Returns port object or None on failure."""
+    port_to_try = config.SERIAL_PORT
+    
+    # Auto-detect COM port if we're on Windows and config port isn't in the list
+    ports = list(serial.tools.list_ports.comports())
+    if not any(p.device == port_to_try for p in ports) and len(ports) > 0:
+        port_to_try = ports[0].device
+
     try:
         port = serial.Serial(
-            port=config.SERIAL_PORT,
+            port=port_to_try,
             baudrate=config.SERIAL_BAUDRATE,
-            timeout=config.SERIAL_TIMEOUT,
+            timeout=config.SERIAL_TIMEOUT
         )
-        print(f"[SERIAL] Connected to {config.SERIAL_PORT} @ {config.SERIAL_BAUDRATE} baud")
+        print(f"[SERIAL] Connected to {port_to_try} @ {config.SERIAL_BAUDRATE} baud")
         return port
     except serial.SerialException as e:
-        print(f"[SERIAL] Cannot open {config.SERIAL_PORT}: {e}")
+        print(f"[SERIAL] Cannot open {port_to_try}: {e}")
         return None
 
 
