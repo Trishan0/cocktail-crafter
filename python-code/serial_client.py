@@ -187,8 +187,11 @@ def _handle_status(data: dict):
     }
     """
     with _lock:
-        _state["machine_status"]   = data.get("status",   _state["machine_status"])
-        _state["current_order_id"] = data.get("order_id", _state["current_order_id"])
+        # ESP32 might send "machine_status" or "status"
+        status_val = data.get("machine_status", data.get("status", _state["machine_status"]))
+        
+        _state["machine_status"]   = status_val
+        _state["current_order_id"] = data.get("order_id", data.get("current_order_id", _state["current_order_id"]))
         _state["progress"]         = data.get("progress", _state["progress"])
         _state["message"]          = data.get("message",  _state["message"])
         state_copy = dict(_state)
