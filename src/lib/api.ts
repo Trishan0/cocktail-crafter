@@ -50,6 +50,23 @@ export const getAdminRecipes = () => fetchApi("/admin/recipes");
 export const createRecipe = (recipe: any) => fetchApi("/admin/recipes", { method: "POST", body: JSON.stringify(recipe) });
 export const updateRecipe = (id: number, recipe: any) => fetchApi(`/admin/recipes/${id}`, { method: "PUT", body: JSON.stringify(recipe) });
 export const deleteRecipe = (id: number) => fetchApi(`/admin/recipes/${id}`, { method: "DELETE" });
+export const uploadRecipeImage = async (id: number, file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${API_BASE}/admin/recipes/${id}/image`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    let errorMsg = "API Error";
+    try {
+      const data = await res.json();
+      if (data.error) errorMsg = data.error;
+    } catch (e) {}
+    throw new Error(errorMsg);
+  }
+  return res.json();
+};
 
 // Admin - Other
 export const cleanSystem = (mode = "all") => fetchApi("/admin/clean", { method: "POST", body: JSON.stringify({ mode }) });

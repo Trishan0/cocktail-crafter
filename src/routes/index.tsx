@@ -272,9 +272,10 @@ function Catalog({ now, go, setSelectedId, drinks }: any) {
                 className={`surface-card relative text-left rounded-[2rem] overflow-hidden flex flex-col h-[380px] hover:ring-4 hover:ring-accent/80 transition active:scale-[0.98] group shadow-xl ${!d.available && 'opacity-50 grayscale'}`}
                 disabled={!d.available}
               >
-                <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-surface-2/20" />
-                <div className="absolute top-6 right-6 text-4xl">{d.available ? '🍸' : '❌'}</div>
-                <div className="absolute bottom-0 inset-x-0 p-8 flex justify-between items-end">
+                {d.image_url && <img src={`http://localhost:5000${d.image_url}`} alt={d.name} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />}
+                <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/60 to-transparent" />
+                <div className="absolute top-6 right-6 text-4xl z-10">{d.available ? '🍸' : '❌'}</div>
+                <div className="absolute bottom-0 inset-x-0 p-8 flex justify-between items-end z-10">
                   <div>
                     <h4 className="font-display text-[44px] leading-none mb-2 text-foreground">{d.name}</h4>
                     <div className="text-2xl text-accent font-light">€{d.price.toFixed(2)}</div>
@@ -300,8 +301,12 @@ function Detail({ selected, now, go }: any) {
       <BackChip onClick={() => go("catalog")} />
 
       <div className="h-full flex">
-        <div className="w-[45%] relative bg-surface-2 flex items-center justify-center text-6xl">
-           🍸
+        <div className="w-[45%] relative bg-surface-2 flex items-center justify-center text-6xl overflow-hidden">
+           {selected.image_url ? (
+             <img src={`http://localhost:5000${selected.image_url}`} alt={selected.name} className="absolute inset-0 w-full h-full object-cover" />
+           ) : (
+             "🍸"
+           )}
         </div>
         <div className="w-[55%] px-10 pb-12 pt-24 flex flex-col justify-center bg-background relative z-10">
           <h2 className="font-display text-[64px] font-light leading-none mb-2">{selected.name}</h2>

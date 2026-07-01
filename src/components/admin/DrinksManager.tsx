@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAdminRecipes, getIngredients, createRecipe, updateRecipe, deleteRecipe } from "@/lib/api";
+import { getAdminRecipes, getIngredients, createRecipe, updateRecipe, deleteRecipe, uploadRecipeImage } from "@/lib/api";
 
 export function DrinksManager() {
   const [recipes, setRecipes] = useState<any[]>([]);
@@ -23,6 +23,7 @@ export function DrinksManager() {
   const [price, setPrice] = useState("0");
   const [isVisible, setIsVisible] = useState(true);
   const [ingredients, setIngredients] = useState<{ingredient_id: number, amount_ml: number}[]>([]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const loadData = async () => {
     try {
@@ -39,6 +40,7 @@ export function DrinksManager() {
   const openAdd = () => {
     setName(""); setDesc(""); setCategory("classic"); setPrice("0");
     setIsVisible(true); setIngredients([]);
+    setImageFile(null);
     setIsAddOpen(true);
   };
 
@@ -47,6 +49,7 @@ export function DrinksManager() {
     setName(r.name); setDesc(r.description); setCategory(r.category);
     setPrice(r.price.toString()); setIsVisible(r.is_visible === 1);
     setIngredients(r.ingredients.map((i: any) => ({ ingredient_id: i.id, amount_ml: i.amount_ml })));
+    setImageFile(null);
     setIsEditOpen(true);
   };
 
@@ -57,13 +60,20 @@ export function DrinksManager() {
       ingredients
     };
     try {
+      let recipeId = currentRecipe?.id;
       if (isNew) {
-        await createRecipe(payload);
+        const res = await createRecipe(payload);
+        recipeId = res.id;
         setIsAddOpen(false);
       } else {
-        await updateRecipe(currentRecipe.id, payload);
+        await updateRecipe(recipeId, payload);
         setIsEditOpen(false);
       }
+      
+      if (imageFile && recipeId) {
+        await uploadRecipeImage(recipeId, imageFile);
+      }
+      
       loadData();
     } catch (e) {
       alert(e);
@@ -138,6 +148,14 @@ export function DrinksManager() {
             <SelectItem value="0">Hidden</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="grid gap-2">
+        <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Drink Image</Label>
+        <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} className="h-12 bg-white/5 border-white/10 file:text-foreground file:bg-white/10 file:border-0 file:mr-4 file:px-4 file:h-full cursor-pointer hover:file:bg-white/20" />
+        {currentRecipe?.image_url && !imageFile && (
+          <div className="text-xs text-muted-foreground mt-1">Current image: {currentRecipe.image_url.split('/').pop()}</div>
+        )}
       </div>
 
       <div className="grid gap-3">

@@ -11,7 +11,10 @@ import json
 import queue
 import threading
 import time
-from flask import Flask, request, jsonify, Response, stream_with_context
+import os
+import uuid
+from flask import Flask, request, jsonify, Response, stream_with_context, send_from_directory
+from werkzeug.utils import secure_filename
 from flask_cors import CORS
 
 import db
@@ -22,6 +25,9 @@ import config
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}, r"/stream": {"origins": "*"}})
 app.secret_key = config.SECRET_KEY
+
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads", "drinks")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 # ─────────────────────────────────────────────
@@ -423,6 +429,32 @@ def api_delete_recipe(recipe_id):
     """Delete a recipe permanently."""
     db.delete_recipe(recipe_id)
     return jsonify({"success": True})
+
+
+@app.route("/api/admin/recipes/<int:recipe_id>/image", methods=["POST"])
+def api_upload_recipe_image(recipe_id):
+    """Upload an image for a recipe."""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    
+    ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(file_path)
+    
+    image_url = f"/uploads/drinks/{filename}"
+    db.update_recipe(recipe_id, image_url=image_url)
+    
+    return jsonify({"success": True, "image_url": image_url})
+
+
+@app.route("/uploads/drinks/<path:filename>")
+def serve_drink_image(filename):
+    """Serve uploaded drink images."""
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 
 # ─────────────────────────────────────────────

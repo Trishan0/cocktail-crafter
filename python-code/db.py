@@ -88,6 +88,13 @@ def init_db():
                 completed_at    TIMESTAMP
             );
         """)
+        
+        # Add image_url column if it doesn't exist (migration)
+        try:
+            conn.execute("ALTER TABLE recipes ADD COLUMN image_url TEXT;")
+        except sqlite3.OperationalError:
+            pass
+            
     _seed_defaults()
     print("[DB] Database initialized.")
 
@@ -341,7 +348,7 @@ def get_recipe_by_id(recipe_id: int):
     return r
 
 
-def create_recipe(name: str, description: str, category: str, price: float, ingredients: list):
+def create_recipe(name: str, description: str, category: str, price: float, ingredients: list, image_url: str = None):
     """
     Create a recipe with ingredients.
     ingredients: [{"ingredient_id": 1, "amount_ml": 50}, ...]
@@ -349,8 +356,8 @@ def create_recipe(name: str, description: str, category: str, price: float, ingr
     """
     with get_connection() as conn:
         cursor = conn.execute(
-            "INSERT INTO recipes (name, description, category, price) VALUES (?, ?, ?, ?)",
-            (name.strip(), description, category, price)
+            "INSERT INTO recipes (name, description, category, price, image_url) VALUES (?, ?, ?, ?, ?)",
+            (name.strip(), description, category, price, image_url)
         )
         recipe_id = cursor.lastrowid
         for ing in ingredients:
@@ -363,7 +370,7 @@ def create_recipe(name: str, description: str, category: str, price: float, ingr
 
 def update_recipe(recipe_id: int, name: str = None, description: str = None,
                   category: str = None, price: float = None,
-                  is_visible: int = None, ingredients: list = None):
+                  is_visible: int = None, ingredients: list = None, image_url: str = None):
     with get_connection() as conn:
         if name is not None:
             conn.execute("UPDATE recipes SET name = ? WHERE id = ?", (name.strip(), recipe_id))
@@ -375,6 +382,8 @@ def update_recipe(recipe_id: int, name: str = None, description: str = None,
             conn.execute("UPDATE recipes SET price = ? WHERE id = ?", (price, recipe_id))
         if is_visible is not None:
             conn.execute("UPDATE recipes SET is_visible = ? WHERE id = ?", (is_visible, recipe_id))
+        if image_url is not None:
+            conn.execute("UPDATE recipes SET image_url = ? WHERE id = ?", (image_url, recipe_id))
         if ingredients is not None:
             conn.execute("DELETE FROM recipe_ingredients WHERE recipe_id = ?", (recipe_id,))
             for ing in ingredients:
