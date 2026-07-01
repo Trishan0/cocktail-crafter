@@ -80,12 +80,24 @@ def send_order(order_id: int, recipe_name: str, pump_commands: list):
         "recipe_name": recipe_name,
         "pumps":       pump_commands,
     }
+    
+    if getattr(config, "SIMULATOR_MODE", False):
+        print(f"[SERIAL-MOCK] ORDER sent → #{order_id} {recipe_name}")
+        threading.Thread(target=_simulate_order_process, args=(order_id, recipe_name), daemon=True).start()
+        return
+
     _send(payload)
     print(f"[SERIAL] ORDER sent → #{order_id} {recipe_name}")
 
 
 def send_abort():
     """Send an emergency ABORT to the ESP32."""
+    if getattr(config, "SIMULATOR_MODE", False):
+        print("[SERIAL-MOCK] ABORT sent.")
+        _handle_status({"type": "STATUS", "status": "aborted", "progress": 0, "message": "Order aborted by user."})
+        threading.Timer(2.0, lambda: _handle_status({"type": "STATUS", "status": "idle", "progress": 0, "message": "Ready"})).start()
+        return
+        
     _send({"cmd": "ABORT"})
     print("[SERIAL] ABORT sent.")
 
@@ -95,6 +107,10 @@ def send_clean(mode="all"):
     Trigger a cleaning cycle.
     mode: 'all' = flush all pumps | 'single' = flush a specific pump
     """
+    if getattr(config, "SIMULATOR_MODE", False):
+        print(f"[SERIAL-MOCK] CLEAN ({mode}) sent.")
+        return
+        
     _send({"cmd": "CLEAN", "mode": mode})
     print(f"[SERIAL] CLEAN ({mode}) sent.")
 
@@ -121,6 +137,42 @@ def _send(payload: dict):
         with _lock:
             _state["connected"] = False
 
+
+# ─────────────────────────────────────────────
+#  INTERNAL — SIMULATOR
+# ─────────────────────────────────────────────
+
+def _simulate_order_process(order_id: int, recipe_name: str):
+    """Simulates the hardware pouring process (runs in a background thread)."""
+    def set_status(status, progress, msg):
+        _handle_status({
+            "type": "STATUS",
+            "order_id": order_id,
+            "status": status,
+            "progress": progress,
+            "message": msg
+        })
+        
+    set_status("waiting_glass", 0, "Waiting for glass...")
+    time.sleep(2)
+    
+    _handle_sensor({"type": "SENSOR", "glass_present": True})
+    
+    set_status("dispensing", 10, f"Preparing {recipe_name}...")
+    time.sleep(1.5)
+    
+    set_status("dispensing", 40, "Mixing ingredients...")
+    time.sleep(2)
+    
+    set_status("dispensing", 80, "Finishing up...")
+    time.sleep(1.5)
+    
+    set_status("done", 100, "Drink is ready!")
+    time.sleep(3)
+    
+    _handle_sensor({"type": "SENSOR", "glass_present": False})
+    set_status("idle", 0, "Ready for next order")
+    
 
 # ─────────────────────────────────────────────
 #  INTERNAL — RECEIVE LOOP
@@ -255,6 +307,9 @@ def _open_port() -> serial.Serial:
 
 def _reconnect():
     """Close and reopen the serial port. Retries every 3 seconds."""
+    if getattr(config, "SIMULATOR_MODE", False):
+        return
+        
     global _serial_port
     with _lock:
         if _serial_port is not None:
@@ -286,6 +341,14 @@ def _reconnect():
 def start():
     """Open the serial port and start the reader thread. Call once at startup."""
     global _serial_port, _reader_thread, _running
+
+    if getattr(config, "SIMULATOR_MODE", False):
+        print("[SERIAL-MOCK] Starting in SIMULATOR MODE. Bypassing physical COM port.")
+        _running = True
+        with _lock:
+            _state["connected"] = True
+            _state["machine_status"] = "idle"
+        return
 
     _running = True
     port = _open_port()

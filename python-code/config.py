@@ -5,6 +5,7 @@ Single source of truth for Serial, Flask, and app settings.
 """
 
 # ─── Serial Connection (ESP32 via USB/UART) ───────────
+SIMULATOR_MODE  = True             # If True, bypasses hardware and simulates pouring
 SERIAL_PORT     = "/dev/ttyACM0"   # update if ls /dev/tty* shows differently
 SERIAL_BAUDRATE = 115200
 SERIAL_TIMEOUT  = 1                # seconds read timeout
