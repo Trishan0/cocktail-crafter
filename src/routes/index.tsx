@@ -65,7 +65,7 @@ function KioskApp() {
   // SSE Connection
   useEffect(() => {
     const evtSource = new EventSource(`http://${window.location.hostname}:5000/stream`);
-    
+
     evtSource.addEventListener("init", (e) => {
       const data = JSON.parse(e.data);
       setMachineStatus(data.machine_status);
@@ -86,7 +86,7 @@ function KioskApp() {
         if (data.machine_status === "error") return "error";
         if (data.machine_status === "idle" && prev !== "welcome") {
           if (["ready", "error", "preparing", "waiting_glass"].includes(prev)) {
-             return "welcome";
+            return "welcome";
           }
         }
         return prev;
@@ -165,7 +165,7 @@ function StatusBar({ title, now }: { title: string; now: Date }) {
     <div className="absolute top-0 inset-x-0 h-14 px-8 flex items-center justify-between text-sm uppercase tracking-[0.2em] text-muted-foreground/90 font-medium z-20 bg-gradient-to-b from-background/80 to-transparent">
       <div className="flex items-center gap-3">
         <span className="w-2 h-2 rounded-full bg-accent shadow-[0_0_12px_currentColor]" />
-        <span>ATRIA Bartender · {title}</span>
+        <span>Cocktail-Craft Bartender · {title}</span>
       </div>
       <div className="flex items-center gap-6">
         <span>Station 01</span>
@@ -180,7 +180,7 @@ function Logo() {
   return (
     <div className="flex items-center gap-3 text-2xl">
       <span className="brushed-gold w-8 h-8 rounded-full shadow-md" />
-      <span className="font-display tracking-[0.35em] uppercase font-light drop-shadow-md text-foreground">ATRIA</span>
+      <span className="font-display tracking-[0.35em] uppercase font-light drop-shadow-md text-foreground">Cocktail-Craft</span>
     </div>
   );
 }
@@ -249,7 +249,7 @@ function Experience({ now, go, setMode }: any) {
             <div className="absolute inset-0 bg-surface-2 flex items-center justify-center font-display text-[56px]">House Classics</div>
           </button>
           <button onClick={() => choose("custom")} className="relative rounded-[3rem] overflow-hidden group hover:ring-4 hover:ring-accent/80 transition-all active:scale-[0.98] shadow-2xl">
-             <div className="absolute inset-0 bg-surface-2 flex items-center justify-center font-display text-[56px]">Custom Creation</div>
+            <div className="absolute inset-0 bg-surface-2 flex items-center justify-center font-display text-[56px]">Custom Creation</div>
           </button>
         </div>
       </div>
@@ -302,11 +302,11 @@ function Detail({ selected, now, go }: any) {
 
       <div className="h-full flex">
         <div className="w-[45%] relative bg-surface-2 flex items-center justify-center text-6xl overflow-hidden">
-           {selected.image_url ? (
-             <img src={`http://localhost:5000${selected.image_url}`} alt={selected.name} className="absolute inset-0 w-full h-full object-cover" />
-           ) : (
-             "🍸"
-           )}
+          {selected.image_url ? (
+            <img src={`http://localhost:5000${selected.image_url}`} alt={selected.name} className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            "🍸"
+          )}
         </div>
         <div className="w-[55%] px-10 pb-12 pt-24 flex flex-col justify-center bg-background relative z-10">
           <h2 className="font-display text-[64px] font-light leading-none mb-2">{selected.name}</h2>
@@ -338,7 +338,7 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
   const updateAmount = (idx: number, amount: number) => {
     if (amount < 0) amount = 0;
     if (amount > MAX_PER_ING) amount = MAX_PER_ING;
-    
+
     const newIngs = [...customIngredients];
     newIngs[idx].amount_ml = amount;
     setCustomIngredients(newIngs);
@@ -365,13 +365,13 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
 
       <div className="h-full pt-28 pb-10 px-12 grid grid-cols-[1fr_400px] gap-12">
         <div className="flex flex-col gap-8 overflow-y-auto pr-4 pb-8 hide-scrollbar">
-          
+
           <div>
             <div className="text-xl uppercase tracking-[0.2em] text-muted-foreground mb-4 flex justify-between">
               <span>Your Recipe</span>
               <span className={isOverLimit ? "text-red-400" : ""}>{totalMl} / {MAX_TOTAL} ml</span>
             </div>
-            
+
             <div className="flex flex-col gap-4">
               {customIngredients.map((ing: any, idx: number) => (
                 <div key={ing.ingredient_id} className="surface-card rounded-2xl p-4 flex items-center justify-between">
@@ -431,7 +431,7 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
 function Review({ selected, mode, customIngredients, now, go, handleOrder }: any) {
   const isCustom = mode === "custom";
   const title = isCustom ? "Custom Mix" : selected?.name;
-  
+
   return (
     <div className="absolute inset-0 flex flex-col justify-center items-center bg-background">
       <StatusBar title="Confirm Order" now={now} />
@@ -483,7 +483,7 @@ function WaitingGlass({ now, glassPresent }: any) {
     <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
       <StatusBar title="Waiting for Glass" now={now} />
       <div className="absolute top-10 left-8"><Logo /></div>
-      
+
       <div className={`w-48 h-48 rounded-full flex items-center justify-center mb-12 transition-all duration-500 border-4 ${glassPresent ? 'border-green-500 bg-green-500/20 text-green-400' : 'border-accent bg-accent/10 text-accent animate-pulse'}`}>
         <span className="text-6xl">🥃</span>
       </div>
@@ -502,7 +502,7 @@ function Preparing({ selected, mode, progress, machineStatus, message, now }: an
   let title = "Preparing";
   if (machineStatus === "mixing") title = "Mixing your drink";
   if (machineStatus === "pouring") title = "Pouring into glass";
-  
+
   const drinkName = mode === "signature" ? selected?.name : "Custom Mix";
 
   return (
@@ -561,11 +561,11 @@ function ErrorScreen({ now, go, message }: any) {
     <div className="absolute inset-0 bg-red-950/20 flex flex-col items-center justify-center">
       <StatusBar title="Error" now={now} />
       <div className="absolute top-10 left-8"><Logo /></div>
-      
+
       <div className="text-[120px] mb-8">⚠️</div>
       <h2 className="font-display text-[56px] font-light text-red-400 mb-4">Something went wrong</h2>
       <p className="text-2xl text-muted-foreground max-w-2xl text-center mb-16">{message || "The machine encountered an error while processing your order."}</p>
-      
+
       <GoldButton big onClick={() => go("welcome")}>RETURN HOME</GoldButton>
     </div>
   );

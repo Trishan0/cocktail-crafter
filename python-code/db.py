@@ -1,6 +1,6 @@
 """
 db.py — SQLite Database Layer
-ATRIA Bartender | Raspberry Pi
+Cocktail-Craft Bartender | Raspberry Pi
 
 New normalized schema:
   - ingredients     : all known liquids (can grow beyond 10)
@@ -16,7 +16,7 @@ import os
 from datetime import datetime
 import config
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "atria.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "Cocktail-Craft.db")
 
 
 # ─────────────────────────────────────────────

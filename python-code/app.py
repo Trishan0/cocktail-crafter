@@ -1,6 +1,6 @@
 """
 app.py — Flask Backend
-ATRIA Bartender | Raspberry Pi
+Cocktail-Craft Bartender | Raspberry Pi
 
 Serves the React kiosk UI via CORS-enabled API endpoints.
 Uses Server-Sent Events (SSE) to push real-time machine status to the UI.
@@ -514,7 +514,7 @@ def create_app():
 
 if __name__ == "__main__":
     application = create_app()
-    print(f"[APP] ATRIA Bartender starting on http://localhost:{config.FLASK_PORT}")
+    print(f"[APP] Cocktail-Craft Bartender starting on http://localhost:{config.FLASK_PORT}")
     application.run(
         host=config.FLASK_HOST,
         port=config.FLASK_PORT,

@@ -1,6 +1,6 @@
 """
 recipe_manager.py — Business Logic Layer
-ATRIA Bartender | Raspberry Pi
+Cocktail-Craft Bartender | Raspberry Pi
 
 Resolves recipes to physical pump commands (with duration_ms calculated
 from the pump's calibrated flow rate), validates availability, and

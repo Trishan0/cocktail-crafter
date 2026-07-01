@@ -1,6 +1,6 @@
 """
 config.py — Centralised Configuration
-ATRIA Bartender | Raspberry Pi
+Cocktail-Craft Bartender | Raspberry Pi
 Single source of truth for Serial, Flask, and app settings.
 """
 
@@ -13,7 +13,7 @@ SERIAL_TIMEOUT  = 1                # seconds read timeout
 # ─── Flask ────────────────────────────────────────────
 FLASK_PORT  = 5000
 FLASK_HOST  = "0.0.0.0"
-SECRET_KEY  = "atria_bartender_secret_2025"
+SECRET_KEY  = "Cocktail-Craft_bartender_secret_2025"
 
 # ─── Pump Hardware ────────────────────────────────────
 NUM_PUMPS             = 6

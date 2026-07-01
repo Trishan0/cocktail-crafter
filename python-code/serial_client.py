@@ -1,6 +1,6 @@
 """
 serial_client.py — Wired Serial Communication Layer
-ATRIA Bartender | Raspberry Pi
+Cocktail-Craft Bartender | Raspberry Pi
 
 Replaces mqtt_client.py. Handles all JSON-line communication
 between the Raspberry Pi and the ESP32 over USB/UART.
