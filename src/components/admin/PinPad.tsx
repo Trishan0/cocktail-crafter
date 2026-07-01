@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Lock, X } from "lucide-react";
 
@@ -38,6 +38,20 @@ export function PinPad({ onSuccess, pinLength = 4, correctPin = "1234" }: PinPad
     setPin("");
     setError(false);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (/^[0-9]$/.test(e.key)) {
+        handlePress(e.key);
+      } else if (e.key === "Backspace") {
+        handleBackspace();
+      } else if (e.key === "Escape" || e.key === "Delete") {
+        handleClear();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pin, error, pinLength, correctPin]);
 
   return (
     <div className="flex flex-col items-center justify-center p-8 glass-panel rounded-3xl max-w-sm w-full mx-auto border border-white/10 bg-black/40 backdrop-blur-md shadow-2xl">

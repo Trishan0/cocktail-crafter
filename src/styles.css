@@ -73,6 +73,10 @@
   cursor: none;
 }
 
+.admin-ui, .admin-ui * {
+  cursor: auto !important;
+}
+
 /* --- Presentation utilities --- */
 @utility kiosk-frame {
   position: relative;

@@ -17,7 +17,7 @@ function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   return (
-    <div className="min-h-screen bg-page text-page-foreground flex items-center justify-center overflow-hidden">
+    <div className="admin-ui min-h-screen bg-page text-page-foreground flex items-center justify-center overflow-hidden">
       {/* Ambient page glow */}
       <div
         className="pointer-events-none fixed inset-0 opacity-60"

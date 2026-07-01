@@ -198,7 +198,7 @@ export function DrinksManager() {
               Add Recipe
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] bg-card/95 backdrop-blur-xl border-border text-card-foreground">
+          <DialogContent className="admin-ui sm:max-w-[600px] bg-card/95 backdrop-blur-xl border-border text-card-foreground">
             <DialogHeader><DialogTitle className="text-2xl font-serif font-light">New Drink Recipe</DialogTitle></DialogHeader>
             {renderForm()}
             <div className="flex justify-end gap-3 pt-4">
@@ -239,7 +239,7 @@ export function DrinksManager() {
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[600px] bg-card/95 backdrop-blur-xl border-border text-card-foreground">
+        <DialogContent className="admin-ui sm:max-w-[600px] bg-card/95 backdrop-blur-xl border-border text-card-foreground">
           <DialogHeader><DialogTitle className="text-2xl font-serif font-light">Edit Recipe</DialogTitle></DialogHeader>
           {renderForm()}
           <div className="flex justify-end gap-3 pt-4">
