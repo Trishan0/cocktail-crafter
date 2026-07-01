@@ -102,7 +102,7 @@ export function DrinksManager() {
   };
 
   const renderForm = () => (
-    <div className="grid gap-6 py-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+    <div className="grid gap-6 py-4 max-h-[60vh] overflow-y-auto hide-scrollbar pr-2">
       <div className="grid gap-2">
         <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Drink Name</Label>
         <Input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Margarita" className="h-12 bg-white/5 border-white/10" />

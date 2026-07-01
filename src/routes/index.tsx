@@ -265,7 +265,7 @@ function Catalog({ now, go, setSelectedId, drinks }: any) {
       <BackChip onClick={() => go("welcome")} label="Home" />
 
       <div className="h-full pt-28 pb-10 px-12 flex flex-col">
-        <div className="flex-1 overflow-y-auto overflow-x-hidden pr-4 pb-12 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pr-4 pb-12 hide-scrollbar">
           <div className="grid grid-cols-2 gap-8">
             {drinks.map((d: any) => (
               <button key={d.id} onClick={() => { setSelectedId(d.id); go("detail"); }}
@@ -359,7 +359,7 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
       <BackChip onClick={() => go("experience")} />
 
       <div className="h-full pt-28 pb-10 px-12 grid grid-cols-[1fr_400px] gap-12">
-        <div className="flex flex-col gap-8 overflow-y-auto pr-4 pb-8 custom-scrollbar">
+        <div className="flex flex-col gap-8 overflow-y-auto pr-4 pb-8 hide-scrollbar">
           
           <div>
             <div className="text-xl uppercase tracking-[0.2em] text-muted-foreground mb-4 flex justify-between">
@@ -441,7 +441,7 @@ function Review({ selected, mode, customIngredients, now, go, handleOrder }: any
         <div className="flex-1 flex flex-col">
           <h2 className="font-display text-[56px] font-light leading-none mb-8">{title}</h2>
 
-          <div className="flex flex-col gap-3 mb-8 max-h-[200px] overflow-y-auto pr-4 custom-scrollbar">
+          <div className="flex flex-col gap-3 mb-8 max-h-[200px] overflow-y-auto pr-4 hide-scrollbar">
             {isCustom ? (
               customIngredients.map((ing: any) => (
                 <div key={ing.ingredient_id} className="flex justify-between items-center text-2xl border-b border-border/40 pb-4">

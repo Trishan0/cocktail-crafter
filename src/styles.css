@@ -121,3 +121,11 @@
   background: linear-gradient(180deg, var(--color-surface-2), var(--color-surface));
   border: 1px solid oklch(1 0 0 / 5%);
 }
+
+@utility hide-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
