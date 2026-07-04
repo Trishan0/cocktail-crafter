@@ -4,7 +4,7 @@ Cocktail-Craft Bartender | Raspberry Pi
 
 Serves the React kiosk UI via CORS-enabled API endpoints.
 Uses Server-Sent Events (SSE) to push real-time machine status to the UI.
-Communication with the ESP32 is via serial_client (wired USB/UART).
+Communication with the ESP32 is via hardware_controller (wired USB/UART or simulator).
 """
 
 import json
@@ -18,7 +18,7 @@ from werkzeug.utils import secure_filename
 from flask_cors import CORS
 
 import db
-import serial_client
+import hardware_controller
 import recipe_manager
 import config
 
@@ -28,6 +28,9 @@ app.secret_key = config.SECRET_KEY
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads", "drinks")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# The active hardware controller — instantiated in create_app()
+_controller: hardware_controller.HardwareController = None
 
 
 # ─────────────────────────────────────────────
@@ -53,7 +56,7 @@ def _push_event(event_type: str, data: dict):
 
 
 def _on_status_change(state: dict):
-    """Called by serial_client when ESP32 sends a STATUS update."""
+    """Called by hardware_controller when the machine sends a STATUS update."""
     _push_event("status", {
         "machine_status": state["machine_status"],
         "progress":       state["progress"],
@@ -71,7 +74,7 @@ def _on_status_change(state: dict):
 
 
 def _on_sensor_update(state: dict):
-    """Called by serial_client when ESP32 sends a SENSOR update."""
+    """Called by hardware_controller when the machine sends a SENSOR update."""
     _push_event("sensor", {
         "glass_present": state["glass_present"],
     })
@@ -90,7 +93,7 @@ def stream():
             _sse_clients.append(q)
 
         # Send current state immediately on connect
-        state = serial_client.get_state()
+        state = _controller.get_state()
         init_data = json.dumps({
             "machine_status": state["machine_status"],
             "progress":       state["progress"],
@@ -141,24 +144,25 @@ def api_menu():
 def api_place_order():
     """
     Place a drink order.
-    Body: {"recipe_id": 1}
+    Body: {"recipe_id": 1, "ice": false}
 
     Flow:
       1. Resolve recipe → pump commands (with duration_ms)
       2. Check machine is idle
       3. Save order to DB
-      4. Send ORDER command to ESP32 via serial
+      4. Send ORDER command to ESP32 via controller
       5. Push SSE event to UI
     """
     data      = request.get_json() or {}
     recipe_id = data.get("recipe_id")
+    ice       = bool(data.get("ice", False))
 
     if not recipe_id:
         return jsonify({"error": "recipe_id is required."}), 400
 
-    # Check machine is free
-    state = serial_client.get_state()
-    if state["machine_status"] not in ("idle", "done", "error", "aborted"):
+    # Check machine is free — only accept orders from idle (or post-error/abort)
+    state = _controller.get_state()
+    if state["machine_status"] not in ("idle", "error", "aborted"):
         return jsonify({
             "error": f"Machine is busy ({state['machine_status']}). Please wait."
         }), 409
@@ -167,11 +171,12 @@ def api_place_order():
     if error:
         return jsonify({"error": error}), 400
 
-    # Send to ESP32
-    serial_client.send_order(
+    # Send to ESP32 (or simulator)
+    _controller.send_order(
         order_id=order["order_id"],
         recipe_name=order["recipe_name"],
         pump_commands=order["pump_commands"],
+        ice=ice,
     )
 
     # Notify all UI clients immediately
@@ -182,9 +187,9 @@ def api_place_order():
     })
 
     return jsonify({
-        "success":     True,
-        "order_id":    order["order_id"],
-        "recipe_name": order["recipe_name"],
+        "success":       True,
+        "order_id":      order["order_id"],
+        "recipe_name":   order["recipe_name"],
         "pump_commands": order["pump_commands"],
     })
 
@@ -193,17 +198,18 @@ def api_place_order():
 def api_place_custom_order():
     """
     Place a custom drink order.
-    Body: {"ingredients": [{"id": 1, "name": "Vodka", "amount_ml": 50}]}
+    Body: {"ingredients": [{"id": 1, "name": "Vodka", "amount_ml": 50}], "ice": false}
     """
     data        = request.get_json() or {}
     ingredients = data.get("ingredients")
+    ice         = bool(data.get("ice", False))
 
     if not ingredients or not isinstance(ingredients, list):
         return jsonify({"error": "ingredients array is required."}), 400
 
     # Check machine is free
-    state = serial_client.get_state()
-    if state["machine_status"] not in ("idle", "done", "error", "aborted"):
+    state = _controller.get_state()
+    if state["machine_status"] not in ("idle", "error", "aborted"):
         return jsonify({
             "error": f"Machine is busy ({state['machine_status']}). Please wait."
         }), 409
@@ -212,14 +218,13 @@ def api_place_custom_order():
     if error:
         return jsonify({"error": error}), 400
 
-    # Send to ESP32
-    serial_client.send_order(
+    _controller.send_order(
         order_id=order["order_id"],
         recipe_name=order["recipe_name"],
         pump_commands=order["pump_commands"],
+        ice=ice,
     )
 
-    # Notify all UI clients immediately
     _push_event("order_placed", {
         "order_id":    order["order_id"],
         "recipe_name": order["recipe_name"],
@@ -227,9 +232,9 @@ def api_place_custom_order():
     })
 
     return jsonify({
-        "success":     True,
-        "order_id":    order["order_id"],
-        "recipe_name": order["recipe_name"],
+        "success":       True,
+        "order_id":      order["order_id"],
+        "recipe_name":   order["recipe_name"],
         "pump_commands": order["pump_commands"],
     })
 
@@ -237,8 +242,8 @@ def api_place_custom_order():
 @app.route("/api/abort", methods=["POST"])
 def api_abort():
     """Emergency abort — stop all dispensing immediately."""
-    serial_client.send_abort()
-    state    = serial_client.get_state()
+    _controller.send_abort()
+    state    = _controller.get_state()
     order_id = state.get("current_order_id")
     if order_id:
         recipe_manager.complete_order(order_id, "aborted")
@@ -248,7 +253,7 @@ def api_abort():
 @app.route("/api/status")
 def api_status():
     """Current machine + connection status."""
-    state = serial_client.get_state()
+    state = _controller.get_state()
     return jsonify({
         "connected":      state["connected"],
         "machine_status": state["machine_status"],
@@ -439,15 +444,15 @@ def api_upload_recipe_image(recipe_id):
     file = request.files['file']
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
-    
+
     ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
     filename = f"{uuid.uuid4().hex}.{ext}"
     file_path = os.path.join(UPLOAD_FOLDER, filename)
     file.save(file_path)
-    
+
     image_url = f"/uploads/drinks/{filename}"
     db.update_recipe(recipe_id, image_url=image_url)
-    
+
     return jsonify({"success": True, "image_url": image_url})
 
 
@@ -463,11 +468,27 @@ def serve_drink_image(filename):
 
 @app.route("/api/admin/clean", methods=["POST"])
 def api_clean():
-    """Trigger a cleaning cycle. Body: {"mode": "all"}"""
+    """
+    Trigger a manual cleaning cycle (admin-initiated, line-only — no container wash).
+    Body: {"mode": "all"} or {"mode": "single", "pump": 3}
+    Only allowed when machine_status == "idle".
+    """
+    state = _controller.get_state()
+    if state["machine_status"] != "idle":
+        return jsonify({
+            "error": f"Cannot clean while machine is {state['machine_status']}. Wait until idle."
+        }), 409
+
     data = request.get_json() or {}
     mode = data.get("mode", "all")
-    serial_client.send_clean(mode)
-    return jsonify({"success": True, "message": f"Cleaning cycle ({mode}) started."})
+    pump = data.get("pump")
+
+    if mode == "single" and pump is None:
+        return jsonify({"error": "pump number is required when mode is 'single'."}), 400
+
+    _controller.send_clean(trigger="manual", mode=mode, pump=pump)
+    pump_desc = f"pump {pump}" if mode == "single" else "all pumps"
+    return jsonify({"success": True, "message": f"Manual clean ({pump_desc}) started."})
 
 
 @app.route("/api/admin/pin/verify", methods=["POST"])
@@ -505,10 +526,18 @@ def api_change_pin():
 # ─────────────────────────────────────────────
 
 def create_app():
+    global _controller
+
     db.init_db()
-    serial_client.register_status_callback(_on_status_change)
-    serial_client.register_sensor_callback(_on_sensor_update)
-    serial_client.start()
+
+    # Instantiate the correct controller based on config.SIMULATOR_MODE
+    _controller = hardware_controller.create_controller()
+
+    # Wire up callbacks so hardware events push to SSE clients
+    hardware_controller.register_status_callback(_on_status_change)
+    hardware_controller.register_sensor_callback(_on_sensor_update)
+
+    _controller.start()
     return app
 
 
@@ -520,5 +549,5 @@ if __name__ == "__main__":
         port=config.FLASK_PORT,
         debug=False,
         threaded=True,
-        use_reloader=False,   # must be False — serial thread can't handle reloader
+        use_reloader=False,   # must be False — hardware thread can't handle reloader
     )
