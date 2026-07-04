@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import robotHero from "@/assets/robot-hero.jpg";
 import readyHero from "@/assets/cocktail-ready.jpg";
 import { getMenu, placeOrder, placeCustomOrder, getPumps } from "@/lib/api";
@@ -10,7 +10,7 @@ export const Route = createFileRoute("/")({
 
 type ScreenKey =
   | "welcome" | "experience" | "catalog" | "detail"
-  | "compose" | "review" | "waiting_glass" | "preparing" | "ready" | "error" | "cleaning";
+  | "compose" | "review" | "waiting_glass" | "preparing" | "ready" | "error" | "cleaning" | "cleaning_done";
 
 function useKioskScale() {
   const [scale, setScale] = useState(1);
@@ -43,6 +43,13 @@ function KioskApp() {
   const [message, setMessage] = useState("");
   const [glassPresent, setGlassPresent] = useState(true);
 
+  // Tracks when we entered the 'ready' state — used to enforce a minimum display time
+  // before cleaning can take over (important for live hardware where ESP32 starts cleaning
+  // immediately after done, giving the UI no natural hold time).
+  const readyAt = useRef<number | null>(null);
+  // Tracks whether we're in the post-order cleaning cycle
+  const inCleanCycle = useRef(false);
+
   // Load menu and available ingredients
   useEffect(() => {
     getMenu().then(data => setDrinks(data.drinks)).catch(console.error);
@@ -74,24 +81,50 @@ function KioskApp() {
 
     evtSource.addEventListener("status", (e) => {
       const data = JSON.parse(e.data);
-      setMachineStatus(data.machine_status);
+      const status = data.machine_status;
+      setMachineStatus(status);
       setProgress(data.progress || 0);
       setMessage(data.message || "");
 
-      // Auto-transition screens based on machine status
-      setScreen(prev => {
-        if (data.machine_status === "waiting_glass") return "waiting_glass";
-        if (["dispensing", "mixing", "pouring"].includes(data.machine_status)) return "preparing";
-        if (data.machine_status === "done") return "ready";
-        if (data.machine_status === "error") return "error";
-        if (["washing", "draining", "reversing", "resealing"].includes(data.machine_status)) return "cleaning";
-        if (data.machine_status === "idle" && prev !== "welcome") {
-          if (["ready", "error", "preparing", "waiting_glass", "cleaning"].includes(prev)) {
-            return "welcome";
-          }
+      if (status === "waiting_glass") {
+        inCleanCycle.current = false;
+        setScreen("waiting_glass");
+      } else if (["dispensing", "pouring"].includes(status)) {
+        setScreen("preparing");
+      } else if (status === "mixing") {
+        // mixing is used both during drink-making AND during the clean cycle shake step
+        setScreen(inCleanCycle.current ? "cleaning" : "preparing");
+      } else if (status === "done") {
+        // Record when we went ready so cleaning can enforce a minimum display time
+        readyAt.current = Date.now();
+        // Delay screen switch by 800ms so the 100% ring is visible before transitioning
+        setTimeout(() => setScreen("ready"), 800);
+      } else if (status === "error") {
+        setScreen("error");
+      } else if (["reversing", "washing", "draining", "resealing"].includes(status)) {
+        // Mark we're in the cleaning cycle
+        inCleanCycle.current = true;
+        // Enforce minimum 5s on the ready screen — critical for live hardware where
+        // the ESP32 starts cleaning almost immediately after 'done'
+        const elapsed = readyAt.current ? Date.now() - readyAt.current : Infinity;
+        const minReadyMs = 5000;
+        const delay = Math.max(0, minReadyMs - elapsed);
+        if (delay > 0) {
+          setTimeout(() => setScreen("cleaning"), delay);
+        } else {
+          setScreen("cleaning");
         }
-        return prev;
-      });
+      } else if (status === "idle") {
+        if (inCleanCycle.current) {
+          // Show a "cleaning done" confirmation before returning to welcome
+          inCleanCycle.current = false;
+          setScreen("cleaning_done");
+        } else {
+          setScreen(prev =>
+            ["ready", "error", "preparing", "waiting_glass"].includes(prev) ? "welcome" : prev
+          );
+        }
+      }
     });
 
     evtSource.addEventListener("sensor", (e) => {
@@ -101,6 +134,14 @@ function KioskApp() {
 
     return () => evtSource.close();
   }, []);
+
+  // Auto-navigate from cleaning_done back to welcome after 4 seconds
+  useEffect(() => {
+    if (screen === "cleaning_done") {
+      const t = setTimeout(() => setScreen("welcome"), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [screen]);
 
   const selected = useMemo(
     () => drinks.find(d => d.id === selectedId) || drinks[0],
@@ -160,6 +201,7 @@ function KioskApp() {
         {screen === "ready" && <Ready {...ctx} />}
         {screen === "error" && <ErrorScreen now={now} message={message} />}
         {screen === "cleaning" && <CleaningScreen now={now} progress={progress} message={message} />}
+        {screen === "cleaning_done" && <CleaningDone now={now} />}
 
         {/* Error Modal Overlay */}
         {orderError && (
@@ -562,7 +604,7 @@ function Preparing({ selected, mode, progress, machineStatus, message, now }: an
   );
 }
 
-function Ready({ now, go }: any) {
+function Ready({ now }: any) {
   return (
     <div className="absolute inset-0">
       <StatusBar title="Ready" now={now} />
@@ -575,7 +617,9 @@ function Ready({ now, go }: any) {
         <h1 className="font-display text-[72px] leading-[1] font-light tracking-tight mb-8 drop-shadow-lg">
           Your drink is <em className="italic font-normal gold-text">ready.</em>
         </h1>
-        <div><GoldButton big onClick={() => go("welcome")}>FINISH</GoldButton></div>
+        <p className="text-xl text-muted-foreground uppercase tracking-[0.3em] animate-pulse">
+          Please collect your drink — cleaning begins shortly
+        </p>
       </div>
     </div>
   );
@@ -626,6 +670,26 @@ function CleaningScreen({ now, progress, message }: any) {
           {message || "Rinsing systems..."}
         </p>
       </div>
+    </div>
+  );
+}
+
+function CleaningDone({ now }: any) {
+  return (
+    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
+      <StatusBar title="All Clean" now={now} />
+      <div className="absolute top-10 left-8"><Logo /></div>
+
+      <div className="w-48 h-48 rounded-full border-4 border-green-500 bg-green-500/10 flex items-center justify-center mb-12 text-green-400">
+        <span className="text-[80px] leading-none">✓</span>
+      </div>
+
+      <h2 className="font-display text-[64px] font-light text-center text-green-400">
+        All Clean!
+      </h2>
+      <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em] animate-pulse">
+        Machine ready for next order
+      </p>
     </div>
   );
 }

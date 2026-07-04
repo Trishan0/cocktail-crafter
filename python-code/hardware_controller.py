@@ -326,25 +326,37 @@ class SimulatorController(HardwareController):
         if self._wait(2):
             return
 
-        s(order_id, "mixing", 60, "Mixing your drink...")
+        s(order_id, "dispensing", 70, "Finishing dispense...")
+        if self._wait(1):
+            return
+
+        s(order_id, "mixing", 80, "Mixing your drink...")
         if self._wait(1.5):
             return
 
-        s(order_id, "pouring", 80, "Pouring into glass...")
+        s(order_id, "pouring", 90, "Pouring into glass...")
         if self._wait(1):
             return
 
         s(order_id, "done", 100, "Drink is ready! Enjoy!")
 
+        # ── Hold the 'done' screen for the customer to see ────────────────
+        if self._wait(6):
+            return
+
         # ── Post-order auto-clean cycle ───────
         # REVERSING: pump lines run backward — starts immediately (glass still present is OK here)
         s(order_id, "reversing", 0, "Cleaning pump lines...")
+        if self._wait(1):
+            return
+
+        s(order_id, "reversing", 30, "Reversing pump lines...")
         if self._wait(1.5):
             return
 
         # Gate: wait indefinitely for glass to be removed — no timeout by design (PROTOCOL.md §4)
         print("[SIM] Auto-clean gate: waiting for glass removal...")
-        s(order_id, "reversing", 50, "Please remove your glass to continue cleaning...")
+        s(order_id, "reversing", 60, "Please remove your glass to continue cleaning...")
         self._wait_for_glass_removed()
 
         if self._aborted():
@@ -353,18 +365,30 @@ class SimulatorController(HardwareController):
         _handle_sensor({"type": "SENSOR", "glass_present": False})
 
         s(order_id, "washing", 0, "Rinsing container with water...")
+        if self._wait(1):
+            return
+
+        s(order_id, "washing", 50, "Washing in progress...")
         if self._wait(2):
             return
 
-        s(order_id, "mixing", 50, "Shaking container clean...")
-        if self._wait(2):
+        s(order_id, "washing", 90, "Almost done rinsing...")
+        if self._wait(1):
             return
 
-        s(order_id, "draining", 75, "Draining water...")
+        s(order_id, "draining", 0, "Draining water...")
+        if self._wait(1):
+            return
+
+        s(order_id, "draining", 60, "Draining water...")
         if self._wait(1.5):
             return
 
-        s(order_id, "resealing", 90, "Resealing container...")
+        s(order_id, "resealing", 0, "Resealing container...")
+        if self._wait(0.5):
+            return
+
+        s(order_id, "resealing", 100, "Done!")
         if self._wait(1):
             return
 
