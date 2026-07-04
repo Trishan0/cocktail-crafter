@@ -6,7 +6,6 @@ import { Slider } from "@/components/ui/slider";
 import { cleanSystem, abortOrder } from "@/lib/api";
 
 export function HardwareManager() {
-  const [glassDetection, setGlassDetection] = useState(true);
   const [cleaning, setCleaning] = useState(false);
 
   const handleClean = async () => {
@@ -39,33 +38,6 @@ export function HardwareManager() {
       </div>
       
       <div className="grid gap-6 md:gap-8 max-w-4xl">
-        {/* Glass Detection Sensor */}
-        <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div className="flex gap-4 md:gap-6 items-center">
-            <div className={`w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full flex items-center justify-center border-2 ${
-              glassDetection ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-white/5 text-muted-foreground border-white/10"
-            }`}>
-              <Activity className="w-6 h-6 md:w-8 md:h-8" />
-            </div>
-            <div>
-              <h3 className="text-xl md:text-2xl font-display font-light mb-1 md:mb-2">Glass Detection Sensor</h3>
-              <p className="text-xs md:text-sm text-muted-foreground max-w-md">
-                Ensure a glass is present under the nozzle before dispensing liquid to prevent spills.
-              </p>
-            </div>
-          </div>
-          <div className="flex sm:flex-col w-full sm:w-auto items-center justify-between sm:justify-center gap-3">
-            <Switch 
-              checked={glassDetection} 
-              onCheckedChange={setGlassDetection}
-              className="data-[state=checked]:bg-green-500"
-            />
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              {glassDetection ? "Active" : "Disabled"}
-            </span>
-          </div>
-        </div>
-
         {/* Maintenance / Cleaning */}
         <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex gap-4 md:gap-6 items-center">

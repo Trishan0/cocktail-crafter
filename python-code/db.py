@@ -87,6 +87,20 @@ def init_db():
                 ordered_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 completed_at    TIMESTAMP
             );
+
+            -- Settings key-value store
+            CREATE TABLE IF NOT EXISTS settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
+            -- Structured event logging
+            CREATE TABLE IF NOT EXISTS events (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type  TEXT NOT NULL,
+                detail      TEXT,
+                timestamp   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         
         # Add image_url column if it doesn't exist (migration)
@@ -437,6 +451,52 @@ def get_order_by_id(order_id: int):
     with get_connection() as conn:
         row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
     return dict(row) if row else None
+
+
+# ─────────────────────────────────────────────
+#  SETTINGS
+# ─────────────────────────────────────────────
+
+def get_setting(key: str, default=None):
+    """Get a configuration value from the settings table."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        if row:
+            try:
+                return json.loads(row["value"])
+            except json.JSONDecodeError:
+                return row["value"]
+        return default
+
+
+def set_setting(key: str, value):
+    """Set a configuration value in the settings table."""
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, json.dumps(value))
+        )
+
+
+# ─────────────────────────────────────────────
+#  EVENTS
+# ─────────────────────────────────────────────
+
+def log_event(event_type: str, detail: str = None):
+    """Log a structured machine event."""
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO events (event_type, detail) VALUES (?, ?)",
+            (event_type, detail)
+        )
+
+
+def get_recent_events(limit=50):
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM events ORDER BY timestamp DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 # ─────────────────────────────────────────────

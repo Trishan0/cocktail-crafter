@@ -19,6 +19,8 @@ import serial.tools.list_ports
 from datetime import datetime
 
 import config
+import machine_state as ms
+from machine_state import MachineState
 
 
 # ─────────────────────────────────────────────
@@ -35,7 +37,8 @@ _state = {
     # Machine state (updated from ESP32 STATUS messages or simulator)
     # Full lifecycle: idle → waiting_glass → dispensing → mixing → pouring →
     #   done → reversing → washing → mixing(shake) → draining → resealing → idle
-    "machine_status":   "idle",
+    # Stored as a MachineState enum value; serialised to str for JSON/SSE output.
+    "machine_status":   MachineState.IDLE,
     "current_order_id": None,
     "progress":         0,      # 0-100
     "message":          "",     # human-readable status text
@@ -66,7 +69,8 @@ def register_sensor_callback(fn):
 
 def _handle_status(data: dict):
     """
-    Parse a STATUS payload and update shared state.
+    Parse a STATUS payload, validate the state transition, and update shared state.
+
     Expected payload (from ESP32 or simulator):
     {
         "type":     "STATUS",
@@ -75,18 +79,50 @@ def _handle_status(data: dict):
         "progress": 40,             // 0-100
         "message":  "Dispensing Rum..."
     }
+
+    Validation (per PROTOCOL.md §4 / machine_state.py):
+    - Unknown state strings are logged and REJECTED (stale state preserved).
+    - Illegal transitions are logged and REJECTED (stale state preserved).
+    - This prevents buggy/malicious ESP32 firmware from corrupting Pi-side state.
     """
     with _lock:
         # ESP32 may send either "machine_status" or "status"
-        status_val = data.get("machine_status", data.get("status", _state["machine_status"]))
+        raw_status = data.get("machine_status", data.get("status", ""))
+        current    = _state["machine_status"]   # MachineState enum
 
-        _state["machine_status"]   = status_val
+        # ── Parse incoming state string ───────
+        new_state = ms.parse_state(raw_status)
+        if new_state is None:
+            print(f"[HW] REJECT unknown state {raw_status!r} (staying {current.value})")
+            return
+
+        # ── Validate the transition ───────────
+        if not ms.is_valid_transition(current, new_state):
+            print(
+                f"[HW] REJECT illegal transition {current.value!r} → {new_state.value!r} "
+                f"(message: {data.get('message', '')!r})"
+            )
+            return
+
+        # ── Accept and update ─────────────────
+        state_changed = (current != new_state)
+        _state["machine_status"]   = new_state
         _state["current_order_id"] = data.get("order_id", data.get("current_order_id", _state["current_order_id"]))
         _state["progress"]         = data.get("progress", _state["progress"])
         _state["message"]          = data.get("message",  _state["message"])
         state_copy = dict(_state)
+        # Serialise enum → str for JSON/SSE consumers
+        state_copy["machine_status"] = new_state.value
 
-    print(f"[HW] STATUS → {state_copy['machine_status']} ({state_copy['progress']}%) | {state_copy['message']}")
+    print(f"[HW] STATUS {current.value!r} → {new_state.value!r} ({state_copy['progress']}%) | {state_copy['message']}")
+
+    if state_changed:
+        import db
+        detail = f"Order #{state_copy.get('current_order_id')}" if state_copy.get("current_order_id") else None
+        try:
+            db.log_event(f"state:{new_state.value}", detail)
+        except Exception as e:
+            print(f"[HW] Event logging error: {e}")
 
     for cb in _status_callbacks:
         try:
@@ -102,11 +138,23 @@ def _handle_sensor(data: dict):
     {"type": "SENSOR", "glass_present": true}
     """
     with _lock:
+        old_glass = _state["glass_present"]
         if "glass_present" in data:
             _state["glass_present"] = bool(data["glass_present"])
         state_copy = dict(_state)
+        glass_changed = (old_glass != state_copy["glass_present"])
+        # Serialise MachineState enum → str for callbacks
+        if isinstance(state_copy["machine_status"], MachineState):
+            state_copy["machine_status"] = state_copy["machine_status"].value
 
     print(f"[HW] SENSOR → glass_present={state_copy['glass_present']}")
+
+    if glass_changed:
+        import db
+        try:
+            db.log_event("sensor:glass", "placed" if state_copy["glass_present"] else "removed")
+        except Exception as e:
+            print(f"[HW] Event logging error: {e}")
 
     for cb in _sensor_callbacks:
         try:
@@ -116,8 +164,13 @@ def _handle_sensor(data: dict):
 
 
 def get_state() -> dict:
+    """Return a copy of the current shared state. machine_status is always a plain string."""
     with _lock:
-        return dict(_state)
+        s = dict(_state)
+    # Serialise MachineState enum → str so callers never need to import machine_state
+    if isinstance(s["machine_status"], MachineState):
+        s["machine_status"] = s["machine_status"].value
+    return s
 
 
 # ─────────────────────────────────────────────
@@ -209,6 +262,11 @@ class SimulatorController(HardwareController):
     def send_abort(self):
         print("[SIM] ABORT sent.")
         self._abort_flag.set()
+        import db
+        try:
+            db.log_event("hardware_cmd:abort")
+        except Exception as e:
+            print(f"[HW] Event logging error: {e}")
         _handle_status({"type": "STATUS", "status": "aborted", "progress": 0, "message": "Order aborted by user."})
         threading.Timer(2.0, lambda: _handle_status({"type": "STATUS", "status": "idle", "progress": 0, "message": "Ready"})).start()
 
@@ -411,6 +469,11 @@ class SerialController(HardwareController):
     def send_abort(self):
         self._send({"cmd": "ABORT"})
         print("[SERIAL] ABORT sent.")
+        import db
+        try:
+            db.log_event("hardware_cmd:abort")
+        except Exception as e:
+            print(f"[HW] Event logging error: {e}")
 
     def send_clean(self, trigger: str = "manual", mode: str = "all", pump: int = None, order_id: int = None, pumps: list = None):
         if trigger == "post_order":

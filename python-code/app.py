@@ -19,6 +19,7 @@ from flask_cors import CORS
 
 import db
 import hardware_controller
+import machine_state as ms
 import recipe_manager
 import config
 
@@ -162,7 +163,7 @@ def api_place_order():
 
     # Check machine is free — only accept orders from idle (or post-error/abort)
     state = _controller.get_state()
-    if state["machine_status"] not in ("idle", "error", "aborted"):
+    if not ms.can_accept_order(state["machine_status"]):
         return jsonify({
             "error": f"Machine is busy ({state['machine_status']}). Please wait."
         }), 409
@@ -209,7 +210,7 @@ def api_place_custom_order():
 
     # Check machine is free
     state = _controller.get_state()
-    if state["machine_status"] not in ("idle", "error", "aborted"):
+    if not ms.can_accept_order(state["machine_status"]):
         return jsonify({
             "error": f"Machine is busy ({state['machine_status']}). Please wait."
         }), 409
@@ -466,6 +467,14 @@ def serve_drink_image(filename):
 #  ADMIN API — Machine Controls
 # ─────────────────────────────────────────────
 
+@app.route("/api/admin/events", methods=["GET"])
+def api_get_events():
+    """Get the most recent system events."""
+    limit = int(request.args.get("limit", 50))
+    events = db.get_recent_events(limit=limit)
+    return jsonify(events)
+
+
 @app.route("/api/admin/clean", methods=["POST"])
 def api_clean():
     """
@@ -491,12 +500,17 @@ def api_clean():
     return jsonify({"success": True, "message": f"Manual clean ({pump_desc}) started."})
 
 
+def get_admin_pin():
+    """Helper to get the current PIN from DB, falling back to config default."""
+    return db.get_setting("admin_pin", config.ADMIN_PIN)
+
+
 @app.route("/api/admin/pin/verify", methods=["POST"])
 def api_verify_pin():
     """Verify admin PIN. Body: {"pin": "1234"}"""
     data = request.get_json() or {}
     pin  = data.get("pin", "")
-    if pin == config.ADMIN_PIN:
+    if pin == get_admin_pin():
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Incorrect PIN."}), 401
 
@@ -506,18 +520,17 @@ def api_change_pin():
     """
     Change admin PIN.
     Body: {"current_pin": "1234", "new_pin": "5678"}
-    Note: In production store the PIN in DB, not config.
     """
     data        = request.get_json() or {}
     current_pin = data.get("current_pin", "")
     new_pin     = data.get("new_pin", "")
 
-    if current_pin != config.ADMIN_PIN:
+    if current_pin != get_admin_pin():
         return jsonify({"error": "Current PIN is incorrect."}), 401
     if len(new_pin) != 4 or not new_pin.isdigit():
         return jsonify({"error": "New PIN must be exactly 4 digits."}), 400
 
-    config.ADMIN_PIN = new_pin
+    db.set_setting("admin_pin", new_pin)
     return jsonify({"success": True, "message": "PIN changed successfully."})
 
 
