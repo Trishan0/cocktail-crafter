@@ -32,6 +32,32 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # The active hardware controller — instantiated in create_app()
 _controller: hardware_controller.HardwareController = None
+_controller_lock = threading.Lock()
+
+
+def _swap_controller(simulator: bool):
+    """
+    Stop the current controller, switch mode, and start a new one.
+    Thread-safe: called from an admin API endpoint.
+    """
+    global _controller
+    with _controller_lock:
+        try:
+            _controller.stop()
+        except Exception:
+            pass
+
+        # Persist choice
+        db.set_setting("simulator_mode", "1" if simulator else "0")
+        config.SIMULATOR_MODE = simulator
+
+        new_ctrl = hardware_controller.SimulatorController() if simulator else hardware_controller.SerialController()
+        hardware_controller.register_status_callback(_on_status_change)
+        hardware_controller.register_sensor_callback(_on_sensor_update)
+        new_ctrl.start()
+        _controller = new_ctrl
+    print(f"[APP] Controller swapped -> {'SIMULATOR' if simulator else 'SERIAL'}")
+    db.log_event("mode_change", "simulator" if simulator else "serial")
 
 
 # ─────────────────────────────────────────────
@@ -471,6 +497,33 @@ def serve_drink_image(filename):
 #  ADMIN API — Machine Controls
 # ─────────────────────────────────────────────
 
+@app.route("/api/admin/mode", methods=["GET"])
+def api_get_mode():
+    """Return the current controller mode."""
+    is_sim = isinstance(_controller, hardware_controller.SimulatorController)
+    return jsonify({"simulator": is_sim})
+
+
+@app.route("/api/admin/mode", methods=["POST"])
+def api_set_mode():
+    """
+    Switch between simulator and live (serial) mode.
+    Body: {"simulator": true|false}
+    Only allowed when machine is idle.
+    """
+    state = _controller.get_state()
+    if state["machine_status"] != "idle":
+        return jsonify({"error": f"Cannot switch mode while machine is {state['machine_status']}."}), 409
+
+    data = request.get_json() or {}
+    if "simulator" not in data:
+        return jsonify({"error": "Missing 'simulator' field."}), 400
+
+    simulator = bool(data["simulator"])
+    threading.Thread(target=_swap_controller, args=(simulator,), daemon=True, name="ctrl-swap").start()
+    return jsonify({"ok": True, "simulator": simulator})
+
+
 @app.route("/api/admin/events", methods=["GET"])
 def api_get_events():
     """Get the most recent system events."""
@@ -546,6 +599,10 @@ def create_app():
     global _controller
 
     db.init_db()
+
+    # Seed simulator_mode from config if not already in DB
+    if db.get_setting("simulator_mode") is None:
+        db.set_setting("simulator_mode", "1" if config.SIMULATOR_MODE else "0")
 
     # Instantiate the correct controller based on config.SIMULATOR_MODE
     _controller = hardware_controller.create_controller()

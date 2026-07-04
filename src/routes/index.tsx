@@ -110,7 +110,12 @@ function KioskApp() {
   const scale = useKioskScale();
   const go = (s: ScreenKey) => setScreen(s);
 
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleOrder = async () => {
+    if (machineStatus !== "idle" || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       if (mode === "signature") {
         if (!selected) return;
@@ -122,7 +127,9 @@ function KioskApp() {
       }
       // Screen will change via SSE when status becomes waiting_glass or dispensing
     } catch (e: any) {
-      alert("Failed to order: " + e.message);
+      setOrderError(e.message || "An unknown error occurred.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -130,7 +137,7 @@ function KioskApp() {
     selected, setSelectedId, mode, setMode, drinks, availablePumps,
     customIngredients, setCustomIngredients,
     machineStatus, progress, message, glassPresent,
-    now, go, handleOrder
+    now, go, handleOrder, isSubmitting, orderError, setOrderError
   };
 
   return (
@@ -153,6 +160,20 @@ function KioskApp() {
         {screen === "ready" && <Ready {...ctx} />}
         {screen === "error" && <ErrorScreen now={now} message={message} />}
         {screen === "cleaning" && <CleaningScreen now={now} progress={progress} message={message} />}
+
+        {/* Error Modal Overlay */}
+        {orderError && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md animate-in fade-in zoom-in-95 duration-300">
+            <div className="bg-surface-2 border border-red-500/30 p-12 rounded-[3rem] shadow-2xl max-w-xl text-center flex flex-col items-center">
+              <div className="w-24 h-24 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mb-8 border-2 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
+                <span className="text-5xl">⚠️</span>
+              </div>
+              <h3 className="font-display text-4xl mb-4 text-foreground font-light tracking-wide">Cannot Process Order</h3>
+              <p className="text-xl text-muted-foreground mb-12">{orderError}</p>
+              <GoldButton onClick={() => setOrderError(null)}>Dismiss</GoldButton>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
@@ -430,7 +451,7 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
   );
 }
 
-function Review({ selected, mode, customIngredients, now, go, handleOrder }: any) {
+function Review({ selected, mode, customIngredients, now, go, handleOrder, isSubmitting, machineStatus }: any) {
   const isCustom = mode === "custom";
   const title = isCustom ? "Custom Mix" : selected?.name;
 
@@ -473,7 +494,9 @@ function Review({ selected, mode, customIngredients, now, go, handleOrder }: any
             </div>
           )}
 
-          <GoldButton big onClick={handleOrder}>CONFIRM ORDER</GoldButton>
+          <GoldButton big onClick={handleOrder} disabled={isSubmitting || machineStatus !== "idle"}>
+            {isSubmitting ? "PROCESSING..." : "CONFIRM ORDER"}
+          </GoldButton>
         </div>
       </div>
     </div>

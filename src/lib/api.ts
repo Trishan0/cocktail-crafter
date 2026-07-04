@@ -69,6 +69,6 @@ export const uploadRecipeImage = async (id: number, file: File) => {
 };
 
 // Admin - Other
-export const cleanSystem = (mode = "all") => fetchApi("/admin/clean", { method: "POST", body: JSON.stringify({ mode }) });
+export const cleanSystem = (mode = "all", pump?: number) => fetchApi("/admin/clean", { method: "POST", body: JSON.stringify({ mode, pump }) });
 export const verifyPin = (pin: string) => fetchApi("/admin/pin/verify", { method: "POST", body: JSON.stringify({ pin }) });
 export const changePin = (current: string, newPin: string) => fetchApi("/admin/pin/change", { method: "POST", body: JSON.stringify({ current_pin: current, new_pin: newPin }) });

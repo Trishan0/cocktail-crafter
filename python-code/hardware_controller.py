@@ -240,7 +240,7 @@ class SimulatorController(HardwareController):
         self._running = True
         with _lock:
             _state["connected"]      = True
-            _state["machine_status"] = "idle"
+            _state["machine_status"] = ms.MachineState.IDLE
         print("[SIM] SimulatorController started — SIMULATOR MODE active.")
 
     def stop(self):

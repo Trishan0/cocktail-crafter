@@ -1,8 +1,7 @@
-import { useState } from "react";
-import { Activity, Power, ShieldAlert, Droplet } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Activity, ShieldAlert, Droplet, Cpu, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
 import { cleanSystem, abortOrder } from "@/lib/api";
 
 interface HardwareManagerProps {
@@ -11,6 +10,43 @@ interface HardwareManagerProps {
 
 export function HardwareManager({ machineStatus }: HardwareManagerProps) {
   const [cleaning, setCleaning] = useState(false);
+  const [isSimulator, setIsSimulator] = useState<boolean | null>(null);
+  const [switchingMode, setSwitchingMode] = useState(false);
+
+  const BASE = `http://${window.location.hostname}:5000`;
+
+  // Fetch current mode on mount
+  useEffect(() => {
+    fetch(`${BASE}/api/admin/mode`)
+      .then(r => r.json())
+      .then(d => setIsSimulator(d.simulator))
+      .catch(console.error);
+  }, []);
+
+  const handleModeToggle = async (toSimulator: boolean) => {
+    if (machineStatus !== "idle") {
+      alert(`Cannot switch mode while machine is "${machineStatus}". Wait until idle.`);
+      return;
+    }
+    setSwitchingMode(true);
+    try {
+      const res = await fetch(`${BASE}/api/admin/mode`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ simulator: toSimulator }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to switch mode");
+      // Small delay so the new controller has time to start
+      setTimeout(() => {
+        setIsSimulator(toSimulator);
+        setSwitchingMode(false);
+      }, 1200);
+    } catch (e: any) {
+      alert("Mode switch failed: " + e.message);
+      setSwitchingMode(false);
+    }
+  };
 
   const handleClean = async () => {
     setCleaning(true);
@@ -42,6 +78,62 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
       </div>
       
       <div className="grid gap-6 md:gap-8 max-w-4xl">
+
+        {/* Simulator / Live Mode Toggle */}
+        <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <div className="flex gap-4 md:gap-6 items-center">
+            <div className={`w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors duration-500 ${
+              isSimulator
+                ? "bg-purple-500/20 text-purple-400 border-purple-500/30"
+                : "bg-green-500/20 text-green-400 border-green-500/30"
+            }`}>
+              {isSimulator ? <Cpu className="w-6 h-6 md:w-8 md:h-8" /> : <Radio className="w-6 h-6 md:w-8 md:h-8" />}
+            </div>
+            <div>
+              <h3 className="text-xl md:text-2xl font-display font-light mb-1 md:mb-2">
+                {isSimulator === null ? "Loading..." : isSimulator ? "Simulator Mode" : "Live Hardware Mode"}
+              </h3>
+              <p className="text-xs md:text-sm text-muted-foreground max-w-md">
+                {isSimulator
+                  ? "Running in software simulation — no ESP32 required. Orders are simulated locally."
+                  : "Connected to the real ESP32 via USB/UART serial port."}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-1 p-1 bg-black/40 rounded-full border border-white/5 shadow-inner">
+              <button
+                onClick={() => handleModeToggle(false)}
+                disabled={switchingMode || isSimulator === null || machineStatus !== "idle"}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  isSimulator === false
+                    ? "bg-green-500 text-white shadow-lg shadow-green-500/20"
+                    : "text-muted-foreground hover:text-white hover:bg-white/5"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                Live
+              </button>
+              <button
+                onClick={() => handleModeToggle(true)}
+                disabled={switchingMode || isSimulator === null || machineStatus !== "idle"}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  isSimulator === true
+                    ? "bg-purple-500 text-white shadow-lg shadow-purple-500/20"
+                    : "text-muted-foreground hover:text-white hover:bg-white/5"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                Simulator
+              </button>
+            </div>
+            {switchingMode && (
+              <span className="text-xs text-muted-foreground animate-pulse mt-1">Switching mode...</span>
+            )}
+            {machineStatus !== "idle" && (
+              <span className="text-xs text-orange-400 mt-1">Machine busy — switch unavailable</span>
+            )}
+          </div>
+        </div>
+
         {/* Maintenance / Cleaning */}
         <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex gap-4 md:gap-6 items-center">
@@ -82,7 +174,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
               </p>
             </div>
           </div>
-          <Button variant="destructive" size="lg" onClick={handleAbort} className="w-full sm:w-auto rounded-full h-12 md:h-14 px-6 md:px-8 text-sm md:text-lg font-bold uppercase tracking-widest">
+          <Button onClick={handleAbort} className="w-full sm:w-auto rounded-full h-12 md:h-14 px-6 md:px-8 text-sm md:text-lg font-bold uppercase tracking-widest bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 transition-all">
             Halt Machine
           </Button>
         </div>
