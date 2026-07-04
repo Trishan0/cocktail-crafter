@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getPumps, getIngredients, assignPump, updatePumpFlowRate } from "@/lib/api";
+import { getPumps, getIngredients, assignPump, updatePumpFlowRate, cleanSystem } from "@/lib/api";
 
 interface PumpsManagerProps {
   machineStatus: string;
@@ -20,6 +20,18 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
   const [assignId, setAssignId] = useState<string>("none");
   const [flowRate, setFlowRate] = useState<string>("1.5");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [testingPump, setTestingPump] = useState<number | null>(null);
+
+  const handleTest = async (pumpNumber: number) => {
+    setTestingPump(pumpNumber);
+    try {
+      await cleanSystem("single", pumpNumber);
+    } catch (e: any) {
+      alert(e.message || e);
+    } finally {
+      setTestingPump(null);
+    }
+  };
 
   const loadData = async () => {
     try {
