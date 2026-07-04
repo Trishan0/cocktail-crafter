@@ -79,13 +79,15 @@ def init_db():
 
             -- Order history
             CREATE TABLE IF NOT EXISTS orders (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                recipe_id       INTEGER REFERENCES recipes(id),
-                recipe_name     TEXT    NOT NULL,
-                status          TEXT    NOT NULL DEFAULT 'pending',
-                pump_commands   TEXT,               -- JSON snapshot sent to ESP32
-                ordered_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                completed_at    TIMESTAMP
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                recipe_id            INTEGER REFERENCES recipes(id),
+                recipe_name          TEXT    NOT NULL,
+                status               TEXT    NOT NULL DEFAULT 'pending',
+                pump_commands        TEXT,               -- JSON snapshot sent to ESP32
+                price                REAL    DEFAULT 0.0,
+                ingredients_snapshot TEXT,               -- JSON snapshot of ingredients at order time
+                ordered_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at         TIMESTAMP
             );
 
             -- Settings key-value store
@@ -106,6 +108,13 @@ def init_db():
         # Add image_url column if it doesn't exist (migration)
         try:
             conn.execute("ALTER TABLE recipes ADD COLUMN image_url TEXT;")
+        except sqlite3.OperationalError:
+            pass
+
+        # Add price and ingredients_snapshot to orders if they don't exist
+        try:
+            conn.execute("ALTER TABLE orders ADD COLUMN price REAL DEFAULT 0.0;")
+            conn.execute("ALTER TABLE orders ADD COLUMN ingredients_snapshot TEXT;")
         except sqlite3.OperationalError:
             pass
             
@@ -416,13 +425,19 @@ def delete_recipe(recipe_id: int):
 #  ORDERS
 # ─────────────────────────────────────────────
 
-def create_order(recipe_id: int, recipe_name: str, pump_commands: list):
+def create_order(recipe_id: int, recipe_name: str, pump_commands: list, price: float = 0.0, ingredients_snapshot: list = None):
     """Insert a new order and return its id."""
     with get_connection() as conn:
         cursor = conn.execute(
-            """INSERT INTO orders (recipe_id, recipe_name, status, pump_commands)
-               VALUES (?, ?, 'pending', ?)""",
-            (recipe_id, recipe_name, json.dumps(pump_commands))
+            """INSERT INTO orders (recipe_id, recipe_name, status, pump_commands, price, ingredients_snapshot)
+               VALUES (?, ?, 'pending', ?, ?, ?)""",
+            (
+                recipe_id, 
+                recipe_name, 
+                json.dumps(pump_commands), 
+                price, 
+                json.dumps(ingredients_snapshot) if ingredients_snapshot else None
+            )
         )
         return cursor.lastrowid
 

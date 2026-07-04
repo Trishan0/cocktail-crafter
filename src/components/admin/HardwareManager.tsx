@@ -5,7 +5,11 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { cleanSystem, abortOrder } from "@/lib/api";
 
-export function HardwareManager() {
+interface HardwareManagerProps {
+  machineStatus: string;
+}
+
+export function HardwareManager({ machineStatus }: HardwareManagerProps) {
   const [cleaning, setCleaning] = useState(false);
 
   const handleClean = async () => {
@@ -54,9 +58,11 @@ export function HardwareManager() {
           <Button 
             size="lg" 
             onClick={handleClean} 
-            disabled={cleaning}
+            disabled={cleaning || machineStatus !== "idle"}
             className={`w-full sm:w-auto rounded-full h-12 md:h-14 px-6 md:px-8 text-sm md:text-lg transition-all ${
-              cleaning ? "bg-blue-600 animate-pulse text-white" : "bg-blue-500 hover:bg-blue-400 text-white"
+              cleaning ? "bg-blue-600 animate-pulse text-white" : 
+              machineStatus !== "idle" ? "bg-muted text-muted-foreground" :
+              "bg-blue-500 hover:bg-blue-400 text-white"
             }`}
           >
             {cleaning ? "Cleaning..." : "Start Cleaning Cycle"}

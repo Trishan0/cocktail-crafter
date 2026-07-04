@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getPumps, getIngredients, assignPump, updatePumpFlowRate } from "@/lib/api";
 
-export function PumpsManager() {
+interface PumpsManagerProps {
+  machineStatus: string;
+}
+
+export function PumpsManager({ machineStatus }: PumpsManagerProps) {
   const [pumps, setPumps] = useState<any[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [selectedPump, setSelectedPump] = useState<any>(null);
@@ -80,12 +84,18 @@ export function PumpsManager() {
                 </div>
                 
                 {pump.ingredient_name && (
-                  <div className="text-left sm:text-right">
-                    <div className={`text-xl md:text-2xl font-display text-accent`}>
-                      {pump.flow_rate_ml_per_s} ml/s
-                    </div>
+                  <div className="text-left sm:text-right flex flex-col items-start sm:items-end gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleTest(pump.pump_number)}
+                      disabled={machineStatus !== "idle" || testingPump === pump.pump_number}
+                      className="text-xs shrink-0 bg-black/40 border-white/10 hover:bg-white/10"
+                    >
+                      {testingPump === pump.pump_number ? "Testing..." : "Test"}
+                    </Button>
                     <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                      Flow Rate
+                      Flow Rate: {pump.flow_rate_ml_per_s} ml/s
                     </div>
                   </div>
                 )}

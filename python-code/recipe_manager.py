@@ -97,6 +97,8 @@ def place_order(recipe_id: int):
         recipe_id=recipe_id,
         recipe_name=recipe["name"],
         pump_commands=commands,
+        price=recipe.get("price", 0.0),
+        ingredients_snapshot=recipe.get("ingredients", []),
     )
 
     return {
@@ -127,6 +129,8 @@ def place_custom_order(ingredients: list):
         recipe_id=None,
         recipe_name="Custom Drink",
         pump_commands=commands,
+        price=0.0,
+        ingredients_snapshot=ingredients,
     )
 
     return {

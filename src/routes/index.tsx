@@ -10,7 +10,7 @@ export const Route = createFileRoute("/")({
 
 type ScreenKey =
   | "welcome" | "experience" | "catalog" | "detail"
-  | "compose" | "review" | "waiting_glass" | "preparing" | "ready" | "error";
+  | "compose" | "review" | "waiting_glass" | "preparing" | "ready" | "error" | "cleaning";
 
 function useKioskScale() {
   const [scale, setScale] = useState(1);
@@ -84,8 +84,9 @@ function KioskApp() {
         if (["dispensing", "mixing", "pouring"].includes(data.machine_status)) return "preparing";
         if (data.machine_status === "done") return "ready";
         if (data.machine_status === "error") return "error";
+        if (["washing", "draining", "reversing", "resealing"].includes(data.machine_status)) return "cleaning";
         if (data.machine_status === "idle" && prev !== "welcome") {
-          if (["ready", "error", "preparing", "waiting_glass"].includes(prev)) {
+          if (["ready", "error", "preparing", "waiting_glass", "cleaning"].includes(prev)) {
             return "welcome";
           }
         }
@@ -150,7 +151,8 @@ function KioskApp() {
         {screen === "waiting_glass" && <WaitingGlass {...ctx} />}
         {screen === "preparing" && <Preparing {...ctx} />}
         {screen === "ready" && <Ready {...ctx} />}
-        {screen === "error" && <ErrorScreen {...ctx} />}
+        {screen === "error" && <ErrorScreen now={now} message={message} />}
+        {screen === "cleaning" && <CleaningScreen now={now} progress={progress} message={message} />}
       </div>
     </main>
   );
@@ -556,17 +558,51 @@ function Ready({ now, go }: any) {
   );
 }
 
-function ErrorScreen({ now, go, message }: any) {
+function ErrorScreen({ now, message }: any) {
   return (
-    <div className="absolute inset-0 bg-red-950/20 flex flex-col items-center justify-center">
-      <StatusBar title="Error" now={now} />
+    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
+      <StatusBar title="System Error" now={now} />
       <div className="absolute top-10 left-8"><Logo /></div>
 
-      <div className="text-[120px] mb-8">⚠️</div>
-      <h2 className="font-display text-[56px] font-light text-red-400 mb-4">Something went wrong</h2>
-      <p className="text-2xl text-muted-foreground max-w-2xl text-center mb-16">{message || "The machine encountered an error while processing your order."}</p>
+      <div className="w-48 h-48 rounded-full border-4 border-red-500 bg-red-500/10 flex items-center justify-center mb-12 animate-pulse text-red-400">
+        <span className="text-6xl">⚠️</span>
+      </div>
 
-      <GoldButton big onClick={() => go("welcome")}>RETURN HOME</GoldButton>
+      <h2 className="font-display text-[56px] font-light text-center text-red-500">
+        Order Error
+      </h2>
+      <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em] max-w-2xl text-center">
+        {message || "Please contact staff for assistance"}
+      </p>
+    </div>
+  );
+}
+
+function CleaningScreen({ now, progress, message }: any) {
+  return (
+    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
+      <StatusBar title="Machine Maintenance" now={now} />
+      <div className="absolute top-10 left-8"><Logo /></div>
+
+      <div className="w-48 h-48 rounded-full border-4 border-blue-500 bg-blue-500/10 flex items-center justify-center mb-12 animate-pulse text-blue-400">
+        <span className="text-6xl">✨</span>
+      </div>
+
+      <h2 className="font-display text-[56px] font-light text-center text-blue-400">
+        Cleaning in Progress
+      </h2>
+      <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em]">
+        Please Wait
+      </p>
+
+      <div className="w-[600px] mt-16">
+        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+        </div>
+        <p className="text-center text-muted-foreground uppercase tracking-widest text-sm mt-6">
+          {message || "Rinsing systems..."}
+        </p>
+      </div>
     </div>
   );
 }

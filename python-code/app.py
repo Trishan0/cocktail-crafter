@@ -66,8 +66,12 @@ def _on_status_change(state: dict):
     })
     order_id = state.get("current_order_id")
     if order_id:
-        if state["machine_status"] == "done":
-            recipe_manager.complete_order(order_id, "done")
+        if state["machine_status"] == "idle":
+            # Only mark done if the machine successfully reached idle
+            # and it wasn't already marked aborted/error.
+            order = db.get_order_by_id(order_id)
+            if order and order["status"] == "pending":
+                recipe_manager.complete_order(order_id, "done")
         elif state["machine_status"] == "error":
             recipe_manager.complete_order(order_id, "error")
         elif state["machine_status"] == "aborted":

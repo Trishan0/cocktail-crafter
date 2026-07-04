@@ -1,17 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Wine, 
   Droplet, 
   Settings2, 
   Activity,
   LogOut,
-  FlaskConical
+  FlaskConical,
+  ListOrdered
 } from "lucide-react";
 import { DrinksManager } from "./DrinksManager";
 import { PumpsManager } from "./PumpsManager";
 import { HardwareManager } from "./HardwareManager";
 import { SettingsManager } from "./SettingsManager";
 import { IngredientsManager } from "./IngredientsManager";
+import { OrdersManager } from "./OrdersManager";
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -19,8 +21,35 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState("drinks");
+  const [machineStatus, setMachineStatus] = useState("idle");
+  const [progress, setProgress] = useState(0);
+  const [message, setMessage] = useState("");
+  const [currentOrderId, setCurrentOrderId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const evtSource = new EventSource(`http://${window.location.hostname}:5000/stream`);
+
+    evtSource.addEventListener("init", (e) => {
+      const data = JSON.parse(e.data);
+      setMachineStatus(data.machine_status);
+      setProgress(data.progress || 0);
+      setMessage(data.message || "");
+      setCurrentOrderId(data.current_order_id || null);
+    });
+
+    evtSource.addEventListener("status", (e) => {
+      const data = JSON.parse(e.data);
+      setMachineStatus(data.machine_status);
+      setProgress(data.progress || 0);
+      setMessage(data.message || "");
+      setCurrentOrderId(data.order_id || null);
+    });
+
+    return () => evtSource.close();
+  }, []);
 
   const navItems = [
+    { id: "orders", label: "Orders", icon: ListOrdered },
     { id: "drinks", label: "Drinks", icon: Wine },
     { id: "ingredients", label: "Ingredients", icon: FlaskConical },
     { id: "pumps", label: "Pumps (6)", icon: Droplet },
@@ -79,11 +108,34 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-12 pb-24 md:pb-12 bg-black/20">
+      <div className="flex-1 overflow-y-auto p-4 md:p-12 pb-24 md:pb-12 bg-black/20 flex flex-col">
+        {/* Machine Status Banner */}
+        <div className="mb-6 p-4 rounded-xl border border-white/10 bg-card/40 backdrop-blur-md flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full ${
+              machineStatus === 'idle' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' :
+              machineStatus === 'error' ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' :
+              'bg-blue-500 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]'
+            }`} />
+            <span className="font-medium text-sm md:text-base capitalize">
+              Status: {machineStatus.replace('_', ' ')}
+            </span>
+            {currentOrderId && machineStatus !== 'idle' && (
+              <span className="text-muted-foreground text-sm">| Order #{currentOrderId}</span>
+            )}
+          </div>
+          {machineStatus !== 'idle' && (
+            <div className="text-sm text-muted-foreground hidden sm:block">
+              {progress}% — {message}
+            </div>
+          )}
+        </div>
+
+        {activeTab === "orders" && <OrdersManager />}
         {activeTab === "drinks" && <DrinksManager />}
         {activeTab === "ingredients" && <IngredientsManager />}
-        {activeTab === "pumps" && <PumpsManager />}
-        {activeTab === "hardware" && <HardwareManager />}
+        {activeTab === "pumps" && <PumpsManager machineStatus={machineStatus} />}
+        {activeTab === "hardware" && <HardwareManager machineStatus={machineStatus} />}
         {activeTab === "settings" && <SettingsManager />}
       </div>
 
