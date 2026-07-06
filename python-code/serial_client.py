@@ -37,7 +37,7 @@ _state = {
     "message":          "",     # human-readable status text
 
     # Sensor state (updated from ESP32 SENSOR messages)
-    "glass_present": False,
+    "glass_state": "no_glass",
 }
 
 _status_callbacks = []   # registered by app.py
@@ -156,7 +156,7 @@ def _simulate_order_process(order_id: int, recipe_name: str):
     set_status("waiting_glass", 0, "Waiting for glass...")
     time.sleep(2)
     
-    _handle_sensor({"type": "SENSOR", "glass_present": True})
+    _handle_sensor({"type": "SENSOR", "glass_state": "large_glass"})
     
     set_status("dispensing", 10, f"Preparing {recipe_name}...")
     time.sleep(1.5)
@@ -170,7 +170,7 @@ def _simulate_order_process(order_id: int, recipe_name: str):
     set_status("done", 100, "Drink is ready!")
     time.sleep(3)
     
-    _handle_sensor({"type": "SENSOR", "glass_present": False})
+    _handle_sensor({"type": "SENSOR", "glass_state": "no_glass"})
     set_status("idle", 0, "Ready for next order")
     
 
@@ -262,15 +262,15 @@ def _handle_sensor(data: dict):
     Expected ESP32 SENSOR payload:
     {
         "type":          "SENSOR",
-        "glass_present": true
+        "glass_state": "small_glass"
     }
     """
     with _lock:
-        if "glass_present" in data:
-            _state["glass_present"] = bool(data["glass_present"])
+        if "glass_state" in data:
+            _state["glass_state"] = str(data["glass_state"])
         state_copy = dict(_state)
 
-    print(f"[SERIAL] SENSOR → glass_present={state_copy['glass_present']}")
+    print(f"[SERIAL] SENSOR → glass_state={state_copy['glass_state']}")
 
     for cb in _sensor_callbacks:
         try:

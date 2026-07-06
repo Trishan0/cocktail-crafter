@@ -44,7 +44,7 @@ _state = {
     "message":          "",     # human-readable status text
 
     # Sensor state (updated from ESP32 SENSOR messages or simulator)
-    "glass_present": False,
+    "glass_state": "no_glass",
 }
 
 _status_callbacks = []   # registered by app.py via register_status_callback()
@@ -135,24 +135,24 @@ def _handle_sensor(data: dict):
     """
     Parse a SENSOR payload and update shared state.
     Expected payload:
-    {"type": "SENSOR", "glass_present": true}
+    {"type": "SENSOR", "glass_state": "SMALL_GLASS"}
     """
     with _lock:
-        old_glass = _state["glass_present"]
-        if "glass_present" in data:
-            _state["glass_present"] = bool(data["glass_present"])
+        old_glass = _state.get("glass_state", "no_glass")
+        if "glass_state" in data:
+            _state["glass_state"] = str(data["glass_state"])
         state_copy = dict(_state)
-        glass_changed = (old_glass != state_copy["glass_present"])
+        glass_changed = (old_glass != state_copy["glass_state"])
         # Serialise MachineState enum → str for callbacks
         if isinstance(state_copy["machine_status"], MachineState):
             state_copy["machine_status"] = state_copy["machine_status"].value
 
-    print(f"[HW] SENSOR → glass_present={state_copy['glass_present']}")
+    print(f"[HW] SENSOR → glass_state={state_copy['glass_state']}")
 
     if glass_changed:
         import db
         try:
-            db.log_event("sensor:glass", "placed" if state_copy["glass_present"] else "removed")
+            db.log_event("sensor:glass", state_copy["glass_state"])
         except Exception as e:
             print(f"[HW] Event logging error: {e}")
 
@@ -311,7 +311,7 @@ class SimulatorController(HardwareController):
         if self._wait(2):
             return
 
-        _handle_sensor({"type": "SENSOR", "glass_present": True})
+        _handle_sensor({"type": "SENSOR", "glass_state": "large_glass"})
 
         if ice:
             s(order_id, "dispensing", 5, "Adding ice...")
@@ -362,7 +362,7 @@ class SimulatorController(HardwareController):
         if self._aborted():
             return
 
-        _handle_sensor({"type": "SENSOR", "glass_present": False})
+        _handle_sensor({"type": "SENSOR", "glass_state": "no_glass"})
 
         s(order_id, "washing", 0, "Rinsing container with water...")
         if self._wait(1):
@@ -412,7 +412,7 @@ class SimulatorController(HardwareController):
 
     def _wait_for_glass_removed(self):
         """
-        Block until glass_present == False (or abort).
+        Block until glass_state == NO_GLASS (or abort).
         In the simulator, we auto-remove the glass after 3 seconds to keep things moving.
         On real hardware, the ESP32 sends a SENSOR event when the customer lifts the glass.
         """
@@ -421,12 +421,12 @@ class SimulatorController(HardwareController):
             if self._aborted():
                 return
             with _lock:
-                if not _state["glass_present"]:
+                if _state.get("glass_state") == "no_glass":
                     return
             time.sleep(0.1)
         # Auto-remove for simulator
         with _lock:
-            _state["glass_present"] = False
+            _state["glass_state"] = "no_glass"
 
 
 # ─────────────────────────────────────────────
@@ -489,6 +489,15 @@ class SerialController(HardwareController):
         }
         self._send(payload)
         print(f"[SERIAL] ORDER sent → #{order_id} {recipe_name} | ice={ice}")
+        
+        # Eagerly update state so the UI transitions to the WaitingGlass screen immediately,
+        # without needing to wait for the ESP32 to confirm the state change.
+        _handle_status({
+            "type": "STATUS",
+            "machine_status": "waiting_glass",
+            "progress": 0,
+            "message": "Waiting for glass..."
+        })
 
     def send_abort(self):
         self._send({"cmd": "ABORT"})

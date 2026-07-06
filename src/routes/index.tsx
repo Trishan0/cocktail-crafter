@@ -41,7 +41,7 @@ function KioskApp() {
   const [machineStatus, setMachineStatus] = useState("idle");
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
-  const [glassPresent, setGlassPresent] = useState(true);
+  const [glassState, setGlassState] = useState("no_glass");
 
   // Tracks when we entered the 'ready' state — used to enforce a minimum display time
   // before cleaning can take over (important for live hardware where ESP32 starts cleaning
@@ -76,7 +76,7 @@ function KioskApp() {
     evtSource.addEventListener("init", (e) => {
       const data = JSON.parse(e.data);
       setMachineStatus(data.machine_status);
-      setGlassPresent(data.glass_present);
+      setGlassState(data.glass_state);
     });
 
     evtSource.addEventListener("status", (e) => {
@@ -129,7 +129,7 @@ function KioskApp() {
 
     evtSource.addEventListener("sensor", (e) => {
       const data = JSON.parse(e.data);
-      setGlassPresent(data.glass_present);
+      setGlassState(data.glass_state);
     });
 
     return () => evtSource.close();
@@ -174,10 +174,14 @@ function KioskApp() {
     }
   };
 
+  const totalMl = mode === "custom" 
+    ? customIngredients.reduce((sum: number, i: any) => sum + i.amount_ml, 0)
+    : selected?.ingredients?.reduce((sum: number, i: any) => sum + i.amount_ml, 0) || 0;
+
   const ctx = {
     selected, setSelectedId, mode, setMode, drinks, availablePumps,
     customIngredients, setCustomIngredients,
-    machineStatus, progress, message, glassPresent,
+    machineStatus, progress, message, glassState, totalMl,
     now, go, handleOrder, isSubmitting, orderError, setOrderError
   };
 
@@ -442,6 +446,7 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
                 <div key={ing.ingredient_id} className="surface-card rounded-2xl p-4 flex items-center justify-between">
                   <div className="font-display text-2xl">{ing.name}</div>
                   <div className="flex items-center gap-4">
+
                     <button onClick={() => updateAmount(idx, ing.amount_ml - 5)} className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-2xl flex items-center justify-center">-</button>
                     <div className="text-xl w-16 text-center tabular-nums">{ing.amount_ml}ml</div>
                     <button onClick={() => updateAmount(idx, ing.amount_ml + 5)} className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-2xl flex items-center justify-center">+</button>
@@ -545,21 +550,47 @@ function Review({ selected, mode, customIngredients, now, go, handleOrder, isSub
   );
 }
 
-function WaitingGlass({ now, glassPresent }: any) {
+function WaitingGlass({ now, glassState, totalMl }: any) {
+  const requiresLarge = totalMl > 200;
+  
+  let ringClass = "border-accent bg-accent/10 text-accent animate-pulse";
+  let title = `Please place a ${requiresLarge ? "LARGE " : ""}glass`;
+  let subtitle = "under the dispenser nozzle";
+
+  if (glassState === "small_glass") {
+    if (requiresLarge) {
+      ringClass = "border-orange-500 bg-orange-500/20 text-orange-500 animate-pulse";
+      title = "Small Glass Detected";
+      subtitle = "Warning: Recipe requires a LARGE glass!";
+    } else {
+      ringClass = "border-green-500 bg-green-500/20 text-green-400";
+      title = "Small Glass Detected";
+      subtitle = "Starting order...";
+    }
+  } else if (glassState === "large_glass") {
+    ringClass = "border-green-500 bg-green-500/20 text-green-400";
+    title = "Large Glass Detected";
+    subtitle = "Starting order...";
+  } else if (glassState === "sensor_error") {
+    ringClass = "border-red-500 bg-red-500/20 text-red-500 animate-pulse";
+    title = "Sensor Alignment Error";
+    subtitle = "Please check the IR sensors";
+  }
+
   return (
     <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
       <StatusBar title="Waiting for Glass" now={now} />
       <div className="absolute top-10 left-8"><Logo /></div>
 
-      <div className={`w-48 h-48 rounded-full flex items-center justify-center mb-12 transition-all duration-500 border-4 ${glassPresent ? 'border-green-500 bg-green-500/20 text-green-400' : 'border-accent bg-accent/10 text-accent animate-pulse'}`}>
-        <span className="text-6xl">🥃</span>
+      <div className={`w-48 h-48 rounded-full flex items-center justify-center mb-12 transition-all duration-500 border-4 ${ringClass}`}>
+        <span className="text-6xl">{glassState === "sensor_error" ? "⚠️" : "🥃"}</span>
       </div>
 
-      <h2 className="font-display text-[56px] font-light text-center">
-        {glassPresent ? "Glass Detected" : "Please place a glass"}
+      <h2 className={`font-display text-[56px] font-light text-center ${glassState === "sensor_error" ? "text-red-500" : ""}`}>
+        {title}
       </h2>
       <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em]">
-        {glassPresent ? "Starting order..." : "under the dispenser nozzle"}
+        {subtitle}
       </p>
     </div>
   );

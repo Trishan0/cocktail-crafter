@@ -125,7 +125,9 @@ class FakeESP32:
         if self._sleep(2): return
 
         # Glass placed
-        self._sensor(glass_present=True)
+        import random
+        glass_type = random.choice(["small_glass", "large_glass"])
+        self._sensor(glass_state=glass_type)
         if self._sleep(0.3): return
 
         if ice:
@@ -198,7 +200,7 @@ class FakeESP32:
         if self._abort.is_set():
             return
         log("Simulating customer removing glass.")
-        self._sensor(glass_present=False)
+        self._sensor(glass_state="no_glass")
 
     # ── Manual clean sequence ─────────────────
 
@@ -227,9 +229,9 @@ class FakeESP32:
         log(f"→ STATUS  {status} ({progress}%) | {message}")
         self._send(encode(payload))
 
-    def _sensor(self, glass_present: bool):
-        payload = {"type": "SENSOR", "glass_present": glass_present}
-        log(f"→ SENSOR  glass_present={glass_present}")
+    def _sensor(self, glass_state: str):
+        payload = {"type": "SENSOR", "glass_state": glass_state}
+        log(f"→ SENSOR  glass_state={glass_state}")
         self._send(encode(payload))
 
     # ── Chaos injection ───────────────────────

@@ -29,7 +29,7 @@ class MachineState(str, Enum):
         IDLE → WAITING_GLASS → DISPENSING → MIXING → POURING → DONE
 
     Post-order auto-clean (fires automatically after every DONE):
-        DONE → REVERSING → [gate: glass_present == false] → WASHING → MIXING → DRAINING → RESEALING → IDLE
+        DONE → REVERSING → [gate: glass_state == "no_glass"] → WASHING → MIXING → DRAINING → RESEALING → IDLE
 
     Manual clean (admin-triggered, line-only — never enters WASHING/DRAINING/RESEALING):
         IDLE → REVERSING → IDLE
@@ -91,7 +91,7 @@ LEGAL_TRANSITIONS: dict[MachineState, set[MachineState]] = {
     S.DONE:          {S.REVERSING, S.ERROR, S.ABORTED},
 
     # REVERSING self-loop: two progress updates (0% start, 50% "please remove glass")
-    # REVERSING → WASHING: only after glass_present == false (gate enforced ESP32-side)
+    # REVERSING → WASHING: only after glass_state == "no_glass" (gate enforced ESP32-side)
     # REVERSING → IDLE:    end of a manual clean cycle
     S.REVERSING:     {S.REVERSING, S.WASHING, S.IDLE, S.ERROR, S.ABORTED},
 
