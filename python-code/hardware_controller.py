@@ -480,12 +480,18 @@ class SerialController(HardwareController):
     # ── Commands ──────────────────────────────
 
     def send_order(self, order_id: int, recipe_name: str, pump_commands: list, ice: bool = False):
+        # Build sparse pumps array — only active pumps, only the fields ESP32 needs.
+        # duration_ms is pre-calculated by the Pi (amount_ml / flow_rate_ml_per_s * 1000).
+        pumps_payload = [
+            {"i": cmd["pump"], "t": cmd["duration_ms"]}
+            for cmd in pump_commands
+            if cmd.get("duration_ms", 0) > 0
+        ]
         payload = {
-            "cmd":         "ORDER",
-            "order_id":    order_id,
-            "recipe_name": recipe_name,
-            "pumps":       pump_commands,
-            "ice":         ice,
+            "cmd":      "ORDER",
+            "order_id": order_id,
+            "pumps":    pumps_payload,
+            "ice":      1 if ice else 0,
         }
         self._send(payload)
         print(f"[SERIAL] ORDER sent → #{order_id} {recipe_name} | ice={ice}")
