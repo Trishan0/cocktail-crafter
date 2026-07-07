@@ -307,10 +307,7 @@ class SimulatorController(HardwareController):
         s = self._set_status
 
         # ── Order sequence ────────────────────
-        s(order_id, "waiting_glass", 0, "Waiting for glass...")
-        if self._wait(2):
-            return
-
+        # (Skipping 'waiting_glass' per user request)
         _handle_sensor({"type": "SENSOR", "glass_state": "large_glass"})
 
         if ice:
@@ -496,13 +493,13 @@ class SerialController(HardwareController):
         self._send(payload)
         print(f"[SERIAL] ORDER sent → #{order_id} {recipe_name} | {len(pumps_payload)} pumps | ice={ice}")
 
-        # Eagerly update Pi-side state so the UI transitions to the WaitingGlass screen
-        # immediately, without waiting for the ESP32 to confirm.
+        # Eagerly update Pi-side state so the UI transitions immediately.
+        # (Skipping 'waiting_glass' per user request)
         _handle_status({
             "type": "STATUS",
-            "machine_status": "waiting_glass",
-            "progress": 0,
-            "message": "Waiting for glass...",
+            "machine_status": "dispensing",
+            "progress": 5,
+            "message": "Starting...",
             "order_id": order_id,
         })
 
