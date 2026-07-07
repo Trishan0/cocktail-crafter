@@ -480,23 +480,30 @@ class SerialController(HardwareController):
     # ── Commands ──────────────────────────────
 
     def send_order(self, order_id: int, recipe_name: str, pump_commands: list, ice: bool = False):
+        # Build sparse pumps array — only active pumps, only the fields ESP32 needs.
+        # duration_ms is pre-calculated by the Pi (amount_ml / flow_rate_ml_per_s * 1000).
+        pumps_payload = [
+            {"i": cmd["pump"], "t": cmd["duration_ms"]}
+            for cmd in pump_commands
+            if cmd.get("duration_ms", 0) > 0
+        ]
         payload = {
-            "cmd":         "ORDER",
-            "order_id":    order_id,
-            "recipe_name": recipe_name,
-            "pumps":       pump_commands,
-            "ice":         ice,
+            "cmd":      "ORDER",
+            "order_id": order_id,
+            "pumps":    pumps_payload,
+            "ice":      1 if ice else 0,
         }
         self._send(payload)
-        print(f"[SERIAL] ORDER sent → #{order_id} {recipe_name} | ice={ice}")
-        
-        # Eagerly update state so the UI transitions to the WaitingGlass screen immediately,
-        # without needing to wait for the ESP32 to confirm the state change.
+        print(f"[SERIAL] ORDER sent → #{order_id} {recipe_name} | {len(pumps_payload)} pumps | ice={ice}")
+
+        # Eagerly update Pi-side state so the UI transitions to the WaitingGlass screen
+        # immediately, without waiting for the ESP32 to confirm.
         _handle_status({
             "type": "STATUS",
             "machine_status": "waiting_glass",
             "progress": 0,
-            "message": "Waiting for glass..."
+            "message": "Waiting for glass...",
+            "order_id": order_id,
         })
 
     def send_abort(self):
@@ -509,21 +516,10 @@ class SerialController(HardwareController):
             print(f"[HW] Event logging error: {e}")
 
     def send_clean(self, trigger: str = "manual", mode: str = "all", pump: int = None, order_id: int = None, pumps: list = None):
-        if trigger == "post_order":
-            payload = {
-                "cmd":      "CLEAN",
-                "trigger":  "post_order",
-                "order_id": order_id,
-                "pumps":    pumps or [],
-            }
-            self._send(payload)
-            print(f"[SERIAL] CLEAN (post_order) → order #{order_id}, pumps {pumps}")
-        elif trigger == "manual":
-            payload = {"cmd": "CLEAN", "trigger": "manual", "mode": mode}
-            if mode == "single" and pump is not None:
-                payload["pump"] = pump
-            self._send(payload)
-            print(f"[SERIAL] CLEAN (manual, {mode}) sent.")
+        # ESP32 handles all clean variants with a single CLEAN command.
+        # The Pi-level trigger/mode distinction is only for logging/admin UI.
+        self._send({"cmd": "CLEAN"})
+        print(f"[SERIAL] CLEAN sent (trigger={trigger}, mode={mode}).")
 
     # ── Internal send ─────────────────────────
 

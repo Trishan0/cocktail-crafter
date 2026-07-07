@@ -71,4 +71,14 @@ export const uploadRecipeImage = async (id: number, file: File) => {
 // Admin - Other
 export const cleanSystem = (mode = "all", pump?: number) => fetchApi("/admin/clean", { method: "POST", body: JSON.stringify({ mode, pump }) });
 export const verifyPin = (pin: string) => fetchApi("/admin/pin/verify", { method: "POST", body: JSON.stringify({ pin }) });
+
+// Admin - Hardware
+export const sendCleanCommand = (trigger: string, mode: string, pump?: number) => 
+  fetchApi("/admin/clean", { method: "POST", body: JSON.stringify({ trigger, mode, pump }) });
+export const setSimulatorMode = (enabled: boolean) => 
+  fetchApi("/admin/simulator", { method: "POST", body: JSON.stringify({ simulator: enabled }) });
+
+// Dev
+export const simulateHardwareMessage = (message: any) => 
+  fetchApi("/dev/simulate-message", { method: "POST", body: JSON.stringify(message) });
 export const changePin = (current: string, newPin: string) => fetchApi("/admin/pin/change", { method: "POST", body: JSON.stringify({ current_pin: current, new_pin: newPin }) });

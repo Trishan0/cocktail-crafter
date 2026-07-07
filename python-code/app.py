@@ -158,6 +158,36 @@ def stream():
 
 
 # ─────────────────────────────────────────────
+#  DEV PANEL API
+# ─────────────────────────────────────────────
+
+@app.route("/api/dev/simulate-message", methods=["POST"])
+def api_dev_simulate_message():
+    """Simulate a hardware message (STATUS or SENSOR) via UI DevPanel."""
+    data = request.get_json() or {}
+    msg_type = data.get("type", "").upper()
+    try:
+        if msg_type == "STATUS":
+            hardware_controller._handle_status(data)
+        elif msg_type == "SENSOR":
+            hardware_controller._handle_sensor(data)
+            
+            # Dev UX shortcut: if the machine is waiting for a glass and we just placed one, 
+            # simulate the Arduino immediately transitioning to 'dispensing'.
+            state = hardware_controller.get_state()
+            if state.get("machine_status") == "waiting_glass" and data.get("glass_state", "no_glass").lower() != "no_glass":
+                hardware_controller._handle_status({
+                    "type": "STATUS",
+                    "machine_status": "dispensing",
+                    "progress": 5,
+                    "message": "Starting dispense..."
+                })
+                
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ─────────────────────────────────────────────
 #  CUSTOMER API
 # ─────────────────────────────────────────────
 
