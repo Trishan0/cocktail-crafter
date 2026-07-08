@@ -81,14 +81,14 @@ LEGAL_TRANSITIONS: dict[MachineState, set[MachineState]] = {
     # DISPENSING self-loop: ESP32 sends multiple updates at different progress %
     S.DISPENSING:    {S.DISPENSING, S.MIXING, S.DONE, S.ERROR, S.ABORTED},
 
-    # MIXING self-loop for same reason; goes to POURING (drink) or DRAINING (clean)
-    S.MIXING:        {S.MIXING, S.POURING, S.DRAINING, S.ERROR, S.ABORTED},
+    # MIXING self-loop for same reason; goes to POURING, DONE, or DRAINING (clean)
+    S.MIXING:        {S.MIXING, S.POURING, S.DONE, S.DRAINING, S.ERROR, S.ABORTED},
 
     S.POURING:       {S.DONE, S.ERROR, S.ABORTED},
 
     # ── Post-order auto-clean sequence ────────
-    # DONE immediately transitions to REVERSING (glass still present is fine here)
-    S.DONE:          {S.REVERSING, S.ERROR, S.ABORTED},
+    # DONE can go to REVERSING (auto-clean) or back to IDLE (if no auto-clean)
+    S.DONE:          {S.REVERSING, S.IDLE, S.ERROR, S.ABORTED},
 
     # REVERSING self-loop: two progress updates (0% start, 50% "please remove glass")
     # REVERSING → WASHING: only after glass_state == "no_glass" (gate enforced ESP32-side)
