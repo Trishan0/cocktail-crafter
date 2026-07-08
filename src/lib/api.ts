@@ -23,26 +23,26 @@ export async function fetchApi(endpoint: string, options?: RequestInit) {
 
 // Menu / Orders
 export const getMenu = () => fetchApi("/menu");
-export const placeOrder = (recipeId: number) => 
+export const placeOrder = (recipeId: number) =>
   fetchApi("/order", { method: "POST", body: JSON.stringify({ recipe_id: recipeId }) });
-export const placeCustomOrder = (ingredients: any[]) => 
+export const placeCustomOrder = (ingredients: any[]) =>
   fetchApi("/order/custom", { method: "POST", body: JSON.stringify({ ingredients }) });
 export const abortOrder = () => fetchApi("/abort", { method: "POST" });
 export const getStatus = () => fetchApi("/status");
 
 // Admin - Ingredients
 export const getIngredients = () => fetchApi("/admin/ingredients");
-export const createIngredient = (name: string, desc: string) => 
+export const createIngredient = (name: string, desc: string) =>
   fetchApi("/admin/ingredients", { method: "POST", body: JSON.stringify({ name, description: desc }) });
-export const updateIngredient = (id: number, name: string, desc: string) => 
+export const updateIngredient = (id: number, name: string, desc: string) =>
   fetchApi(`/admin/ingredients/${id}`, { method: "PUT", body: JSON.stringify({ name, description: desc }) });
 export const deleteIngredient = (id: number) => fetchApi(`/admin/ingredients/${id}`, { method: "DELETE" });
 
 // Admin - Pumps
 export const getPumps = () => fetchApi("/admin/pumps");
-export const assignPump = (pumpNum: number, ingredientId: number | null) => 
+export const assignPump = (pumpNum: number, ingredientId: number | null) =>
   fetchApi(`/admin/pumps/${pumpNum}/assign`, { method: "POST", body: JSON.stringify({ ingredient_id: ingredientId }) });
-export const updatePumpFlowRate = (pumpNum: number, flowRate: number) => 
+export const updatePumpFlowRate = (pumpNum: number, flowRate: number) =>
   fetchApi(`/admin/pumps/${pumpNum}/flowrate`, { method: "PUT", body: JSON.stringify({ flow_rate_ml_per_s: flowRate }) });
 
 // Admin - Recipes
@@ -73,12 +73,19 @@ export const cleanSystem = (mode = "all", pump?: number) => fetchApi("/admin/cle
 export const verifyPin = (pin: string) => fetchApi("/admin/pin/verify", { method: "POST", body: JSON.stringify({ pin }) });
 
 // Admin - Hardware
-export const sendCleanCommand = (trigger: string, mode: string, pump?: number) => 
+export const sendCleanCommand = (trigger: string, mode: string, pump?: number) =>
   fetchApi("/admin/clean", { method: "POST", body: JSON.stringify({ trigger, mode, pump }) });
-export const setSimulatorMode = (enabled: boolean) => 
+export const setSimulatorMode = (enabled: boolean) =>
   fetchApi("/admin/simulator", { method: "POST", body: JSON.stringify({ simulator: enabled }) });
 
 // Dev
-export const simulateHardwareMessage = (message: any) => 
+export const simulateHardwareMessage = (message: any) =>
   fetchApi("/dev/simulate-message", { method: "POST", body: JSON.stringify(message) });
-export const changePin = (current: string, newPin: string) => fetchApi("/admin/pin/change", { method: "POST", body: JSON.stringify({ current_pin: current, new_pin: newPin }) });
+export const changePin = (current: string, newPin: string) =>
+  fetchApi("/admin/pin/change", { method: "POST", body: JSON.stringify({ current_pin: current, new_pin: newPin }) });
+
+// Glass bypass — for real hardware with no glass sensor.
+// Releases the Python-side waiting_glass gate and forces state → dispensing.
+// The bypass button in WaitingGlass screen should call this instead of simulateHardwareMessage.
+export const confirmGlass = () =>
+  fetchApi("/order/confirm-glass", { method: "POST" });

@@ -216,6 +216,10 @@ class HardwareController:
         """
         raise NotImplementedError
 
+    def send_glass_ok(self):
+        """Send a GLASS_OK command to bypass the physical glass IR sensors."""
+        raise NotImplementedError
+
     # Convenience pass-through so callers don't need to import this module directly
     def get_state(self) -> dict:
         return get_state()
@@ -283,6 +287,12 @@ class SimulatorController(HardwareController):
                 daemon=True,
                 name="sim-manual-clean",
             ).start()
+
+    def send_glass_ok(self):
+        """In simulator, manually trigger the glass state update."""
+        print("[SIM] GLASS_OK sent.")
+        # Trigger the SENSOR event to place the glass
+        _handle_sensor({"type": "SENSOR", "glass_state": "large_glass"})
 
     # ── Internal simulation ───────────────────
 
@@ -531,6 +541,10 @@ class SerialController(HardwareController):
                 payload["pump"] = pump
             self._send(payload)
             print(f"[SERIAL] CLEAN (manual, {mode}) sent.")
+
+    def send_glass_ok(self):
+        self._send({"cmd": "GLASS_OK"})
+        print("[SERIAL] GLASS_OK sent.")
 
     # ── Internal send ─────────────────────────
 

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import robotHero from "@/assets/robot-hero.jpg";
 import readyHero from "@/assets/cocktail-ready.jpg";
-import { getMenu, placeOrder, placeCustomOrder, getPumps, simulateHardwareMessage } from "@/lib/api";
+import { getMenu, placeOrder, placeCustomOrder, getPumps, confirmGlass } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   component: KioskApp,
@@ -593,9 +593,9 @@ function WaitingGlass({ now, glassState, totalMl }: any) {
         {subtitle}
       </p>
 
-      {/* DEV SHORTCUT: Allows bypassing the glass sensor just for now */}
+      {/* Bypass button: only advances the UI when explicitly clicked */}
       <div className="absolute bottom-12 z-20">
-        <GoldButton onClick={() => simulateHardwareMessage({ type: "SENSOR", glass_state: requiresLarge ? "large_glass" : "small_glass" })}>
+        <GoldButton onClick={() => confirmGlass()}>
           Bypass: Place Glass
         </GoldButton>
       </div>

@@ -171,21 +171,24 @@ def api_dev_simulate_message():
             hardware_controller._handle_status(data)
         elif msg_type == "SENSOR":
             hardware_controller._handle_sensor(data)
-            
-            # Dev UX shortcut: if the machine is waiting for a glass and we just placed one, 
-            # simulate the Arduino immediately transitioning to 'dispensing'.
-            state = hardware_controller.get_state()
-            if state.get("machine_status") == "waiting_glass" and data.get("glass_state", "no_glass").lower() != "no_glass":
-                hardware_controller._handle_status({
-                    "type": "STATUS",
-                    "machine_status": "dispensing",
-                    "progress": 5,
-                    "message": "Starting dispense..."
-                })
-                
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/order/confirm-glass", methods=["POST"])
+def api_confirm_glass():
+    """
+    Operator confirms a glass is in place (bypass button).
+    Sends GLASS_OK to the ESP32.
+    Only works when the machine is in the waiting_glass state.
+    """
+    state = _controller.get_state()
+    if state["machine_status"] != "waiting_glass":
+        return jsonify({"error": f"Machine is not waiting for glass (current: {state['machine_status']})."}), 409
+    
+    _controller.send_glass_ok()
+    return jsonify({"success": True, "message": "Glass confirmed — dispensing."})
 
 # ─────────────────────────────────────────────
 #  CUSTOMER API
