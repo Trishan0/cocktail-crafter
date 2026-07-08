@@ -45,11 +45,6 @@ function KioskApp() {
   const [poweredOn, setPoweredOn] = useState(false);
   const [lowerSensor, setLowerSensor] = useState(false);
   const [upperSensor, setUpperSensor] = useState(false);
-
-  // Tracks when we entered the 'ready' state — used to enforce a minimum display time
-  // before cleaning can take over (important for live hardware where ESP32 starts cleaning
-  // immediately after done, giving the UI no natural hold time).
-  const readyAt = useRef<number | null>(null);
   // Tracks whether we're in the post-order cleaning cycle
   const inCleanCycle = useRef(false);
 
@@ -104,25 +99,12 @@ function KioskApp() {
         // mixing is used both during drink-making AND during the clean cycle shake step
         setScreen(inCleanCycle.current ? "cleaning" : "preparing");
       } else if (status === "done") {
-        // Record when we went ready so cleaning can enforce a minimum display time
-        readyAt.current = Date.now();
-        // Delay screen switch by 800ms so the 100% ring is visible before transitioning
-        setTimeout(() => setScreen("ready"), 800);
+        setScreen("ready");
       } else if (status === "error") {
         setScreen("error");
       } else if (["reversing", "washing", "draining", "resealing"].includes(status)) {
-        // Mark we're in the cleaning cycle
         inCleanCycle.current = true;
-        // Enforce minimum 5s on the ready screen — critical for live hardware where
-        // the ESP32 starts cleaning almost immediately after 'done'
-        const elapsed = readyAt.current ? Date.now() - readyAt.current : Infinity;
-        const minReadyMs = 5000;
-        const delay = Math.max(0, minReadyMs - elapsed);
-        if (delay > 0) {
-          setTimeout(() => setScreen("cleaning"), delay);
-        } else {
-          setScreen("cleaning");
-        }
+        setScreen("cleaning");
       } else if (status === "idle") {
         if (inCleanCycle.current) {
           // Show a "cleaning done" confirmation before returning to welcome
@@ -697,7 +679,7 @@ function Ready({ now }: any) {
           Your drink is <em className="italic font-normal gold-text">ready.</em>
         </h1>
         <p className="text-xl text-muted-foreground uppercase tracking-[0.3em] animate-pulse">
-          Please collect your drink — cleaning begins shortly
+          Enjoy your drink. Remove the glass to start cleaning
         </p>
       </div>
     </div>
@@ -772,3 +754,7 @@ function CleaningDone({ now }: any) {
     </div>
   );
 }
+
+
+
+

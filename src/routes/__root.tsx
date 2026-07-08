@@ -7,6 +7,8 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { DevPanel } from "../components/DevPanel";
+
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
@@ -119,6 +121,7 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -126,6 +129,8 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <DevPanel />
     </QueryClientProvider>
   );
 }
+
