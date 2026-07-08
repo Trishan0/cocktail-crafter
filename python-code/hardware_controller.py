@@ -45,22 +45,27 @@ _state = {
 
     # Sensor state (updated from ESP32 SENSOR messages or simulator)
     "glass_state": "no_glass",
+    "lower_sensor": False,
+    "upper_sensor": False,
 }
 
 _status_callbacks = []   # registered by app.py via register_status_callback()
 _sensor_callbacks = []   # registered by app.py via register_sensor_callback()
 
-
+_clean_timer = None
+CLEAN_DELAY_SECONDS = 10 * 60
 # ─────────────────────────────────────────────
 #  PUBLIC REGISTRATION HELPERS
 # ─────────────────────────────────────────────
 
 def register_status_callback(fn):
-    _status_callbacks.append(fn)
+    if fn not in _status_callbacks:
+        _status_callbacks.append(fn)
 
 
 def register_sensor_callback(fn):
-    _sensor_callbacks.append(fn)
+    if fn not in _sensor_callbacks:
+        _sensor_callbacks.append(fn)
 
 
 # ─────────────────────────────────────────────
@@ -135,19 +140,26 @@ def _handle_sensor(data: dict):
     """
     Parse a SENSOR payload and update shared state.
     Expected payload:
-    {"type": "SENSOR", "glass_state": "SMALL_GLASS"}
+    {"type": "SENSOR", "glass_state": "small_glass", "lower_sensor": true, "upper_sensor": false}
     """
     with _lock:
         old_glass = _state.get("glass_state", "no_glass")
         if "glass_state" in data:
-            _state["glass_state"] = str(data["glass_state"])
+            _state["glass_state"] = str(data["glass_state"]).lower()
+        if "lower_sensor" in data:
+            _state["lower_sensor"] = bool(data["lower_sensor"])
+        if "upper_sensor" in data:
+            _state["upper_sensor"] = bool(data["upper_sensor"])
         state_copy = dict(_state)
         glass_changed = (old_glass != state_copy["glass_state"])
-        # Serialise MachineState enum → str for callbacks
+        # Serialise MachineState enum -> str for callbacks
         if isinstance(state_copy["machine_status"], MachineState):
             state_copy["machine_status"] = state_copy["machine_status"].value
 
-    print(f"[HW] SENSOR → glass_state={state_copy['glass_state']}")
+    print(
+        f"[HW] SENSOR -> glass_state={state_copy['glass_state']} "
+        f"lower={state_copy.get('lower_sensor')} upper={state_copy.get('upper_sensor')}"
+    )
 
     if glass_changed:
         import db
@@ -292,7 +304,7 @@ class SimulatorController(HardwareController):
         """In simulator, manually trigger the glass state update."""
         print("[SIM] GLASS_OK sent.")
         # Trigger the SENSOR event to place the glass
-        _handle_sensor({"type": "SENSOR", "glass_state": "large_glass"})
+        _handle_sensor({"type": "SENSOR", "glass_state": "large_glass", "lower_sensor": True, "upper_sensor": True})
 
     # ── Internal simulation ───────────────────
 
@@ -321,7 +333,7 @@ class SimulatorController(HardwareController):
         if self._wait(2):
             return
 
-        _handle_sensor({"type": "SENSOR", "glass_state": "large_glass"})
+        _handle_sensor({"type": "SENSOR", "glass_state": "large_glass", "lower_sensor": True, "upper_sensor": True})
 
         if ice:
             s(order_id, "dispensing", 5, "Adding ice...")
@@ -372,7 +384,7 @@ class SimulatorController(HardwareController):
         if self._aborted():
             return
 
-        _handle_sensor({"type": "SENSOR", "glass_state": "no_glass"})
+        _handle_sensor({"type": "SENSOR", "glass_state": "no_glass", "lower_sensor": False, "upper_sensor": False})
 
         s(order_id, "washing", 0, "Rinsing container with water...")
         if self._wait(1):
@@ -497,11 +509,13 @@ class SerialController(HardwareController):
             for cmd in pump_commands
             if cmd.get("duration_ms", 0) > 0
         ]
+        total_ml = sum(float(cmd.get("amount_ml", 0) or 0) for cmd in pump_commands)
         payload = {
-            "cmd":      "ORDER",
-            "order_id": order_id,
-            "pumps":    pumps_payload,
-            "ice":      1 if ice else 0,
+            "cmd":            "ORDER",
+            "order_id":       order_id,
+            "pumps":          pumps_payload,
+            "ice":            1 if ice else 0,
+            "required_glass": "large" if total_ml > 200 else "any",
         }
         self._send(payload)
         print(f"[SERIAL] ORDER sent → #{order_id} {recipe_name} | ice={ice}")

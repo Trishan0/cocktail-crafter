@@ -42,6 +42,8 @@ function KioskApp() {
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
   const [glassState, setGlassState] = useState("no_glass");
+  const [lowerSensor, setLowerSensor] = useState(false);
+  const [upperSensor, setUpperSensor] = useState(false);
 
   // Tracks when we entered the 'ready' state — used to enforce a minimum display time
   // before cleaning can take over (important for live hardware where ESP32 starts cleaning
@@ -76,7 +78,11 @@ function KioskApp() {
     evtSource.addEventListener("init", (e) => {
       const data = JSON.parse(e.data);
       setMachineStatus(data.machine_status);
+      setProgress(data.progress || 0);
+      setMessage(data.message || "");
       setGlassState(data.glass_state);
+      if ("lower_sensor" in data) setLowerSensor(Boolean(data.lower_sensor));
+      if ("upper_sensor" in data) setUpperSensor(Boolean(data.upper_sensor));
     });
 
     evtSource.addEventListener("status", (e) => {
@@ -130,6 +136,8 @@ function KioskApp() {
     evtSource.addEventListener("sensor", (e) => {
       const data = JSON.parse(e.data);
       setGlassState(data.glass_state);
+      if ("lower_sensor" in data) setLowerSensor(Boolean(data.lower_sensor));
+      if ("upper_sensor" in data) setUpperSensor(Boolean(data.upper_sensor));
     });
 
     return () => evtSource.close();
@@ -181,7 +189,7 @@ function KioskApp() {
   const ctx = {
     selected, setSelectedId, mode, setMode, drinks, availablePumps,
     customIngredients, setCustomIngredients,
-    machineStatus, progress, message, glassState, totalMl,
+    machineStatus, progress, message, glassState, lowerSensor, upperSensor, totalMl,
     now, go, handleOrder, isSubmitting, orderError, setOrderError
   };
 
@@ -550,12 +558,13 @@ function Review({ selected, mode, customIngredients, now, go, handleOrder, isSub
   );
 }
 
-function WaitingGlass({ now, glassState, totalMl }: any) {
+function WaitingGlass({ now, glassState, lowerSensor, upperSensor, totalMl }: any) {
   const requiresLarge = totalMl > 200;
   
   let ringClass = "border-accent bg-accent/10 text-accent animate-pulse";
   let title = `Please place a ${requiresLarge ? "LARGE " : ""}glass`;
   let subtitle = "under the dispenser nozzle";
+  let sensorText = `Lower ${lowerSensor ? "blocked" : "clear"} / Upper ${upperSensor ? "blocked" : "clear"}`;
 
   if (glassState === "small_glass") {
     if (requiresLarge) {
@@ -591,6 +600,9 @@ function WaitingGlass({ now, glassState, totalMl }: any) {
       </h2>
       <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em]">
         {subtitle}
+      </p>
+      <p className="text-sm text-muted-foreground/70 mt-4 uppercase tracking-[0.2em]">
+        {sensorText}
       </p>
 
       {/* Bypass button: only advances the UI when explicitly clicked */}

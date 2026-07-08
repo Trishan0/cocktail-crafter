@@ -107,7 +107,9 @@ def _on_status_change(state: dict):
 def _on_sensor_update(state: dict):
     """Called by hardware_controller when the machine sends a SENSOR update."""
     _push_event("sensor", {
-        "glass_state": state.get("glass_state", "no_glass"),
+        "glass_state":  state.get("glass_state", "no_glass"),
+        "lower_sensor": state.get("lower_sensor", False),
+        "upper_sensor": state.get("upper_sensor", False),
     })
 
 
@@ -130,6 +132,8 @@ def stream():
             "progress":       state["progress"],
             "message":        state["message"],
             "glass_state":    state.get("glass_state", "no_glass"),
+            "lower_sensor":   state.get("lower_sensor", False),
+            "upper_sensor":   state.get("upper_sensor", False),
             "connected":      state["connected"],
         })
         yield f"event: init\ndata: {init_data}\n\n"
@@ -324,6 +328,8 @@ def api_status():
         "progress":       state["progress"],
         "message":        state["message"],
         "glass_state":    state.get("glass_state", "no_glass"),
+        "lower_sensor":   state.get("lower_sensor", False),
+        "upper_sensor":   state.get("upper_sensor", False),
         "last_seen":      state["last_seen"],
     })
 

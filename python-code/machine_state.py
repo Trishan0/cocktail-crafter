@@ -76,8 +76,8 @@ LEGAL_TRANSITIONS: dict[MachineState, set[MachineState]] = {
     S.IDLE:          {S.WAITING_GLASS, S.REVERSING, S.ERROR, S.ABORTED},
 
     # ── Order sequence ────────────────────────
-    S.WAITING_GLASS: {S.DISPENSING, S.ERROR, S.ABORTED},
-
+    S.WAITING_GLASS: {S.WAITING_GLASS, S.DISPENSING, S.ERROR, S.ABORTED},
+    
     # DISPENSING self-loop: ESP32 sends multiple updates at different progress %
     S.DISPENSING:    {S.DISPENSING, S.MIXING, S.DONE, S.ERROR, S.ABORTED},
 
