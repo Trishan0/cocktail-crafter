@@ -204,16 +204,21 @@ class HardwareController:
         """Cleanly shut down the controller."""
         raise NotImplementedError
 
-    def send_order(self, order_id: int, recipe_name: str, pump_commands: list, ice: bool = False):
+    def send_order(self, order_id: int, recipe_name: str, pump_commands: list, ice: bool = False, first_after_power_on: bool = False):
         """
         Send an ORDER command.
         pump_commands: [{"pump": 1, "ingredient": "Rum", "amount_ml": 50, "duration_ms": 33333}, ...]
         ice: whether the customer requested ice (ESP32 triggers ice mechanism if true)
+        first_after_power_on: add each pump's configured startup prime time once after power-on
         """
         raise NotImplementedError
 
     def send_abort(self):
         """Send an emergency ABORT — stop all dispensing immediately."""
+        raise NotImplementedError
+
+    def send_power(self, powered: bool, reverse_config: list = None):
+        """Send a soft power-state command to the ESP32."""
         raise NotImplementedError
 
     def send_clean(self, trigger: str = "manual", mode: str = "all", pump: int = None, order_id: int = None, pumps: list = None):
@@ -265,8 +270,8 @@ class SimulatorController(HardwareController):
 
     # ── Commands ──────────────────────────────
 
-    def send_order(self, order_id: int, recipe_name: str, pump_commands: list, ice: bool = False):
-        print(f"[SIM] ORDER → #{order_id} {recipe_name} | ice={ice}")
+    def send_order(self, order_id: int, recipe_name: str, pump_commands: list, ice: bool = False, first_after_power_on: bool = False):
+        print(f"[SIM] ORDER #{order_id} {recipe_name} | ice={ice} | first_after_power_on={first_after_power_on}")
         self._abort_flag.clear()
         threading.Thread(
             target=self._simulate_order_process,
@@ -285,6 +290,13 @@ class SimulatorController(HardwareController):
             print(f"[HW] Event logging error: {e}")
         _handle_status({"type": "STATUS", "status": "aborted", "progress": 0, "message": "Order aborted by user."})
         threading.Timer(2.0, lambda: _handle_status({"type": "STATUS", "status": "idle", "progress": 0, "message": "Ready"})).start()
+
+    def send_power(self, powered: bool, reverse_config: list = None):
+        print(f"[SIM] POWER {'on' if powered else 'off'}")
+        if powered:
+            _handle_status({"type": "STATUS", "status": "idle", "progress": 0, "message": "Machine powered on."})
+        else:
+            threading.Thread(target=self._simulate_power_off_clean, daemon=True, name="sim-power-off-clean").start()
 
     def send_clean(self, trigger: str = "manual", mode: str = "all", pump: int = None, order_id: int = None, pumps: list = None):
         if trigger == "post_order":
@@ -416,6 +428,16 @@ class SimulatorController(HardwareController):
 
         s(None, "idle", 0, "Ready for next order")
 
+    def _simulate_power_off_clean(self):
+        _handle_status({"type": "STATUS", "status": "reversing", "progress": 0, "message": "Reversing pump lines before power off..."})
+        time.sleep(2)
+        _handle_status({"type": "STATUS", "status": "washing", "progress": 30, "message": "Rinsing container before shutdown..."})
+        time.sleep(2)
+        _handle_status({"type": "STATUS", "status": "mixing", "progress": 60, "message": "Mixing rinse water..."})
+        time.sleep(1.5)
+        _handle_status({"type": "STATUS", "status": "draining", "progress": 85, "message": "Draining rinse water..."})
+        time.sleep(1)
+        _handle_status({"type": "STATUS", "status": "idle", "progress": 0, "message": "Machine powered off."})
     def _simulate_manual_clean(self, mode: str, pump: int):
         """Manual admin-triggered line flush — line only, no container wash."""
         pump_desc = f"pump {pump}" if mode == "single" else "all pump lines"
@@ -501,14 +523,16 @@ class SerialController(HardwareController):
 
     # ── Commands ──────────────────────────────
 
-    def send_order(self, order_id: int, recipe_name: str, pump_commands: list, ice: bool = False):
+    def send_order(self, order_id: int, recipe_name: str, pump_commands: list, ice: bool = False, first_after_power_on: bool = False):
         # Build sparse pumps array — only active pumps, only the fields ESP32 needs.
         # duration_ms is pre-calculated by the Pi (amount_ml / flow_rate_ml_per_s * 1000).
-        pumps_payload = [
-            {"i": cmd["pump"], "t": cmd["duration_ms"]}
-            for cmd in pump_commands
-            if cmd.get("duration_ms", 0) > 0
-        ]
+        pumps_payload = []
+        for cmd in pump_commands:
+            duration_ms = int(cmd.get("duration_ms", 0) or 0)
+            if first_after_power_on:
+                duration_ms += int(cmd.get("initial_extra_ms", 1460) or 0)
+            if duration_ms > 0:
+                pumps_payload.append({"i": cmd["pump"], "t": duration_ms})
         total_ml = sum(float(cmd.get("amount_ml", 0) or 0) for cmd in pump_commands)
         payload = {
             "cmd":            "ORDER",
@@ -518,7 +542,7 @@ class SerialController(HardwareController):
             "required_glass": "large" if total_ml > 200 else "any",
         }
         self._send(payload)
-        print(f"[SERIAL] ORDER sent → #{order_id} {recipe_name} | ice={ice}")
+        print(f"[SERIAL] ORDER sent #{order_id} {recipe_name} | ice={ice} | first_after_power_on={first_after_power_on}")
         
         # Eagerly update Pi-side state so the UI transitions to the WaitingGlass screen
         # immediately, without waiting for the ESP32 to confirm.
@@ -538,6 +562,13 @@ class SerialController(HardwareController):
             db.log_event("hardware_cmd:abort")
         except Exception as e:
             print(f"[HW] Event logging error: {e}")
+
+    def send_power(self, powered: bool, reverse_config: list = None):
+        payload = {"cmd": "POWER", "on": 1 if powered else 0}
+        if not powered:
+            payload["reverse"] = reverse_config or []
+        self._send(payload)
+        print(f"[SERIAL] POWER sent {'on' if powered else 'off'}")
 
     def send_clean(self, trigger: str = "manual", mode: str = "all", pump: int = None, order_id: int = None, pumps: list = None):
         if trigger == "post_order":

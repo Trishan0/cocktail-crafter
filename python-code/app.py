@@ -35,6 +35,25 @@ _controller: hardware_controller.HardwareController = None
 _controller_lock = threading.Lock()
 
 
+def _is_powered_on() -> bool:
+    return bool(db.get_setting("machine_powered_on", False))
+
+
+def _power_state_payload() -> dict:
+    return {
+        "powered_on": _is_powered_on(),
+        "first_order_after_power_on": bool(db.get_setting("first_order_after_power_on", False)),
+    }
+
+
+def _active_reverse_config() -> list:
+    runtime = db.get_pump_runtime_config()
+    return [
+        {"i": pump_number, "t": cfg["reverse_ms"]}
+        for pump_number, cfg in runtime.items()
+        if cfg.get("is_active", True) and int(cfg.get("reverse_ms", 0)) > 0
+    ]
+
 def _swap_controller(simulator: bool):
     """
     Stop the current controller, switch mode, and start a new one.
@@ -89,6 +108,7 @@ def _on_status_change(state: dict):
         "progress":       state["progress"],
         "message":        state["message"],
         "order_id":       state["current_order_id"],
+        "powered_on":     _is_powered_on(),
     })
     order_id = state.get("current_order_id")
     if order_id:
@@ -135,6 +155,7 @@ def stream():
             "lower_sensor":   state.get("lower_sensor", False),
             "upper_sensor":   state.get("upper_sensor", False),
             "connected":      state["connected"],
+            "powered_on":     _is_powered_on(),
         })
         yield f"event: init\ndata: {init_data}\n\n"
 
@@ -228,6 +249,9 @@ def api_place_order():
     if not recipe_id:
         return jsonify({"error": "recipe_id is required."}), 400
 
+    if not _is_powered_on():
+        return jsonify({"error": "Machine is powered off. Please ask staff to power it on."}), 409
+
     # Check machine is free — only accept orders from idle (or post-error/abort)
     state = _controller.get_state()
     if not ms.can_accept_order(state["machine_status"]):
@@ -239,19 +263,27 @@ def api_place_order():
     if error:
         return jsonify({"error": error}), 400
 
+    first_after_power_on = bool(db.get_setting("first_order_after_power_on", False))
+
     # Send to ESP32 (or simulator)
     _controller.send_order(
         order_id=order["order_id"],
         recipe_name=order["recipe_name"],
         pump_commands=order["pump_commands"],
         ice=ice,
+        first_after_power_on=first_after_power_on,
     )
+    if first_after_power_on:
+        db.mark_order_first_after_power_on(order["order_id"])
+        db.set_setting("first_order_after_power_on", False)
+        db.log_event("order:first_after_power_on", f"Order #{order['order_id']} {order['recipe_name']}")
 
     # Notify all UI clients immediately
     _push_event("order_placed", {
         "order_id":    order["order_id"],
         "recipe_name": order["recipe_name"],
         "pump_commands": order["pump_commands"],
+        "first_after_power_on": first_after_power_on,
     })
 
     return jsonify({
@@ -259,6 +291,7 @@ def api_place_order():
         "order_id":      order["order_id"],
         "recipe_name":   order["recipe_name"],
         "pump_commands": order["pump_commands"],
+        "first_after_power_on": first_after_power_on,
     })
 
 
@@ -275,6 +308,9 @@ def api_place_custom_order():
     if not ingredients or not isinstance(ingredients, list):
         return jsonify({"error": "ingredients array is required."}), 400
 
+    if not _is_powered_on():
+        return jsonify({"error": "Machine is powered off. Please ask staff to power it on."}), 409
+
     # Check machine is free
     state = _controller.get_state()
     if not ms.can_accept_order(state["machine_status"]):
@@ -286,17 +322,24 @@ def api_place_custom_order():
     if error:
         return jsonify({"error": error}), 400
 
+    first_after_power_on = bool(db.get_setting("first_order_after_power_on", False))
     _controller.send_order(
         order_id=order["order_id"],
         recipe_name=order["recipe_name"],
         pump_commands=order["pump_commands"],
         ice=ice,
+        first_after_power_on=first_after_power_on,
     )
+    if first_after_power_on:
+        db.mark_order_first_after_power_on(order["order_id"])
+        db.set_setting("first_order_after_power_on", False)
+        db.log_event("order:first_after_power_on", f"Order #{order['order_id']} {order['recipe_name']}")
 
     _push_event("order_placed", {
         "order_id":    order["order_id"],
         "recipe_name": order["recipe_name"],
         "pump_commands": order["pump_commands"],
+        "first_after_power_on": first_after_power_on,
     })
 
     return jsonify({
@@ -304,6 +347,7 @@ def api_place_custom_order():
         "order_id":      order["order_id"],
         "recipe_name":   order["recipe_name"],
         "pump_commands": order["pump_commands"],
+        "first_after_power_on": first_after_power_on,
     })
 
 
@@ -331,6 +375,7 @@ def api_status():
         "lower_sensor":   state.get("lower_sensor", False),
         "upper_sensor":   state.get("upper_sensor", False),
         "last_seen":      state["last_seen"],
+        "powered_on":     _is_powered_on(),
     })
 
 
@@ -419,6 +464,20 @@ def api_update_flowrate(pump_number):
     db.update_pump_flow_rate(pump_number, float(flow_rate))
     return jsonify({"success": True})
 
+
+@app.route("/api/admin/pumps/<int:pump_number>/timing", methods=["PUT"])
+def api_update_pump_timing(pump_number):
+    """
+    Update startup prime and shutdown reverse timing for a pump.
+    Body: {"initial_extra_ms": 1460, "reverse_ms": 5000}
+    """
+    data = request.get_json() or {}
+    initial_extra_ms = int(data.get("initial_extra_ms", 1460))
+    reverse_ms = int(data.get("reverse_ms", 5000))
+    if initial_extra_ms < 0 or reverse_ms < 0:
+        return jsonify({"error": "Pump timings must be non-negative milliseconds."}), 400
+    db.update_pump_timing(pump_number, initial_extra_ms, reverse_ms)
+    return jsonify({"success": True})
 
 # ─────────────────────────────────────────────
 #  ADMIN API — Recipes
@@ -563,6 +622,43 @@ def api_set_mode():
     return jsonify({"ok": True, "simulator": simulator})
 
 
+@app.route("/api/admin/power", methods=["GET"])
+def api_get_power():
+    """Return admin-controlled soft power state."""
+    return jsonify(_power_state_payload())
+
+
+@app.route("/api/admin/power", methods=["POST"])
+def api_set_power():
+    """
+    Toggle admin-controlled machine power.
+    Power off is allowed only while idle and runs the shutdown reverse/rinse command.
+    """
+    state = _controller.get_state()
+    if state["machine_status"] != "idle":
+        return jsonify({"error": f"Cannot change power while machine is {state['machine_status']}."}), 409
+
+    data = request.get_json() or {}
+    if "powered_on" not in data:
+        return jsonify({"error": "Missing 'powered_on' field."}), 400
+
+    powered_on = bool(data["powered_on"])
+    if powered_on:
+        db.set_setting("machine_powered_on", True)
+        db.set_setting("first_order_after_power_on", True)
+        _controller.send_power(True)
+        db.log_event("power:on")
+    else:
+        reverse_config = _active_reverse_config()
+        db.set_setting("machine_powered_on", False)
+        db.set_setting("first_order_after_power_on", False)
+        _controller.send_power(False, reverse_config=reverse_config)
+        db.log_event("power:off", f"reverse={reverse_config}")
+
+    payload = _power_state_payload()
+    _push_event("power", payload)
+    return jsonify({"success": True, **payload})
+
 @app.route("/api/admin/events", methods=["GET"])
 def api_get_events():
     """Get the most recent system events."""
@@ -639,6 +735,11 @@ def create_app():
 
     db.init_db()
 
+    if db.get_setting("machine_powered_on") is None:
+        db.set_setting("machine_powered_on", False)
+    if db.get_setting("first_order_after_power_on") is None:
+        db.set_setting("first_order_after_power_on", False)
+
     # Seed simulator_mode from config if not already in DB
     if db.get_setting("simulator_mode") is None:
         db.set_setting("simulator_mode", "1" if config.SIMULATOR_MODE else "0")
@@ -664,3 +765,7 @@ if __name__ == "__main__":
         threaded=True,
         use_reloader=False,   # must be False — hardware thread can't handle reloader
     )
+
+
+
+

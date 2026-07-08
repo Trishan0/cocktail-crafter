@@ -42,6 +42,7 @@ function KioskApp() {
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
   const [glassState, setGlassState] = useState("no_glass");
+  const [poweredOn, setPoweredOn] = useState(false);
   const [lowerSensor, setLowerSensor] = useState(false);
   const [upperSensor, setUpperSensor] = useState(false);
 
@@ -78,6 +79,7 @@ function KioskApp() {
     evtSource.addEventListener("init", (e) => {
       const data = JSON.parse(e.data);
       setMachineStatus(data.machine_status);
+      setPoweredOn(Boolean(data.powered_on));
       setProgress(data.progress || 0);
       setMessage(data.message || "");
       setGlassState(data.glass_state);
@@ -89,6 +91,7 @@ function KioskApp() {
       const data = JSON.parse(e.data);
       const status = data.machine_status;
       setMachineStatus(status);
+      if ("powered_on" in data) setPoweredOn(Boolean(data.powered_on));
       setProgress(data.progress || 0);
       setMessage(data.message || "");
 
@@ -133,6 +136,14 @@ function KioskApp() {
       }
     });
 
+
+    evtSource.addEventListener("power", (e) => {
+      const data = JSON.parse(e.data);
+      setPoweredOn(Boolean(data.powered_on));
+      if (!data.powered_on) {
+        setScreen("welcome");
+      }
+    });
     evtSource.addEventListener("sensor", (e) => {
       const data = JSON.parse(e.data);
       setGlassState(data.glass_state);
@@ -163,7 +174,7 @@ function KioskApp() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleOrder = async () => {
-    if (machineStatus !== "idle" || isSubmitting) return;
+    if (!poweredOn || machineStatus !== "idle" || isSubmitting) return;
     setIsSubmitting(true);
     try {
       if (mode === "signature") {
@@ -189,7 +200,7 @@ function KioskApp() {
   const ctx = {
     selected, setSelectedId, mode, setMode, drinks, availablePumps,
     customIngredients, setCustomIngredients,
-    machineStatus, progress, message, glassState, lowerSensor, upperSensor, totalMl,
+    machineStatus, progress, message, glassState, lowerSensor, upperSensor, poweredOn, totalMl,
     now, go, handleOrder, isSubmitting, orderError, setOrderError
   };
 
@@ -202,18 +213,19 @@ function KioskApp() {
         className="kiosk-frame transition-transform w-[1024px] h-[600px] relative"
         style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
       >
-        {screen === "welcome" && <Welcome {...ctx} />}
-        {screen === "experience" && <Experience {...ctx} />}
-        {screen === "catalog" && <Catalog {...ctx} />}
-        {screen === "detail" && <Detail {...ctx} />}
-        {screen === "compose" && <Compose {...ctx} />}
-        {screen === "review" && <Review {...ctx} />}
-        {screen === "waiting_glass" && <WaitingGlass {...ctx} />}
-        {screen === "preparing" && <Preparing {...ctx} />}
-        {screen === "ready" && <Ready {...ctx} />}
-        {screen === "error" && <ErrorScreen now={now} message={message} />}
-        {screen === "cleaning" && <CleaningScreen now={now} progress={progress} message={message} />}
-        {screen === "cleaning_done" && <CleaningDone now={now} />}
+        {!poweredOn && <PoweredOff now={now} />}
+        {poweredOn && screen === "welcome" && <Welcome {...ctx} />}
+        {poweredOn && screen === "experience" && <Experience {...ctx} />}
+        {poweredOn && screen === "catalog" && <Catalog {...ctx} />}
+        {poweredOn && screen === "detail" && <Detail {...ctx} />}
+        {poweredOn && screen === "compose" && <Compose {...ctx} />}
+        {poweredOn && screen === "review" && <Review {...ctx} />}
+        {poweredOn && screen === "waiting_glass" && <WaitingGlass {...ctx} />}
+        {poweredOn && screen === "preparing" && <Preparing {...ctx} />}
+        {poweredOn && screen === "ready" && <Ready {...ctx} />}
+        {poweredOn && screen === "error" && <ErrorScreen now={now} message={message} />}
+        {poweredOn && screen === "cleaning" && <CleaningScreen now={now} progress={progress} message={message} />}
+        {poweredOn && screen === "cleaning_done" && <CleaningDone now={now} />}
 
         {/* Error Modal Overlay */}
         {orderError && (
@@ -291,6 +303,23 @@ function BackChip({ onClick, label = "Back" }: any) {
    Screens
    ============================================================ */
 
+function PoweredOff({ now }: any) {
+  return (
+    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
+      <StatusBar title="Offline" now={now} />
+      <div className="absolute top-10 left-8"><Logo /></div>
+      <div className="w-48 h-48 rounded-full border-4 border-red-500 bg-red-500/10 flex items-center justify-center mb-12 text-red-400">
+        <span className="text-6xl">OFF</span>
+      </div>
+      <h2 className="font-display text-[56px] font-light text-center text-red-400">
+        Machine Powered Off
+      </h2>
+      <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em]">
+        Please ask staff to power on the machine
+      </p>
+    </div>
+  );
+}
 function Welcome({ now, go }: any) {
   return (
     <div className="absolute inset-0">
@@ -506,7 +535,7 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
   );
 }
 
-function Review({ selected, mode, customIngredients, now, go, handleOrder, isSubmitting, machineStatus }: any) {
+function Review({ selected, mode, customIngredients, now, go, handleOrder, isSubmitting, machineStatus, poweredOn }: any) {
   const isCustom = mode === "custom";
   const title = isCustom ? "Custom Mix" : selected?.name;
 
@@ -549,7 +578,7 @@ function Review({ selected, mode, customIngredients, now, go, handleOrder, isSub
             </div>
           )}
 
-          <GoldButton big onClick={handleOrder} disabled={isSubmitting || machineStatus !== "idle"}>
+          <GoldButton big onClick={handleOrder} disabled={!poweredOn || isSubmitting || machineStatus !== "idle"}>
             {isSubmitting ? "PROCESSING..." : "CONFIRM ORDER"}
           </GoldButton>
         </div>

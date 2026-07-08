@@ -44,6 +44,8 @@ export const assignPump = (pumpNum: number, ingredientId: number | null) =>
   fetchApi(`/admin/pumps/${pumpNum}/assign`, { method: "POST", body: JSON.stringify({ ingredient_id: ingredientId }) });
 export const updatePumpFlowRate = (pumpNum: number, flowRate: number) =>
   fetchApi(`/admin/pumps/${pumpNum}/flowrate`, { method: "PUT", body: JSON.stringify({ flow_rate_ml_per_s: flowRate }) });
+export const updatePumpTiming = (pumpNum: number, initialExtraMs: number, reverseMs: number) =>
+  fetchApi(`/admin/pumps/${pumpNum}/timing`, { method: "PUT", body: JSON.stringify({ initial_extra_ms: initialExtraMs, reverse_ms: reverseMs }) });
 
 // Admin - Recipes
 export const getAdminRecipes = () => fetchApi("/admin/recipes");
@@ -77,6 +79,9 @@ export const sendCleanCommand = (trigger: string, mode: string, pump?: number) =
   fetchApi("/admin/clean", { method: "POST", body: JSON.stringify({ trigger, mode, pump }) });
 export const setSimulatorMode = (enabled: boolean) =>
   fetchApi("/admin/mode", { method: "POST", body: JSON.stringify({ simulator: enabled }) });
+export const getPowerState = () => fetchApi("/admin/power");
+export const setPowerState = (poweredOn: boolean) =>
+  fetchApi("/admin/power", { method: "POST", body: JSON.stringify({ powered_on: poweredOn }) });
 
 // Dev
 export const simulateHardwareMessage = (message: any) =>
@@ -89,3 +94,4 @@ export const changePin = (current: string, newPin: string) =>
 // The bypass button in WaitingGlass screen should call this instead of simulateHardwareMessage.
 export const confirmGlass = () =>
   fetchApi("/order/confirm-glass", { method: "POST" });
+

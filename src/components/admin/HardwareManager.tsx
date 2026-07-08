@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Activity, ShieldAlert, Droplet, Cpu, Radio } from "lucide-react";
+import { Activity, ShieldAlert, Droplet, Cpu, Radio, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { cleanSystem, abortOrder } from "@/lib/api";
+import { cleanSystem, abortOrder, getPowerState, setPowerState } from "@/lib/api";
 
 interface HardwareManagerProps {
   machineStatus: string;
@@ -12,6 +12,8 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
   const [cleaning, setCleaning] = useState(false);
   const [isSimulator, setIsSimulator] = useState<boolean | null>(null);
   const [switchingMode, setSwitchingMode] = useState(false);
+  const [poweredOn, setPoweredOn] = useState<boolean | null>(null);
+  const [switchingPower, setSwitchingPower] = useState(false);
 
   const BASE = `http://${window.location.hostname}:5000`;
 
@@ -20,6 +22,9 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
     fetch(`${BASE}/api/admin/mode`)
       .then(r => r.json())
       .then(d => setIsSimulator(d.simulator))
+      .catch(console.error);
+    getPowerState()
+      .then(d => setPoweredOn(d.powered_on))
       .catch(console.error);
   }, []);
 
@@ -45,6 +50,21 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
     } catch (e: any) {
       alert("Mode switch failed: " + e.message);
       setSwitchingMode(false);
+    }
+  };
+  const handlePowerToggle = async (nextPoweredOn: boolean) => {
+    if (machineStatus !== "idle") {
+      alert(`Cannot change power while machine is "${machineStatus}". Wait until idle.`);
+      return;
+    }
+    setSwitchingPower(true);
+    try {
+      const data = await setPowerState(nextPoweredOn);
+      setPoweredOn(data.powered_on);
+    } catch (e: any) {
+      alert("Power change failed: " + (e.message || e));
+    } finally {
+      setSwitchingPower(false);
     }
   };
 
@@ -79,6 +99,41 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
       
       <div className="grid gap-6 md:gap-8 max-w-4xl">
 
+        {/* Machine Power */}
+        <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <div className="flex gap-4 md:gap-6 items-center">
+            <div className={`w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors duration-500 ${
+              poweredOn
+                ? "bg-green-500/20 text-green-400 border-green-500/30"
+                : "bg-red-500/20 text-red-400 border-red-500/30"
+            }`}>
+              <Power className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+            <div>
+              <h3 className="text-xl md:text-2xl font-display font-light mb-1 md:mb-2">
+                {poweredOn === null ? "Loading Power State..." : poweredOn ? "Machine Powered On" : "Machine Powered Off"}
+              </h3>
+              <p className="text-xs md:text-sm text-muted-foreground max-w-md">
+                Customer ordering is enabled only while powered on. The first order after power-on gets each pump's configured extra prime time.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <Button
+              size="lg"
+              onClick={() => handlePowerToggle(!poweredOn)}
+              disabled={switchingPower || poweredOn === null || machineStatus !== "idle"}
+              className={`w-full sm:w-auto rounded-full h-12 md:h-14 px-6 md:px-8 text-sm md:text-lg transition-all ${
+                poweredOn ? "bg-red-500 hover:bg-red-600 text-white" : "bg-green-500 hover:bg-green-400 text-white"
+              } disabled:opacity-50`}
+            >
+              {switchingPower ? "Switching..." : poweredOn ? "Power Off" : "Power On"}
+            </Button>
+            {machineStatus !== "idle" && (
+              <span className="text-xs text-orange-400 mt-1">Machine busy - power unavailable</span>
+            )}
+          </div>
+        </div>
         {/* Simulator / Live Mode Toggle */}
         <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex gap-4 md:gap-6 items-center">
@@ -183,3 +238,5 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
     </div>
   );
 }
+
+

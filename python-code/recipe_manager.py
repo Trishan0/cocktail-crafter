@@ -51,10 +51,12 @@ def resolve_pump_commands(ingredients: list):
         duration_ms = int((amount_ml / flow_rate) * 1000)
 
         commands.append({
-            "pump":        pump_info["pump_number"],
-            "ingredient":  ing_name,
-            "amount_ml":   amount_ml,
-            "duration_ms": duration_ms,
+            "pump":             pump_info["pump_number"],
+            "ingredient":       ing_name,
+            "amount_ml":        amount_ml,
+            "duration_ms":      duration_ms,
+            "initial_extra_ms": int(pump_info.get("initial_extra_ms", 1460)),
+            "reverse_ms":       int(pump_info.get("reverse_ms", 5000)),
         })
 
     if missing:
