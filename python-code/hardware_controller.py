@@ -249,7 +249,7 @@ class HardwareController:
 class SimulatorController(HardwareController):
     """
     Software-only simulation of the ESP32 hardware.
-    Runs the full order lifecycle (including the post-order auto-clean cycle)
+    Runs the full order lifecycle and waits for glass removal before cleaning
     without any physical serial port.
     """
 
@@ -296,7 +296,7 @@ class SimulatorController(HardwareController):
         if powered:
             _handle_status({"type": "STATUS", "status": "idle", "progress": 0, "message": "Machine powered on."})
         else:
-            threading.Thread(target=self._simulate_power_off_clean, daemon=True, name="sim-power-off-clean").start()
+            threading.Thread(target=self._simulate_power_off_reverse, daemon=True, name="sim-power-off-reverse").start()
 
     def send_clean(self, trigger: str = "manual", mode: str = "all", pump: int = None, order_id: int = None, pumps: list = None):
         if trigger == "post_order":
@@ -334,13 +334,12 @@ class SimulatorController(HardwareController):
 
     def _simulate_order_process(self, order_id: int, recipe_name: str, ice: bool):
         """
-        Full lifecycle including the mandatory post-order auto-clean cycle:
-          waiting_glass → dispensing → mixing → pouring → done
-          → reversing → (wait for glass removed) → washing → mixing(shake) → draining → resealing → idle
+        Full lifecycle:
+          waiting_glass -> dispensing -> mixing -> pouring -> done
+          -> wait for glass removal -> washing -> mixing(shake) -> draining -> resealing -> idle
         """
         s = self._set_status
 
-        # ── Order sequence ────────────────────
         s(order_id, "waiting_glass", 0, "Waiting for glass...")
         if self._wait(2):
             return
@@ -372,33 +371,15 @@ class SimulatorController(HardwareController):
         if self._wait(1):
             return
 
-        s(order_id, "done", 100, "Drink is ready! Enjoy!")
-
-        # ── Hold the 'done' screen for the customer to see ────────────────
-        if self._wait(6):
-            return
-
-        # ── Post-order auto-clean cycle ───────
-        # REVERSING: pump lines run backward — starts immediately (glass still present is OK here)
-        s(order_id, "reversing", 0, "Cleaning pump lines...")
-        if self._wait(1):
-            return
-
-        s(order_id, "reversing", 30, "Reversing pump lines...")
-        if self._wait(1.5):
-            return
-
-        # Gate: wait indefinitely for glass to be removed — no timeout by design (PROTOCOL.md §4)
-        print("[SIM] Auto-clean gate: waiting for glass removal...")
-        s(order_id, "reversing", 60, "Please remove your glass to continue cleaning...")
+        s(order_id, "done", 100, "Enjoy your drink! Please remove the glass when finished.")
+        print("[SIM] Waiting for glass removal before cleaning...")
         self._wait_for_glass_removed()
-
         if self._aborted():
             return
 
         _handle_sensor({"type": "SENSOR", "glass_state": "no_glass", "lower_sensor": False, "upper_sensor": False})
 
-        s(order_id, "washing", 0, "Rinsing container with water...")
+        s(order_id, "washing", 0, "Glass removed. Cleaning machine...")
         if self._wait(1):
             return
 
@@ -408,6 +389,10 @@ class SimulatorController(HardwareController):
 
         s(order_id, "washing", 90, "Almost done rinsing...")
         if self._wait(1):
+            return
+
+        s(order_id, "mixing", 70, "Shaking rinse water...")
+        if self._wait(1.5):
             return
 
         s(order_id, "draining", 0, "Draining water...")
@@ -427,17 +412,11 @@ class SimulatorController(HardwareController):
             return
 
         s(None, "idle", 0, "Ready for next order")
-
-    def _simulate_power_off_clean(self):
+    def _simulate_power_off_reverse(self):
         _handle_status({"type": "STATUS", "status": "reversing", "progress": 0, "message": "Reversing pump lines before power off..."})
         time.sleep(2)
-        _handle_status({"type": "STATUS", "status": "washing", "progress": 30, "message": "Rinsing container before shutdown..."})
-        time.sleep(2)
-        _handle_status({"type": "STATUS", "status": "mixing", "progress": 60, "message": "Mixing rinse water..."})
-        time.sleep(1.5)
-        _handle_status({"type": "STATUS", "status": "draining", "progress": 85, "message": "Draining rinse water..."})
-        time.sleep(1)
         _handle_status({"type": "STATUS", "status": "idle", "progress": 0, "message": "Machine powered off."})
+
     def _simulate_manual_clean(self, mode: str, pump: int):
         """Manual admin-triggered line flush — line only, no container wash."""
         pump_desc = f"pump {pump}" if mode == "single" else "all pump lines"
@@ -720,3 +699,5 @@ def create_controller() -> HardwareController:
     if getattr(config, "SIMULATOR_MODE", False):
         return SimulatorController()
     return SerialController()
+
+

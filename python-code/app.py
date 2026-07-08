@@ -632,7 +632,7 @@ def api_get_power():
 def api_set_power():
     """
     Toggle admin-controlled machine power.
-    Power off is allowed only while idle and runs the shutdown reverse/rinse command.
+    Power off is allowed only while idle and reverses the pump lines without running a rinse cycle.
     """
     state = _controller.get_state()
     if state["machine_status"] != "idle":
@@ -765,6 +765,7 @@ if __name__ == "__main__":
         threaded=True,
         use_reloader=False,   # must be False — hardware thread can't handle reloader
     )
+
 
 
 

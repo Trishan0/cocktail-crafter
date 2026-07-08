@@ -73,7 +73,7 @@ S = MachineState   # local alias for readability
 
 LEGAL_TRANSITIONS: dict[MachineState, set[MachineState]] = {
     # ── Idle — can start an order or a manual clean
-    S.IDLE:          {S.WAITING_GLASS, S.REVERSING, S.ERROR, S.ABORTED},
+    S.IDLE:          {S.IDLE, S.WAITING_GLASS, S.REVERSING, S.WASHING, S.MIXING, S.ERROR, S.ABORTED},
 
     # ── Order sequence ────────────────────────
     S.WAITING_GLASS: {S.WAITING_GLASS, S.DISPENSING, S.ERROR, S.ABORTED},
@@ -82,22 +82,22 @@ LEGAL_TRANSITIONS: dict[MachineState, set[MachineState]] = {
     S.DISPENSING:    {S.DISPENSING, S.MIXING, S.DONE, S.ERROR, S.ABORTED},
 
     # MIXING self-loop for same reason; goes to POURING, DONE, or DRAINING (clean)
-    S.MIXING:        {S.MIXING, S.POURING, S.DONE, S.DRAINING, S.ERROR, S.ABORTED},
+    S.MIXING:        {S.MIXING, S.POURING, S.DONE, S.DRAINING, S.IDLE, S.ERROR, S.ABORTED},
 
     S.POURING:       {S.DONE, S.ERROR, S.ABORTED},
 
     # ── Post-order auto-clean sequence ────────
     # DONE can go to REVERSING (auto-clean) or back to IDLE (if no auto-clean)
-    S.DONE:          {S.REVERSING, S.IDLE, S.ERROR, S.ABORTED},
+    S.DONE:          {S.REVERSING, S.WASHING, S.IDLE, S.ERROR, S.ABORTED},
 
     # REVERSING self-loop: two progress updates (0% start, 50% "please remove glass")
     # REVERSING → WASHING: only after glass_state == "no_glass" (gate enforced ESP32-side)
     # REVERSING → IDLE:    end of a manual clean cycle
     S.REVERSING:     {S.REVERSING, S.WASHING, S.IDLE, S.ERROR, S.ABORTED},
 
-    S.WASHING:       {S.MIXING, S.ERROR, S.ABORTED},
-    S.DRAINING:      {S.RESEALING, S.ERROR, S.ABORTED},
-    S.RESEALING:     {S.IDLE, S.ERROR, S.ABORTED},
+    S.WASHING:       {S.WASHING, S.MIXING, S.ERROR, S.ABORTED},
+    S.DRAINING:      {S.DRAINING, S.RESEALING, S.ERROR, S.ABORTED},
+    S.RESEALING:     {S.RESEALING, S.IDLE, S.ERROR, S.ABORTED},
 
     # ── Error / abort recovery ────────────────
     # Return to IDLE only; exact ack mechanism TBD (PROTOCOL.md §4.3 open item)
@@ -169,3 +169,6 @@ def can_accept_order(machine_status: str) -> bool:
     if state is None:
         return False
     return state in ORDER_ALLOWED_STATES
+
+
+
