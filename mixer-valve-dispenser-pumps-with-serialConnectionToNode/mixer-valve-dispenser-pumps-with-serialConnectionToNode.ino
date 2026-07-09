@@ -56,8 +56,8 @@ constexpr int   OSC_TARGET_LEGS      = OSC_TARGET_LOOPS * 2;
 constexpr long  IDX_SEARCH_DISTANCE = 100000;
 constexpr float IDX_SEARCH_SPEED    = 400.0f;
 constexpr float IDX_ACCELERATION    = 5000.0f;
-unsigned long indexWaitTimes[6] = {2000, 2000, 2000, 2000, 2000, 2000};
-constexpr unsigned long IDX_POST_STOP_DELAY_MS = 1000;
+unsigned long indexWaitTimes[6] = {4000, 4000, 4000, 4000, 4000, 4000};
+constexpr unsigned long IDX_POST_STOP_DELAY_MS = 3000;
 
 // Fault blink
 constexpr uint8_t  FAULT_BLINK_COUNT  = 5;
@@ -65,7 +65,7 @@ constexpr uint16_t FAULT_BLINK_ON_MS  = 250;
 constexpr uint16_t FAULT_BLINK_OFF_MS = 250;
 
 // Valve current-sense close
-constexpr float         VALVE_CURRENT_LIMIT_mA  = 600.0f;
+constexpr float         VALVE_CURRENT_LIMIT_mA  = 620.0f;
 constexpr unsigned long VALVE_STARTUP_IGNORE_MS = 500;
 constexpr unsigned long VALVE_OPEN_TIME_MS      = 5300;
 constexpr unsigned long HOME_TO_VALVE_DELAY_MS  = 1000;

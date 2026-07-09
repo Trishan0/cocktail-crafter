@@ -47,7 +47,7 @@ constexpr uint8_t  FAULT_BLINK_COUNT   = 5;
 constexpr uint16_t FAULT_BLINK_ON_MS   = 250;
 constexpr uint16_t FAULT_BLINK_OFF_MS  = 250;
 
-constexpr float         VALVE_CURRENT_LIMIT_mA = 600.0f;
+constexpr float         VALVE_CURRENT_LIMIT_mA = 620.0f;
 constexpr unsigned long VALVE_STARTUP_IGNORE_MS = 500;
 constexpr unsigned long VALVE_OPEN_TIME_MS      = 5300;
 
