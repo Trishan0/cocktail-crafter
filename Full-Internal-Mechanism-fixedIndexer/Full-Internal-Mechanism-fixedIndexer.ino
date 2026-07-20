@@ -3,6 +3,7 @@
 #include <AccelStepper.h>
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_INA219.h>
+#include <Preferences.h>
 
 // UART2 - command relay to nodeMCU
 #define RXD2 18
@@ -42,11 +43,11 @@ constexpr uint8_t LEVEL_SENSOR_PINS[6] = {8, 9, 10, 11, 12, 13};
 // TB6612 valve driver
 constexpr uint8_t STBY_PIN = 4;
 constexpr uint8_t PWMA_PIN = 5;
-constexpr uint8_t AIN1_PIN = 6;
-constexpr uint8_t AIN2_PIN = 7;
+constexpr uint8_t AIN1_PIN = 7;
+constexpr uint8_t AIN2_PIN = 6;
 constexpr uint32_t VALVE_PWM_FREQ       = 20000;
 constexpr uint8_t  VALVE_PWM_RESOLUTION = 8;
-constexpr uint8_t  VALVE_MOTOR_SPEED    = 255;
+constexpr uint8_t  VALVE_MOTOR_SPEED    = 120;
 
 // Oscillator motion
 constexpr long  OSC_HALF_RANGE       = 800;
@@ -60,6 +61,12 @@ constexpr int   OSC_TARGET_LEGS      = OSC_TARGET_LOOPS * 2;
 constexpr long  IDX_SEARCH_DISTANCE = 100000;
 constexpr float IDX_SEARCH_SPEED    = 400.0f;
 constexpr float IDX_ACCELERATION    = 5000.0f;
+
+// Initial position-1 recovery:
+// Search clockwise for no more than two index spacings. If position 1 is
+// not found, reverse and search counterclockwise until it is detected.
+constexpr long IDX_STEPS_BETWEEN_POSITIONS = 204;
+constexpr long IDX_INITIAL_FORWARD_LIMIT = IDX_STEPS_BETWEEN_POSITIONS * 2;
 unsigned long indexWaitTimes[6] = {4000, 4000, 4000, 4000, 4000, 4000};
 constexpr unsigned long IDX_POST_STOP_DELAY_MS = 3000;
 
@@ -68,11 +75,18 @@ constexpr uint8_t  FAULT_BLINK_COUNT  = 5;
 constexpr uint16_t FAULT_BLINK_ON_MS  = 250;
 constexpr uint16_t FAULT_BLINK_OFF_MS = 250;
 
-// Valve current-sense close
-constexpr float         VALVE_CURRENT_LIMIT_mA  = 620.0f;
-constexpr unsigned long VALVE_STARTUP_IGNORE_MS = 500;
-constexpr unsigned long VALVE_OPEN_TIME_MS      = 5300;
-constexpr unsigned long HOME_TO_VALVE_DELAY_MS  = 1000;
+// Pinch-valve control
+// Closing: current-controlled
+constexpr float         VALVE_CLOSE_CURRENT_LIMIT_mA = 200.0f;
+
+// Opening: stop at current limit or maximum time, whichever happens first
+constexpr float         VALVE_OPEN_CURRENT_LIMIT_mA  = 150.0f;
+constexpr unsigned long VALVE_OPEN_TIME_MS            = 2000;
+
+// Ignore the normal motor startup-current surge in both directions
+constexpr unsigned long VALVE_STARTUP_IGNORE_MS       = 500;
+constexpr unsigned long VALVE_CURRENT_SAMPLE_MS       = 50;
+constexpr unsigned long HOME_TO_VALVE_DELAY_MS        = 1000;
 
 Adafruit_MCP23X17 mcp;
 Adafruit_NeoPixel  pixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -80,6 +94,21 @@ AccelStepper       stepperOsc(AccelStepper::DRIVER, OSC_STEP_PIN, OSC_DIR_PIN);
 AccelStepper       stepperIdx(AccelStepper::DRIVER, IDX_STEP_PIN, IDX_DIR_PIN);
 Adafruit_INA219    ina219;
 TwoWire            WireValve = TwoWire(1);
+Preferences          preferences;
+
+// Persistent pinch-valve state stored in ESP32 NVS.
+enum class ValveSavedState : uint8_t
+{
+    UNKNOWN = 0,
+    OPEN,
+    CLOSED,
+    CLOSING,
+    OPENING
+};
+
+ValveSavedState savedValveState = ValveSavedState::UNKNOWN;
+constexpr const char* VALVE_PREF_NAMESPACE = "pinchValve";
+constexpr const char* VALVE_PREF_KEY       = "state";
 
 enum class SystemState
 {
@@ -104,10 +133,13 @@ int  oscLegCount        = 0;
 
 int  idxPosition   = 0;
 bool idxReturning  = false;
+bool idxInitialSearchActive = false;
+bool idxInitialSearchReversed = false;
 unsigned long idxWaitStart = 0;
 unsigned long idxPostStopStart = 0;
 
 unsigned long valveTimerStart = 0;
+unsigned long valveLastCurrentSample = 0;
 
 // ---------------- Hall sensors ----------------
 
@@ -148,6 +180,47 @@ void sendCmd(const char* cmd)
     Serial2.println(cmd);
     Serial.print("TX2: ");
     Serial.println(cmd);
+}
+
+// ---------------- Persistent valve state ----------------
+
+const char* valveStateName(ValveSavedState state)
+{
+    switch (state)
+    {
+        case ValveSavedState::OPEN:    return "OPEN";
+        case ValveSavedState::CLOSED:  return "CLOSED";
+        case ValveSavedState::CLOSING: return "CLOSING";
+        case ValveSavedState::OPENING: return "OPENING";
+        default:                       return "UNKNOWN";
+    }
+}
+
+void saveValveState(ValveSavedState state)
+{
+    savedValveState = state;
+    preferences.putUChar(VALVE_PREF_KEY, static_cast<uint8_t>(state));
+
+    Serial.print("VALVE STATE: ");
+    Serial.println(valveStateName(state));
+}
+
+void initializeValveStateStorage()
+{
+    preferences.begin(VALVE_PREF_NAMESPACE, false);
+
+    uint8_t storedValue = preferences.getUChar(
+        VALVE_PREF_KEY,
+        static_cast<uint8_t>(ValveSavedState::UNKNOWN)
+    );
+
+    if (storedValue > static_cast<uint8_t>(ValveSavedState::OPENING))
+        storedValue = static_cast<uint8_t>(ValveSavedState::UNKNOWN);
+
+    savedValveState = static_cast<ValveSavedState>(storedValue);
+
+    Serial.print("VALVE STORED STATE: ");
+    Serial.println(valveStateName(savedValveState));
 }
 
 // ---------------- Valve helpers ----------------
@@ -197,7 +270,37 @@ void startIdxSearch(bool reverse = false)
     stepperIdx.moveTo(stepperIdx.currentPosition() + delta);
 }
 
+void startInitialIdxSearch()
+{
+    idxInitialSearchActive = true;
+    idxInitialSearchReversed = false;
+
+    // First try clockwise, but only for two index spacings.
+    stepperIdx.moveTo(
+        stepperIdx.currentPosition() + IDX_INITIAL_FORWARD_LIMIT
+    );
+
+    Serial.print("INDEXER: SEARCHING POSITION 1 CLOCKWISE FOR ");
+    Serial.print(IDX_INITIAL_FORWARD_LIMIT);
+    Serial.println(" STEPS");
+}
+
+void reverseInitialIdxSearch()
+{
+    idxInitialSearchReversed = true;
+
+    // Position 1 was not found within the safe clockwise distance.
+    // Search counterclockwise until the position-1 Hall sensor is found.
+    stepperIdx.moveTo(
+        stepperIdx.currentPosition() - IDX_SEARCH_DISTANCE
+    );
+
+    Serial.println("INDEXER: POSITION 1 NOT FOUND, SEARCHING COUNTERCLOCKWISE");
+}
+
 // ---------------- Sequence stages ----------------
+
+void beginIndexerSequence();
 
 void enterIdle(const char* msg)
 {
@@ -207,9 +310,18 @@ void enterIdle(const char* msg)
 
 void beginValveClosing()
 {
+    if (savedValveState == ValveSavedState::CLOSED)
+    {
+        Serial.println("VALVE: ALREADY CLOSED");
+        beginIndexerSequence();
+        return;
+    }
+
     Serial.println("VALVE: CLOSING");
+    saveValveState(ValveSavedState::CLOSING);
     valveClose();
     valveTimerStart = millis();
+    valveLastCurrentSample = 0;
     currentState = SystemState::VALVE_CLOSING;
 }
 
@@ -218,7 +330,7 @@ void beginIndexerSequence()
     Serial.println("INDEXER: STARTING CYCLE");
     idxPosition  = 0;
     idxReturning = false;
-    startIdxSearch();
+    startInitialIdxSearch();
     currentState = SystemState::INDEX_SEARCH;
 }
 
@@ -267,8 +379,10 @@ void beginValveOpenDelay()
 void beginValveOpening()
 {
     Serial.println("VALVE: OPENING");
+    saveValveState(ValveSavedState::OPENING);
     valveOpen();
     valveTimerStart = millis();
+    valveLastCurrentSample = 0;
     currentState = SystemState::VALVE_OPENING;
 }
 
@@ -311,15 +425,27 @@ void reportFatalHomingFailure()
 
 void updateValveClosing()
 {
-    if (millis() - valveTimerStart <= VALVE_STARTUP_IGNORE_MS)
+    unsigned long now = millis();
+    unsigned long runTime = now - valveTimerStart;
+
+    // Ignore the normal startup-current surge.
+    if (runTime <= VALVE_STARTUP_IGNORE_MS)
         return;
 
-    float current = ina219.getCurrent_mA();
-    if (current > VALVE_CURRENT_LIMIT_mA)
+    // Avoid reading the INA219 more often than necessary.
+    if (now - valveLastCurrentSample < VALVE_CURRENT_SAMPLE_MS)
+        return;
+
+    valveLastCurrentSample = now;
+
+    float current = abs(ina219.getCurrent_mA());
+
+    if (current >= VALVE_CLOSE_CURRENT_LIMIT_mA)
     {
         valveStop();
+        saveValveState(ValveSavedState::CLOSED);
         Serial.print("VALVE: CLOSED at ");
-        Serial.print(current);
+        Serial.print(current, 2);
         Serial.println(" mA");
         beginIndexerSequence();
     }
@@ -327,28 +453,52 @@ void updateValveClosing()
 
 void updateIndexSearch()
 {
-    if (!idxHallDetected(idxPosition))
-        return;
-
-    stopIdxImmediately();
-
-    if (idxReturning)
+    if (idxHallDetected(idxPosition))
     {
-        Serial.println("INDEXER: BACK AT POSITION 1");
-        stepperIdx.setCurrentPosition(0);
-        beginOscillationSequence();
+        stopIdxImmediately();
+
+        // The special startup recovery is complete once position 1 is found.
+        if (idxInitialSearchActive)
+        {
+            if (idxInitialSearchReversed)
+                Serial.println("INDEXER: POSITION 1 FOUND COUNTERCLOCKWISE");
+            else
+                Serial.println("INDEXER: POSITION 1 FOUND CLOCKWISE");
+
+            idxInitialSearchActive = false;
+            idxInitialSearchReversed = false;
+            stepperIdx.setCurrentPosition(0);
+        }
+
+        if (idxReturning)
+        {
+            Serial.println("INDEXER: BACK AT POSITION 1");
+            stepperIdx.setCurrentPosition(0);
+            beginOscillationSequence();
+            return;
+        }
+
+        Serial.print("INDEXER: AT POSITION ");
+        Serial.println(idxPosition + 1);
+
+        char cmd[8];
+        snprintf(cmd, sizeof(cmd), "M%dF", idxPosition + 1);
+        sendCmd(cmd);
+
+        idxWaitStart = millis();
+        currentState = SystemState::INDEX_WAIT;
         return;
     }
 
-    Serial.print("INDEXER: AT POSITION ");
-    Serial.println(idxPosition + 1);
-
-    char cmd[8];
-    snprintf(cmd, sizeof(cmd), "M%dF", idxPosition + 1);
-    sendCmd(cmd);
-
-    idxWaitStart = millis();
-    currentState = SystemState::INDEX_WAIT;
+    // Only the first position search has a short clockwise limit.
+    // If that movement finishes without detecting position 1, reverse.
+    if (
+        idxInitialSearchActive &&
+        !idxInitialSearchReversed &&
+        stepperIdx.distanceToGo() == 0)
+    {
+        reverseInitialIdxSearch();
+    }
 }
 
 void updateIndexWait()
@@ -447,9 +597,49 @@ void updateValveOpenDelay()
 
 void updateValveOpening()
 {
-    if (millis() - valveTimerStart >= VALVE_OPEN_TIME_MS)
+    unsigned long now = millis();
+    unsigned long runTime = now - valveTimerStart;
+
+    // Normal time-based completion.
+    if (runTime >= VALVE_OPEN_TIME_MS)
+    {
+        // Capture the motor current immediately before stopping so the
+        // reported value represents the current at the timed stop moment.
+        float currentAtStop = abs(ina219.getCurrent_mA());
+
+        valveStop();
+        saveValveState(ValveSavedState::OPEN);
+
+        Serial.print("VALVE: OPENED after ");
+        Serial.print(runTime);
+        Serial.print(" ms at ");
+        Serial.print(currentAtStop, 2);
+        Serial.println(" mA");
+
+        enterIdle("VALVE OPEN - READY");
+        return;
+    }
+
+    // Ignore the normal startup-current surge.
+    if (runTime <= VALVE_STARTUP_IGNORE_MS)
+        return;
+
+    if (now - valveLastCurrentSample < VALVE_CURRENT_SAMPLE_MS)
+        return;
+
+    valveLastCurrentSample = now;
+
+    float current = abs(ina219.getCurrent_mA());
+
+    // Reaching the opening-side resistance is a normal completion,
+    // not a fault.
+    if (current >= VALVE_OPEN_CURRENT_LIMIT_mA)
     {
         valveStop();
+        saveValveState(ValveSavedState::OPEN);
+        Serial.print("VALVE: OPENED at ");
+        Serial.print(current, 2);
+        Serial.println(" mA");
         enterIdle("VALVE OPEN - READY");
     }
 }
@@ -600,8 +790,11 @@ void initializeValveHardware()
     pinMode(AIN1_PIN, OUTPUT);
     pinMode(AIN2_PIN, OUTPUT);
     digitalWrite(STBY_PIN, HIGH);
+    digitalWrite(AIN1_PIN, LOW);
+    digitalWrite(AIN2_PIN, LOW);
 
     ledcAttach(PWMA_PIN, VALVE_PWM_FREQ, VALVE_PWM_RESOLUTION);
+    ledcWrite(PWMA_PIN, 0);
 
     if (!ina219.begin(&WireValve))
     {
@@ -616,6 +809,7 @@ void setup()
     Serial2.begin(SERIAL2_BAUD, SERIAL_8N1, RXD2, TXD2);
 
     initializeStatusLed();
+    initializeValveStateStorage();
     initializeIoExpander();
     initializeSteppers();
     initializeValveHardware();
@@ -624,6 +818,16 @@ void setup()
     Serial.println("Commands: START (or S), STOP (or X), CHECK_LEVELS");
     Serial.println("Level response: LEVELS:PB0,PB1,PB2,PB3,PB4,PB5");
     Serial.println("Each level value is raw: 1 = HIGH, 0 = LOW");
+    Serial.print("Stored valve state: ");
+    Serial.println(valveStateName(savedValveState));
+    Serial.print("Valve close limit: ");
+    Serial.print(VALVE_CLOSE_CURRENT_LIMIT_mA, 0);
+    Serial.println(" mA");
+    Serial.print("Valve open limit/time: ");
+    Serial.print(VALVE_OPEN_CURRENT_LIMIT_mA, 0);
+    Serial.print(" mA or ");
+    Serial.print(VALVE_OPEN_TIME_MS);
+    Serial.println(" ms");
 }
 
 // ---------------- Main loop ----------------
