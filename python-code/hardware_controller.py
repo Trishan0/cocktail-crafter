@@ -47,6 +47,7 @@ _state = {
     "glass_state": "no_glass",
     "lower_sensor": False,
     "upper_sensor": False,
+    "liquid_levels": {f"ls{i}": 0 for i in range(1, 7)},
 }
 
 _status_callbacks = []   # registered by app.py via register_status_callback()
@@ -457,15 +458,24 @@ class SimulatorController(HardwareController):
 # ─────────────────────────────────────────────
 
 class SerialController(HardwareController):
-    """
-    Real serial communication with the ESP32 over USB/UART.
-    Implements the line-based JSON protocol defined in PROTOCOL.md.
-    """
+    """Real USB serial controller for the ESP32 LOG:/DATA: protocol."""
+
+    IR_POLL_INTERVAL_SECONDS = 0.75
 
     def __init__(self):
         self._serial_port: serial.Serial = None
         self._reader_thread: threading.Thread = None
         self._running = False
+
+        self._command_lock = threading.Lock()
+        self._pending_lock = threading.Lock()
+        self._ir_poll_stop = threading.Event()
+        self._ir_poll_thread: threading.Thread = None
+
+        # The order is sent to the ESP32 first and initialized there. START is
+        # sent only after initialization is confirmed and a valid glass is seen.
+        self._pending_order = None
+        self._active_run_mode = None  # None | "order" | "cleaning" | "reverse"
 
     # ── Lifecycle ─────────────────────────────
 
@@ -490,6 +500,8 @@ class SerialController(HardwareController):
 
     def stop(self):
         self._running = False
+        self._stop_ir_polling()
+
         with _lock:
             port = self._serial_port
 
@@ -502,110 +514,407 @@ class SerialController(HardwareController):
 
     # ── Commands ──────────────────────────────
 
-    def send_order(self, order_id: int, recipe_name: str, pump_commands: list, ice: bool = False, first_after_power_on: bool = False):
-        # Build sparse pumps array — only active pumps, only the fields ESP32 needs.
-        # duration_ms is pre-calculated by the Pi (amount_ml / flow_rate_ml_per_s * 1000).
+    def send_order(self, order_id: int, recipe_name: str, pump_commands: list,
+                   ice: bool = False, first_after_power_on: bool = False):
+        """Initialize an order on the ESP32, then wait for glass detection."""
         pumps_payload = []
         for cmd in pump_commands:
             duration_ms = int(cmd.get("duration_ms", 0) or 0)
             if first_after_power_on:
                 duration_ms += int(cmd.get("initial_extra_ms", 1460) or 0)
             if duration_ms > 0:
-                pumps_payload.append({"i": cmd["pump"], "t": duration_ms})
-        total_ml = sum(float(cmd.get("amount_ml", 0) or 0) for cmd in pump_commands)
+                pumps_payload.append({
+                    "pump": int(cmd["pump"]),
+                    "time_ms": duration_ms,
+                })
+
+        if not pumps_payload:
+            raise ValueError("Order has no valid pump durations.")
+
+        wire_order_id = f"ORD-{order_id}"
         payload = {
-            "cmd":            "ORDER",
-            "order_id":       order_id,
-            "pumps":          pumps_payload,
-            "ice":            1 if ice else 0,
-            "required_glass": "large" if total_ml > 200 else "any",
+            "command": "ORDER",
+            "order_id": wire_order_id,
+            "pumps": pumps_payload,
+            "ice": {"enabled": bool(ice)},
         }
-        self._send(payload)
-        print(f"[SERIAL] ORDER sent #{order_id} {recipe_name} | ice={ice} | first_after_power_on={first_after_power_on}")
-        
-        # Eagerly update Pi-side state so the UI transitions to the WaitingGlass screen
-        # immediately, without waiting for the ESP32 to confirm.
+
+        with self._pending_lock:
+            if self._pending_order is not None:
+                raise RuntimeError("Another order is already pending.")
+            self._pending_order = {
+                "db_order_id": order_id,
+                "wire_order_id": wire_order_id,
+                "recipe_name": recipe_name,
+                "initialized": False,
+                "start_sent": False,
+                "glass_state": "no_glass",
+            }
+
+        self._active_run_mode = "order"
+        self._send_json(payload)
+
         _handle_status({
             "type": "STATUS",
             "machine_status": "waiting_glass",
             "progress": 0,
-            "message": "Waiting for glass...",
+            "message": "Initializing order and waiting for glass...",
             "order_id": order_id,
         })
+        print(f"[SERIAL] ORDER sent {wire_order_id} {recipe_name} | ice={ice}")
 
     def send_abort(self):
-        self._send({"cmd": "ABORT"})
-        print("[SERIAL] ABORT sent.")
-        import db
+        self._stop_ir_polling()
+        self._send_text("STOP")
+        print("[SERIAL] STOP sent.")
         try:
-            db.log_event("hardware_cmd:abort")
-        except Exception as e:
-            print(f"[HW] Event logging error: {e}")
+            import db
+            db.log_event("hardware_cmd:stop")
+        except Exception as exc:
+            print(f"[HW] Event logging error: {exc}")
+
+        with self._pending_lock:
+            self._pending_order = None
+        self._active_run_mode = None
+
+        _handle_status({
+            "type": "STATUS",
+            "status": "aborted",
+            "progress": 0,
+            "message": "Order stopped by user.",
+        })
 
     def send_power(self, powered: bool, reverse_config: list = None):
-        payload = {"cmd": "POWER", "on": 1 if powered else 0}
-        if not powered:
-            payload["reverse"] = reverse_config or []
-        self._send(payload)
-        print(f"[SERIAL] POWER sent {'on' if powered else 'off'}")
-
-    def send_clean(self, trigger: str = "manual", mode: str = "all", pump: int = None, order_id: int = None, pumps: list = None):
-        if trigger == "post_order":
-            payload = {
-                "cmd":      "CLEAN",
-                "trigger":  "post_order",
-                "order_id": order_id,
-                "pumps":    pumps or [],
-            }
-            self._send(payload)
-            print(f"[SERIAL] CLEAN (post_order) → order #{order_id}, pumps {pumps}")
-        elif trigger == "manual":
-            payload = {"cmd": "CLEAN", "trigger": "manual", "mode": mode}
-            if mode == "single" and pump is not None:
-                payload["pump"] = pump
-            self._send(payload)
-            print(f"[SERIAL] CLEAN (manual, {mode}) sent.")
-
-    def send_glass_ok(self):
-        self._send({"cmd": "GLASS_OK"})
-        print("[SERIAL] GLASS_OK sent.")
-
-    # ── Internal send ─────────────────────────
-
-    def _send(self, payload: dict):
-        with _lock:
-            port      = self._serial_port
-            connected = _state["connected"]
-
-        if port is None or not connected:
-            print(f"[SERIAL] WARNING: Not connected. Cannot send: {payload}")
+        # The current ESP32 firmware has no POWER command. Power-off performs
+        # the implemented reverse-pumps maintenance sequence.
+        if powered:
+            print("[SERIAL] Soft power enabled on Pi; no ESP32 command required.")
             return
 
-        try:
-            line = json.dumps(payload) + "\n"
-            port.write(line.encode("utf-8"))
-            port.flush()
-        except serial.SerialException as e:
-            print(f"[SERIAL] Send error: {e}")
+        self._active_run_mode = "reverse"
+        self._send_text("REVERSE_PUMPS")
+        print("[SERIAL] REVERSE_PUMPS sent for power-off.")
+
+    def send_clean(self, trigger: str = "manual", mode: str = "all",
+                   pump: int = None, order_id: int = None, pumps: list = None):
+        if trigger != "manual":
+            print("[SERIAL] Ignoring obsolete post-order CLEAN request.")
+            return
+
+        self._active_run_mode = "cleaning"
+        self._send_text("CLEAN")
+        print("[SERIAL] CLEAN sent.")
+
+    def send_glass_ok(self):
+        # Retained for interface compatibility. The real flow uses CHECK_IR.
+        print("[SERIAL] GLASS_OK bypass is not used; requesting CHECK_IR instead.")
+        self._send_text("CHECK_IR")
+
+    # ── Serial output ─────────────────────────
+
+    def _send_json(self, payload: dict):
+        self._write_line(json.dumps(payload, separators=(",", ":")))
+
+    def _send_text(self, command: str):
+        self._write_line(command.strip())
+
+    def _write_line(self, line: str):
+        with self._command_lock:
             with _lock:
-                _state["connected"] = False
+                port = self._serial_port
+                connected = _state["connected"]
+
+            if port is None or not connected:
+                raise ConnectionError(f"ESP32 is not connected; cannot send {line!r}")
+
+            try:
+                port.write((line + "\n").encode("utf-8"))
+                port.flush()
+            except serial.SerialException as exc:
+                with _lock:
+                    _state["connected"] = False
+                raise ConnectionError(f"ESP32 serial send failed: {exc}") from exc
+
+    # ── IR glass polling ──────────────────────
+
+    def _start_ir_polling(self):
+        if self._ir_poll_thread and self._ir_poll_thread.is_alive():
+            return
+
+        self._ir_poll_stop.clear()
+        self._ir_poll_thread = threading.Thread(
+            target=self._ir_poll_loop,
+            daemon=True,
+            name="esp32-ir-poll",
+        )
+        self._ir_poll_thread.start()
+
+    def _stop_ir_polling(self):
+        self._ir_poll_stop.set()
+
+    def _ir_poll_loop(self):
+        print("[SERIAL] Starting CHECK_IR polling.")
+        while self._running and not self._ir_poll_stop.is_set():
+            with self._pending_lock:
+                pending = dict(self._pending_order) if self._pending_order else None
+
+            if not pending or pending.get("start_sent"):
+                break
+
+            try:
+                self._send_text("CHECK_IR")
+            except ConnectionError as exc:
+                print(f"[SERIAL] CHECK_IR send failed: {exc}")
+
+            self._ir_poll_stop.wait(self.IR_POLL_INTERVAL_SECONDS)
+
+        print("[SERIAL] CHECK_IR polling stopped.")
+
+    @staticmethod
+    def _classify_glass(upper_raw: int, lower_raw: int) -> str:
+        # Explicit active-low mapping supplied by the mechanism design.
+        if upper_raw == 1 and lower_raw == 1:
+            return "no_glass"
+        if upper_raw == 1 and lower_raw == 0:
+            return "small_glass"
+        if upper_raw == 0 and lower_raw == 0:
+            return "large_glass"
+        return "invalid"
+
+    def _handle_ir_response(self, data: dict):
+        try:
+            upper_raw = int(data["upper"])
+            lower_raw = int(data["lower"])
+        except (KeyError, TypeError, ValueError):
+            print(f"[SERIAL] Invalid CHECK_IR response: {data}")
+            return
+
+        glass_state = self._classify_glass(upper_raw, lower_raw)
+        detected = glass_state in {"small_glass", "large_glass"}
+
+        _handle_sensor({
+            "type": "SENSOR",
+            "glass_state": glass_state,
+            "upper_sensor": upper_raw == 0,
+            "lower_sensor": lower_raw == 0,
+            "upper_raw": upper_raw,
+            "lower_raw": lower_raw,
+        })
+
+        if glass_state == "invalid":
+            print("[SERIAL] Invalid IR combination upper=0 lower=1; START withheld.")
+            return
+
+        if not detected:
+            return
+
+        with self._pending_lock:
+            pending = self._pending_order
+            if not pending:
+                return
+
+            pending["glass_state"] = glass_state
+            if not pending.get("initialized") or pending.get("start_sent"):
+                return
+
+            pending["start_sent"] = True
+            db_order_id = pending["db_order_id"]
+
+        self._stop_ir_polling()
+        self._send_text("START")
+        print(f"[SERIAL] Glass detected ({glass_state}); START sent for order #{db_order_id}.")
+
+        _handle_status({
+            "type": "STATUS",
+            "status": "dispensing",
+            "order_id": db_order_id,
+            "progress": 1,
+            "message": f"{glass_state.replace('_', ' ').title()} detected. Starting order...",
+        })
+
+    # ── Incoming DATA messages ────────────────
+
+    def _handle_response(self, data: dict):
+        command = str(data.get("command", "")).upper()
+
+        if command == "ORDER":
+            status = str(data.get("status", "")).lower()
+            wire_order_id = str(data.get("order_id", ""))
+
+            with self._pending_lock:
+                pending = self._pending_order
+                if not pending:
+                    print(f"[SERIAL] Unexpected ORDER response with no pending order: {data}")
+                    return
+                expected = pending["wire_order_id"]
+
+                if wire_order_id and wire_order_id != expected:
+                    print(f"[SERIAL] ORDER response mismatch: expected {expected}, got {wire_order_id}")
+                    return
+
+                if status == "initialized":
+                    pending["initialized"] = True
+                    db_order_id = pending["db_order_id"]
+                else:
+                    reason = str(data.get("reason", "unknown"))
+                    db_order_id = pending["db_order_id"]
+                    self._pending_order = None
+
+            if status == "initialized":
+                print(f"[SERIAL] ORDER {expected} initialized; waiting for glass.")
+                _handle_status({
+                    "type": "STATUS",
+                    "status": "waiting_glass",
+                    "order_id": db_order_id,
+                    "progress": 0,
+                    "message": "Order initialized. Waiting for glass...",
+                })
+                self._start_ir_polling()
+            else:
+                self._active_run_mode = None
+                print(f"[SERIAL] ORDER {expected} rejected: {reason}")
+                try:
+                    import db
+                    db.update_order_status(db_order_id, "error")
+                    db.log_event("order:rejected", f"Order #{db_order_id}: {reason}")
+                except Exception as exc:
+                    print(f"[HW] Database update error: {exc}")
+                _handle_status({
+                    "type": "STATUS",
+                    "status": "error",
+                    "order_id": db_order_id,
+                    "progress": 0,
+                    "message": f"ESP32 rejected order: {reason}",
+                })
+            return
+
+        if command == "CHECK_IR":
+            self._handle_ir_response(data)
+            return
+
+        if command == "CHECK_LEVELS":
+            levels = {f"ls{i}": int(data.get(f"ls{i}", 0)) for i in range(1, 7)}
+            with _lock:
+                _state["liquid_levels"] = levels
+            print(f"[SERIAL] LEVELS {levels}")
+            return
+
+        print(f"[SERIAL] Unhandled response: {data}")
+
+    def _handle_system_event(self, data: dict):
+        event = str(data.get("event", "")).lower()
+        action = str(data.get("action", "")).lower()
+
+        if event == "ready":
+            print("[SERIAL] ESP32 ready.")
+            return
+
+        if event == "pump":
+            pump = data.get("pump")
+            if action == "forward":
+                with self._pending_lock:
+                    order_id = self._pending_order.get("db_order_id") if self._pending_order else None
+                _handle_status({
+                    "type": "STATUS",
+                    "status": "dispensing",
+                    "order_id": order_id,
+                    "progress": 25,
+                    "message": f"Dispensing pump {pump}...",
+                })
+            return
+
+        if event == "mixing":
+            with self._pending_lock:
+                order_id = self._pending_order.get("db_order_id") if self._pending_order else None
+
+            if action == "started":
+                _handle_status({
+                    "type": "STATUS",
+                    "status": "mixing",
+                    "order_id": order_id,
+                    "progress": 70,
+                    "message": "Mixing..." if self._active_run_mode == "order" else "Cleaning mix...",
+                })
+            elif action == "stopped":
+                next_state = "pouring" if self._active_run_mode == "order" else "draining"
+                _handle_status({
+                    "type": "STATUS",
+                    "status": next_state,
+                    "order_id": order_id,
+                    "progress": 90,
+                    "message": "Opening valve..." if self._active_run_mode == "order" else "Draining cleaning water...",
+                })
+            return
+
+        if event == "valve" and action == "opened":
+            if self._active_run_mode == "order":
+                with self._pending_lock:
+                    order_id = self._pending_order.get("db_order_id") if self._pending_order else None
+                _handle_status({
+                    "type": "STATUS",
+                    "status": "done",
+                    "order_id": order_id,
+                    "progress": 100,
+                    "message": "Drink completed.",
+                })
+                _handle_status({
+                    "type": "STATUS",
+                    "status": "idle",
+                    "order_id": order_id,
+                    "progress": 0,
+                    "message": "Ready",
+                })
+                with self._pending_lock:
+                    self._pending_order = None
+                self._active_run_mode = None
+            elif self._active_run_mode == "cleaning":
+                _handle_status({
+                    "type": "STATUS",
+                    "status": "resealing",
+                    "progress": 95,
+                    "message": "Finishing cleaning...",
+                })
+            return
+
+        if event == "reverse_pumps":
+            if action == "started":
+                self._active_run_mode = "reverse"
+                _handle_status({"type": "STATUS", "status": "reversing", "progress": 0,
+                                "message": "Reversing pump lines..."})
+            elif action == "finished":
+                _handle_status({"type": "STATUS", "status": "idle", "progress": 0,
+                                "message": "Pump reversing finished."})
+                self._active_run_mode = None
+            return
+
+        if event == "cleaning":
+            if action == "started":
+                self._active_run_mode = "cleaning"
+                _handle_status({"type": "STATUS", "status": "washing", "progress": 0,
+                                "message": "Cleaning started."})
+            elif action == "finished":
+                _handle_status({"type": "STATUS", "status": "idle", "progress": 0,
+                                "message": "Cleaning finished."})
+                self._active_run_mode = None
+            return
+
+        print(f"[SERIAL] Unhandled system event: {data}")
 
     # ── Reader loop ───────────────────────────
 
     def _reader_loop(self):
-        """Background thread: reads JSON lines from the ESP32 and dispatches them."""
         while self._running:
             with _lock:
                 port = self._serial_port
 
             if port is None:
-                time.sleep(0.5)
+                self._reconnect()
                 continue
 
             try:
-                raw = port.readline()   # blocks up to SERIAL_TIMEOUT seconds
+                raw = port.readline()
                 if not raw:
-                    continue            # timeout — no data, loop again
+                    continue
 
                 line = raw.decode("utf-8", errors="ignore").strip()
                 if not line:
@@ -615,55 +924,69 @@ class SerialController(HardwareController):
                     _state["last_seen"] = datetime.now().isoformat()
                     _state["connected"] = True
 
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    print(f"[SERIAL] Non-JSON from ESP32: {line!r}")
+                if line.startswith("LOG:"):
+                    print(f"[ESP32] {line[4:]}")
                     continue
 
-                msg_type = data.get("type", "").upper()
+                if not line.startswith("DATA:"):
+                    print(f"[SERIAL] Unclassified ESP32 line: {line!r}")
+                    continue
 
-                if msg_type == "STATUS":
-                    _handle_status(data)
-                elif msg_type == "SENSOR":
-                    _handle_sensor(data)
+                json_text = line[5:]
+                try:
+                    data = json.loads(json_text)
+                except json.JSONDecodeError as exc:
+                    print(f"[SERIAL] Invalid DATA JSON {json_text!r}: {exc}")
+                    continue
+
+                message_type = str(data.get("type", "")).lower()
+                if message_type == "response":
+                    self._handle_response(data)
+                elif message_type == "system":
+                    self._handle_system_event(data)
                 else:
-                    print(f"[SERIAL] Unknown message type: {line!r}")
+                    print(f"[SERIAL] Unknown DATA message type: {data}")
 
-            except serial.SerialException as e:
-                print(f"[SERIAL] Read error: {e} — attempting reconnect...")
+            except serial.SerialException as exc:
+                print(f"[SERIAL] Read error: {exc} — attempting reconnect...")
                 with _lock:
                     _state["connected"] = False
+                self._stop_ir_polling()
                 self._reconnect()
-            except Exception as e:
-                print(f"[SERIAL] Unexpected reader error: {e}")
+            except Exception as exc:
+                print(f"[SERIAL] Unexpected reader error: {exc}")
                 time.sleep(0.1)
 
     # ── Port management ───────────────────────
 
     def _open_port(self) -> serial.Serial:
-        """Open the configured serial port. Returns port object or None on failure."""
         port_to_try = config.SERIAL_PORT
-
-        # Auto-detect COM port if the configured one isn't available
         ports = list(serial.tools.list_ports.comports())
         if not any(p.device == port_to_try for p in ports) and ports:
-            port_to_try = ports[0].device
+            usb_candidates = [
+                p.device for p in ports
+                if any(keyword in (p.description or "").lower()
+                       for keyword in ("usb", "uart", "cp210", "ch340", "esp32"))
+            ]
+            if usb_candidates:
+                port_to_try = usb_candidates[0]
 
         try:
             port = serial.Serial(
                 port=port_to_try,
                 baudrate=config.SERIAL_BAUDRATE,
                 timeout=config.SERIAL_TIMEOUT,
+                write_timeout=2,
             )
+            time.sleep(2)
+            port.reset_input_buffer()
             print(f"[SERIAL] Connected to {port_to_try} @ {config.SERIAL_BAUDRATE} baud")
             return port
-        except serial.SerialException as e:
-            print(f"[SERIAL] Cannot open {port_to_try}: {e}")
+        except serial.SerialException as exc:
+            print(f"[SERIAL] Cannot open {port_to_try}: {exc}")
             return None
 
     def _reconnect(self):
-        """Close and reopen the serial port, retrying every 3 seconds."""
         with _lock:
             if self._serial_port is not None:
                 try:
@@ -678,14 +1001,12 @@ class SerialController(HardwareController):
             port = self._open_port()
             if port:
                 with _lock:
-                    self._serial_port   = port
+                    self._serial_port = port
                     _state["connected"] = True
                 print("[SERIAL] Reconnected successfully.")
                 return
-            else:
-                with _lock:
-                    _state["connected"] = False
-
+            with _lock:
+                _state["connected"] = False
 
 # ─────────────────────────────────────────────
 #  FACTORY

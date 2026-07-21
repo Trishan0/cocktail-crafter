@@ -203,17 +203,16 @@ def api_dev_simulate_message():
 
 @app.route("/api/order/confirm-glass", methods=["POST"])
 def api_confirm_glass():
-    """
-    Operator confirms a glass is in place (bypass button).
-    Sends GLASS_OK to the ESP32.
-    Only works when the machine is in the waiting_glass state.
-    """
+    """Request an immediate IR check; START remains sensor-controlled."""
     state = _controller.get_state()
     if state["machine_status"] != "waiting_glass":
         return jsonify({"error": f"Machine is not waiting for glass (current: {state['machine_status']})."}), 409
-    
-    _controller.send_glass_ok()
-    return jsonify({"success": True, "message": "Glass confirmed — dispensing."})
+
+    try:
+        _controller.send_glass_ok()  # compatibility method now sends CHECK_IR
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"success": True, "message": "Glass sensor check requested."})
 
 # ─────────────────────────────────────────────
 #  CUSTOMER API
@@ -265,14 +264,19 @@ def api_place_order():
 
     first_after_power_on = bool(db.get_setting("first_order_after_power_on", False))
 
-    # Send to ESP32 (or simulator)
-    _controller.send_order(
-        order_id=order["order_id"],
-        recipe_name=order["recipe_name"],
-        pump_commands=order["pump_commands"],
-        ice=ice,
-        first_after_power_on=first_after_power_on,
-    )
+    # Initialize the order on the ESP32. The controller waits for the
+    # initialization response, polls CHECK_IR, and sends START after detection.
+    try:
+        _controller.send_order(
+            order_id=order["order_id"],
+            recipe_name=order["recipe_name"],
+            pump_commands=order["pump_commands"],
+            ice=ice,
+            first_after_power_on=first_after_power_on,
+        )
+    except Exception as exc:
+        recipe_manager.complete_order(order["order_id"], "error")
+        return jsonify({"error": f"Could not initialize order: {exc}"}), 503
     if first_after_power_on:
         db.mark_order_first_after_power_on(order["order_id"])
         db.set_setting("first_order_after_power_on", False)
@@ -323,13 +327,17 @@ def api_place_custom_order():
         return jsonify({"error": error}), 400
 
     first_after_power_on = bool(db.get_setting("first_order_after_power_on", False))
-    _controller.send_order(
-        order_id=order["order_id"],
-        recipe_name=order["recipe_name"],
-        pump_commands=order["pump_commands"],
-        ice=ice,
-        first_after_power_on=first_after_power_on,
-    )
+    try:
+        _controller.send_order(
+            order_id=order["order_id"],
+            recipe_name=order["recipe_name"],
+            pump_commands=order["pump_commands"],
+            ice=ice,
+            first_after_power_on=first_after_power_on,
+        )
+    except Exception as exc:
+        recipe_manager.complete_order(order["order_id"], "error")
+        return jsonify({"error": f"Could not initialize order: {exc}"}), 503
     if first_after_power_on:
         db.mark_order_first_after_power_on(order["order_id"])
         db.set_setting("first_order_after_power_on", False)
@@ -669,27 +677,19 @@ def api_get_events():
 
 @app.route("/api/admin/clean", methods=["POST"])
 def api_clean():
-    """
-    Trigger a manual cleaning cycle (admin-initiated, line-only — no container wash).
-    Body: {"mode": "all"} or {"mode": "single", "pump": 3}
-    Only allowed when machine_status == "idle".
-    """
+    """Run the ESP32 full CLEAN sequence. Only allowed while idle."""
     state = _controller.get_state()
     if state["machine_status"] != "idle":
         return jsonify({
             "error": f"Cannot clean while machine is {state['machine_status']}. Wait until idle."
         }), 409
 
-    data = request.get_json() or {}
-    mode = data.get("mode", "all")
-    pump = data.get("pump")
+    try:
+        _controller.send_clean()
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
 
-    if mode == "single" and pump is None:
-        return jsonify({"error": "pump number is required when mode is 'single'."}), 400
-
-    _controller.send_clean(trigger="manual", mode=mode, pump=pump)
-    pump_desc = f"pump {pump}" if mode == "single" else "all pumps"
-    return jsonify({"success": True, "message": f"Manual clean ({pump_desc}) started."})
+    return jsonify({"success": True, "message": "Full cleaning sequence started."})
 
 
 def get_admin_pin():
