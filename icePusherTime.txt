@@ -1,0 +1,1 @@
+Ice Pusher time is : 26000ms (26s)
