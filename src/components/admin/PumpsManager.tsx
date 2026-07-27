@@ -20,8 +20,6 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
   const [assignId, setAssignId] = useState<string>("none");
   const [flowRate, setFlowRate] = useState<string>("1.5");
   const [currentVolume, setCurrentVolume] = useState<string>("0");
-  const [baselineVolume, setBaselineVolume] = useState<string>("0");
-  const [aboveBaselineValue, setAboveBaselineValue] = useState<string>("unknown");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const loadData = async () => {
@@ -43,37 +41,26 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
     setAssignId(pump.ingredient_id ? pump.ingredient_id.toString() : "none");
     setFlowRate(pump.flow_rate_ml_per_s.toString());
     setCurrentVolume((pump.current_volume_ml ?? 0).toString());
-    setBaselineVolume((pump.baseline_volume_ml ?? 0).toString());
-    setAboveBaselineValue(
-      pump.level_above_baseline_value === 0 || pump.level_above_baseline_value === 1
-        ? pump.level_above_baseline_value.toString()
-        : "unknown"
-    );
     setIsDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!selectedPump) return;
     const current = parseFloat(currentVolume);
-    const baseline = parseFloat(baselineVolume);
     const flow = parseFloat(flowRate);
-    if (!Number.isFinite(current) || !Number.isFinite(baseline) || current < 0 || baseline < 0 || current < baseline) {
-      alert("Enter a current volume at or above the non-negative baseline.");
+    if (!Number.isFinite(current) || current < 0) {
+      alert("Enter a non-negative current bottle volume.");
       return;
     }
     if (!Number.isFinite(flow) || flow <= 0) {
       alert("Enter a positive calibrated flow rate.");
       return;
     }
-    if (aboveBaselineValue !== "0" && aboveBaselineValue !== "1") {
-      alert("Set whether HIGH or LOW means liquid is above this pump's baseline.");
-      return;
-    }
     try {
       const ingId = assignId === "none" ? null : parseInt(assignId);
       await assignPump(selectedPump.pump_number, ingId);
       await updatePumpFlowRate(selectedPump.pump_number, flow);
-      await updatePumpInventory(selectedPump.pump_number, current, baseline, Number(aboveBaselineValue) as 0 | 1);
+      await updatePumpInventory(selectedPump.pump_number, current);
       setIsDialogOpen(false);
       loadData();
     } catch (e) {
@@ -115,13 +102,7 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
                     Flow: {pump.flow_rate_ml_per_s} ml/s
                   </div>
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    Est.: {pump.current_volume_ml ?? 0} ml · Baseline: {pump.baseline_volume_ml ?? 0} ml
-                  </div>
-                  <div className={`text-[10px] uppercase tracking-widest ${
-                    pump.level_above_baseline_value === 0 || pump.level_above_baseline_value === 1
-                      ? "text-cyan-300" : "text-orange-300"
-                  }`}>
-                    Sensor above baseline: {pump.level_above_baseline_value === 1 ? "HIGH" : pump.level_above_baseline_value === 0 ? "LOW" : "not configured"}
+                    Estimated bottle volume: {pump.current_volume_ml ?? 0} ml
                   </div>
                   </div>
                 )}
@@ -162,29 +143,11 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
               <Input type="number" step="0.1" min="0.1" value={flowRate} onChange={e => setFlowRate(e.target.value)} className="h-12 bg-white/5 border-white/10" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Current Volume (ml)</Label>
-                <Input type="number" step="1" min="0" value={currentVolume} onChange={e => setCurrentVolume(e.target.value)} className="h-12 bg-white/5 border-white/10" />
-              </div>
-              <div className="grid gap-2">
-                <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Sensor Baseline (ml)</Label>
-                <Input type="number" step="1" min="0" value={baselineVolume} onChange={e => setBaselineVolume(e.target.value)} className="h-12 bg-white/5 border-white/10" />
-              </div>
-            </div>
-
             <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Raw value when liquid is above baseline</Label>
-              <Select value={aboveBaselineValue} onValueChange={setAboveBaselineValue}>
-                <SelectTrigger className="h-12 bg-white/5 border-white/10"><SelectValue placeholder="Calibrate the sensor first" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unknown">Not configured</SelectItem>
-                  <SelectItem value="1">HIGH (1)</SelectItem>
-                  <SelectItem value="0">LOW (0)</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Current Bottle Volume (ml)</Label>
+              <Input type="number" step="1" min="0" value={currentVolume} onChange={e => setCurrentVolume(e.target.value)} className="h-12 bg-white/5 border-white/10" />
               <p className="text-xs leading-5 text-muted-foreground">
-                Fill above the physical baseline, press Check Levels in Hardware, and save the observed raw value here. Orders require this signal and enough tracked millilitres for the recipe.
+                Enter the measured amount whenever the bottle is installed or refilled. Completed drinks deduct their recipe amount automatically.
               </p>
             </div>
 

@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Activity, ShieldAlert, Droplet, Cpu, Radio, Power, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { cleanSystem, abortOrder, getPowerState, getStatus, queryHardware, setPowerState } from "@/lib/api";
+import { cleanSystem, abortOrder, getLiquidLevelConfig, getPowerState, getStatus, queryHardware, setLiquidLevelConfig, setPowerState } from "@/lib/api";
 
 interface HardwareManagerProps {
   machineStatus: string;
@@ -19,6 +18,8 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
   );
   const [checkingLevels, setCheckingLevels] = useState(false);
   const [levelError, setLevelError] = useState<string | null>(null);
+  const [levelAboveValue, setLevelAboveValue] = useState<number | null>(null);
+  const [savingLevelPolarity, setSavingLevelPolarity] = useState(false);
 
   const BASE = `http://${window.location.hostname}:5000`;
 
@@ -33,6 +34,11 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
       .catch(console.error);
     getStatus()
       .then(d => updateLiquidLevels(d.liquid_levels))
+      .catch(console.error);
+    getLiquidLevelConfig()
+      .then(d => {
+        setLevelAboveValue(d.above_value === 0 || d.above_value === 1 ? d.above_value : null);
+      })
       .catch(console.error);
   }, []);
 
@@ -128,6 +134,19 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
     } catch (e: any) {
       setCheckingLevels(false);
       setLevelError(e.message || "Could not request liquid-level readings.");
+    }
+  };
+
+  const handleSetLevelPolarity = async (value: 0 | 1) => {
+    setSavingLevelPolarity(true);
+    setLevelError(null);
+    try {
+      const data = await setLiquidLevelConfig(value);
+      setLevelAboveValue(data.above_value);
+    } catch (e: any) {
+      setLevelError(e.message || "Could not save the shared sensor calibration.");
+    } finally {
+      setSavingLevelPolarity(false);
     }
   };
 
@@ -242,7 +261,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
               <div>
                 <h3 className="text-xl md:text-2xl font-display font-light mb-1 md:mb-2">Liquid-Level Sensors</h3>
                 <p className="text-xs md:text-sm text-muted-foreground max-w-xl">
-                  Reads LS1–LS6 from the ESP32 MCP23017. Values are raw electrical inputs: 1 = HIGH and 0 = LOW.
+                  All six sensors share one fixed physical low-level line. Values are raw: 1 = HIGH and 0 = LOW.
                 </p>
               </div>
             </div>
@@ -274,8 +293,25 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
               );
             })}
           </div>
-          <p className="mt-5 text-xs text-muted-foreground">
-            These are not labelled full/empty because the firmware handoff requires the installed sensor polarity and physical meaning to be verified first.
+          <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-3 text-xs text-muted-foreground">
+            <span>When a bottle is above the fixed line, its shared raw value is:</span>
+            <div className="flex gap-2">
+              {[1, 0].map(value => (
+                <Button
+                  key={value}
+                  size="sm"
+                  variant={levelAboveValue === value ? "default" : "outline"}
+                  disabled={savingLevelPolarity}
+                  onClick={() => handleSetLevelPolarity(value as 0 | 1)}
+                  className="rounded-full"
+                >
+                  {value === 1 ? "HIGH (1)" : "LOW (0)"}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Fill a bottle above the fixed line, press Check Levels, then save the matching value once. Every order uses this shared calibration plus the current bottle amount saved in Pump Configuration.
           </p>
           {levelError && <p className="mt-3 text-sm text-red-400">{levelError}</p>}
         </div>

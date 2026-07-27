@@ -146,12 +146,13 @@ def validate_liquid_availability(pump_commands: list, liquid_levels: dict):
     """Validate only the pumps used by an order against sensor + volume data.
 
     ``CHECK_LEVELS`` always returns six raw values, but unrelated pumps are
-    intentionally ignored. A pump must (1) physically read above its configured
-    baseline and (2) have enough admin-tracked volume for this drink. The
-    baseline is a start-of-order threshold; it is not an additional amount that
-    must remain after dispensing.
+    intentionally ignored. A pump must (1) physically read above the one fixed
+    sensor line shared by all bottles and (2) have enough admin-tracked volume
+    for this drink. The physical line is not an additional amount that must
+    remain after dispensing.
     """
     pump_configs = {int(p["pump_number"]): p for p in db.get_all_pumps()}
+    above_value = db.get_setting("liquid_level_above_value")
     errors = []
 
     for command in pump_commands:
@@ -163,21 +164,17 @@ def validate_liquid_availability(pump_commands: list, liquid_levels: dict):
             continue
 
         ingredient = pump.get("ingredient_name") or f"Pump {pump_number}"
-        baseline_ml = float(pump.get("baseline_volume_ml") or 0)
         current_ml = float(pump.get("current_volume_ml") or 0)
-        above_value = pump.get("level_above_baseline_value")
         raw_level = liquid_levels.get(f"ls{pump_number}")
 
         if above_value not in (0, 1):
-            errors.append(f"{ingredient} (pump {pump_number}) has no liquid-sensor polarity configured.")
+            errors.append("The shared liquid-level sensor polarity is not configured in Admin Hardware.")
         elif raw_level not in (0, 1):
             errors.append(f"{ingredient} (pump {pump_number}) returned no valid liquid-level reading.")
         elif raw_level != above_value:
-            errors.append(f"{ingredient} (pump {pump_number}) is not above its {baseline_ml:g} ml baseline.")
+            errors.append(f"{ingredient} (pump {pump_number}) is below its fixed liquid-level sensor line.")
 
-        if current_ml < baseline_ml:
-            errors.append(f"{ingredient} (pump {pump_number}) estimate is below its {baseline_ml:g} ml baseline.")
-        elif current_ml < required_ml:
+        if current_ml < required_ml:
             errors.append(
                 f"{ingredient} (pump {pump_number}) has an estimated {current_ml:g} ml, "
                 f"but this drink needs {required_ml:g} ml."

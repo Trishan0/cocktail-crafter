@@ -47,16 +47,16 @@ export const updatePumpFlowRate = (pumpNum: number, flowRate: number) =>
 export const updatePumpInventory = (
   pumpNum: number,
   currentVolumeMl: number,
-  baselineVolumeMl: number,
-  levelAboveBaselineValue: 0 | 1,
 ) => fetchApi(`/admin/pumps/${pumpNum}/inventory`, {
   method: "PUT",
-  body: JSON.stringify({
-    current_volume_ml: currentVolumeMl,
-    baseline_volume_ml: baselineVolumeMl,
-    level_above_baseline_value: levelAboveBaselineValue,
-  }),
+  body: JSON.stringify({ current_volume_ml: currentVolumeMl }),
 });
+export const getLiquidLevelConfig = () => fetchApi("/admin/hardware/liquid-level-config");
+export const setLiquidLevelConfig = (aboveValue: 0 | 1) =>
+  fetchApi("/admin/hardware/liquid-level-config", {
+    method: "PUT",
+    body: JSON.stringify({ above_value: aboveValue }),
+  });
 // Admin - Recipes
 export const getAdminRecipes = () => fetchApi("/admin/recipes");
 export const createRecipe = (recipe: any) => fetchApi("/admin/recipes", { method: "POST", body: JSON.stringify(recipe) });

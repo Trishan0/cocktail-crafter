@@ -55,8 +55,6 @@ def init_db():
                 ingredient_id       INTEGER REFERENCES ingredients(id) ON DELETE SET NULL,
                 flow_rate_ml_per_s  REAL    NOT NULL DEFAULT 1.5,
                 current_volume_ml  REAL    NOT NULL DEFAULT 0,
-                baseline_volume_ml REAL    NOT NULL DEFAULT 0,
-                level_above_baseline_value INTEGER,
                 is_active           INTEGER NOT NULL DEFAULT 1
             );
 
@@ -123,13 +121,11 @@ def init_db():
             conn.execute("ALTER TABLE orders ADD COLUMN ingredients_snapshot TEXT;")
         except sqlite3.OperationalError:
             pass
-        # Inventory is a Pi-side estimate. The ESP32 only provides a binary
-        # sensor reading at a configured physical baseline, not millilitre
-        # measurements, so existing pumps deliberately start unconfigured.
+        # Keep current inventory for existing databases. Legacy per-pump
+        # baseline/polarity columns from an earlier implementation are ignored:
+        # the installed hardware has one shared physical sensor height.
         for column, definition in (
             ("current_volume_ml", "REAL NOT NULL DEFAULT 0"),
-            ("baseline_volume_ml", "REAL NOT NULL DEFAULT 0"),
-            ("level_above_baseline_value", "INTEGER"),
         ):
             try:
                 conn.execute(f"ALTER TABLE pumps ADD COLUMN {column} {definition};")
@@ -301,8 +297,7 @@ def get_all_pumps():
     with get_connection() as conn:
         rows = conn.execute("""
             SELECT p.id, p.pump_number, p.flow_rate_ml_per_s,
-                   p.current_volume_ml, p.baseline_volume_ml,
-                   p.level_above_baseline_value, p.is_active,
+                   p.current_volume_ml, p.is_active,
                    i.id   AS ingredient_id,
                    i.name AS ingredient_name
             FROM pumps p
@@ -336,17 +331,12 @@ def update_pump_flow_rate(pump_number: int, flow_rate: float):
         )
 
 
-def update_pump_inventory(pump_number: int, current_volume_ml: float,
-                          baseline_volume_ml: float,
-                          level_above_baseline_value: int):
-    """Store the admin-maintained volume estimate and sensor calibration."""
+def update_pump_inventory(pump_number: int, current_volume_ml: float):
+    """Store the admin-maintained volume estimate for one bottle."""
     with get_connection() as conn:
         conn.execute(
-            """UPDATE pumps
-               SET current_volume_ml = ?, baseline_volume_ml = ?,
-                   level_above_baseline_value = ?
-               WHERE pump_number = ?""",
-            (current_volume_ml, baseline_volume_ml, level_above_baseline_value, pump_number),
+            "UPDATE pumps SET current_volume_ml = ? WHERE pump_number = ?",
+            (current_volume_ml, pump_number),
         )
 
 

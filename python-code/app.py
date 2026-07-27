@@ -490,34 +490,40 @@ def api_update_flowrate(pump_number):
 
 @app.route("/api/admin/pumps/<int:pump_number>/inventory", methods=["PUT"])
 def api_update_pump_inventory(pump_number):
-    """Set a pump's manually measured volume, baseline, and raw-sensor polarity."""
+    """Set a pump's manually measured current bottle volume."""
     if not 1 <= pump_number <= config.NUM_PUMPS:
         return jsonify({"error": f"pump_number must be between 1 and {config.NUM_PUMPS}."}), 400
 
     data = request.get_json() or {}
     try:
         current_volume_ml = float(data["current_volume_ml"])
-        baseline_volume_ml = float(data["baseline_volume_ml"])
-        level_above_baseline_value = int(data["level_above_baseline_value"])
     except (KeyError, TypeError, ValueError):
-        return jsonify({"error": "current_volume_ml, baseline_volume_ml, and level_above_baseline_value are required."}), 400
+        return jsonify({"error": "current_volume_ml is required."}), 400
 
-    if not math.isfinite(current_volume_ml) or not math.isfinite(baseline_volume_ml):
-        return jsonify({"error": "Liquid volumes must be finite numbers."}), 400
-    if current_volume_ml < 0 or baseline_volume_ml < 0:
-        return jsonify({"error": "Liquid volumes cannot be negative."}), 400
-    if current_volume_ml < baseline_volume_ml:
-        return jsonify({"error": "Current volume must be at or above the configured baseline."}), 400
-    if level_above_baseline_value not in {0, 1}:
-        return jsonify({"error": "level_above_baseline_value must be 0 (LOW) or 1 (HIGH)."}), 400
+    if not math.isfinite(current_volume_ml) or current_volume_ml < 0:
+        return jsonify({"error": "Current volume must be a non-negative finite number."}), 400
 
-    db.update_pump_inventory(
-        pump_number,
-        current_volume_ml,
-        baseline_volume_ml,
-        level_above_baseline_value,
-    )
+    db.update_pump_inventory(pump_number, current_volume_ml)
     return jsonify({"success": True})
+
+
+@app.route("/api/admin/hardware/liquid-level-config", methods=["GET", "PUT"])
+def api_liquid_level_config():
+    """Read or calibrate the single raw polarity shared by all level sensors."""
+    if request.method == "GET":
+        return jsonify({
+            "above_value": db.get_setting("liquid_level_above_value"),
+        })
+
+    data = request.get_json() or {}
+    try:
+        above_value = int(data["above_value"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "above_value must be 0 (LOW) or 1 (HIGH)."}), 400
+    if above_value not in {0, 1}:
+        return jsonify({"error": "above_value must be 0 (LOW) or 1 (HIGH)."}), 400
+    db.set_setting("liquid_level_above_value", above_value)
+    return jsonify({"success": True, "above_value": above_value})
 
 
 # ─────────────────────────────────────────────
