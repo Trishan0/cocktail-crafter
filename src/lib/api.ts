@@ -85,9 +85,3 @@ export const simulateHardwareMessage = (message: any) =>
   fetchApi("/dev/simulate-message", { method: "POST", body: JSON.stringify(message) });
 export const changePin = (current: string, newPin: string) =>
   fetchApi("/admin/pin/change", { method: "POST", body: JSON.stringify({ current_pin: current, new_pin: newPin }) });
-
-// Glass bypass — for real hardware with no glass sensor.
-// Releases the Python-side waiting_glass gate and forces state → dispensing.
-// The bypass button in WaitingGlass screen should call this instead of simulateHardwareMessage.
-export const confirmGlass = () =>
-  fetchApi("/order/confirm-glass", { method: "POST" });

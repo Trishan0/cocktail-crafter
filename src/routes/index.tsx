@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import robotHero from "@/assets/robot-hero.jpg";
 import readyHero from "@/assets/cocktail-ready.jpg";
-import { getMenu, placeOrder, placeCustomOrder, getPumps, confirmGlass } from "@/lib/api";
+import { getMenu, placeOrder, placeCustomOrder, getPumps } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   component: KioskApp,
@@ -572,7 +572,23 @@ function Review({ selected, mode, customIngredients, now, go, handleOrder, isSub
 function WaitingGlass({ now, glassState, lowerSensor, upperSensor, totalMl }: any) {
   const requiresLarge = totalMl > 200;
   const raw = (value: number | null) => value === null ? "not read" : String(value);
-  const title = `Please place a ${requiresLarge ? "LARGE " : ""}glass`;
+  let title = `Please place a ${requiresLarge ? "LARGE " : ""}glass`;
+  let subtitle = "under the dispenser nozzle";
+  let ringClass = "border-accent bg-accent/10 text-accent animate-pulse";
+
+  if (glassState === "small_glass") {
+    title = "Small Glass Detected";
+    subtitle = "Starting order...";
+    ringClass = "border-green-500 bg-green-500/20 text-green-400";
+  } else if (glassState === "large_glass") {
+    title = "Large Glass Detected";
+    subtitle = "Starting order...";
+    ringClass = "border-green-500 bg-green-500/20 text-green-400";
+  } else if (glassState === "sensor_error") {
+    title = "IR Sensor Alignment Error";
+    subtitle = "Please check the glass position and sensors";
+    ringClass = "border-red-500 bg-red-500/20 text-red-500 animate-pulse";
+  }
   const sensorText = `Raw IR — lower: ${raw(lowerSensor)} / upper: ${raw(upperSensor)}`;
 
   return (
@@ -580,23 +596,18 @@ function WaitingGlass({ now, glassState, lowerSensor, upperSensor, totalMl }: an
       <StatusBar title="Waiting for Glass" now={now} />
       <div className="absolute top-10 left-8"><Logo /></div>
 
-      <div className="w-48 h-48 rounded-full flex items-center justify-center mb-12 transition-all duration-500 border-4 border-accent bg-accent/10 text-accent animate-pulse">
+      <div className={`w-48 h-48 rounded-full flex items-center justify-center mb-12 transition-all duration-500 border-4 ${ringClass}`}>
         <span className="text-6xl">🥃</span>
       </div>
 
       <h2 className="font-display text-[56px] font-light text-center">{title}</h2>
       <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em]">
-        under the dispenser nozzle, then confirm start
+        {subtitle}
       </p>
       <p className="text-sm text-muted-foreground/70 mt-4 uppercase tracking-[0.2em]">
         {sensorText}
       </p>
 
-      <div className="absolute bottom-12 z-20">
-        <GoldButton onClick={() => confirmGlass()}>
-          Confirm glass & start
-        </GoldButton>
-      </div>
     </div>
   );
 }
@@ -729,5 +740,4 @@ function CleaningDone({ now }: any) {
     </div>
   );
 }
-
 

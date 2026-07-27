@@ -16,6 +16,7 @@ SERIAL_RECONNECT_SECONDS = 3
 # firmware.
 MAX_PUMP_TIME_MS = 60_000
 ORDER_RESPONSE_TIMEOUT_SECONDS = 8
+IR_POLL_INTERVAL_SECONDS = 0.75
 
 # The firmware sends no explicit order-completed event; valve-opened is the
 # completion signal. Keep the customer confirmation visible briefly before

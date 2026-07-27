@@ -260,12 +260,29 @@ class SimulatorController(HardwareController):
                 return
             self._pending["initialized"] = True
             order_id = self._pending["db_order_id"]
-        _set_machine_state(MachineState.WAITING_GLASS, progress=0, message="Order initialized. Place the glass, then confirm start.", order_id=order_id)
+        _set_machine_state(MachineState.WAITING_GLASS, progress=0, message="Order initialized. Waiting for IR glass detection...", order_id=order_id)
+        threading.Timer(0.5, self._simulate_glass_detection).start()
+
+    def _simulate_glass_detection(self):
+        with self._lock:
+            if not self._running or not self._pending or self._pending["start_sent"]:
+                return
+        # Active-low mapping verified for the physical installation:
+        # upper=0, lower=0 means a large glass is present.
+        _handle_sensor({"glass_state": "large_glass", "upper_sensor": 0, "lower_sensor": 0})
+        try:
+            self.start_pending_order()
+        except RuntimeError:
+            # A maintenance operation may have begun while this timer waited.
+            # Detection restarts after that operation finishes.
+            return
 
     def start_pending_order(self):
         with self._lock:
             if not self._pending or not self._pending["initialized"]:
                 raise RuntimeError("Order is not initialized yet.")
+            if self._run_mode is not None:
+                raise RuntimeError("Cannot start an order while maintenance is active.")
             if self._pending["start_sent"]:
                 return
             self._pending["start_sent"] = True
@@ -342,9 +359,10 @@ class SimulatorController(HardwareController):
             _set_machine_state(
                 MachineState.WAITING_GLASS,
                 progress=0,
-                message="Cleaning finished. Pending order is still initialized; confirm glass to start.",
+                message="Cleaning finished. Pending order is still initialized; waiting for IR glass detection...",
                 order_id=pending["db_order_id"],
             )
+            threading.Timer(0.5, self._simulate_glass_detection).start()
         else:
             _set_machine_state(MachineState.IDLE, progress=0, message="Cleaning finished.", order_id=None)
 
@@ -382,6 +400,7 @@ class SerialController(HardwareController):
     """USB serial implementation of the documented ``LOG:``/``DATA:`` protocol."""
 
     ORDER_RESPONSE_TIMEOUT_SECONDS = config.ORDER_RESPONSE_TIMEOUT_SECONDS
+    IR_POLL_INTERVAL_SECONDS = config.IR_POLL_INTERVAL_SECONDS
 
     def __init__(self):
         self._serial_port: serial.Serial | None = None
@@ -393,6 +412,8 @@ class SerialController(HardwareController):
         self._active_run_mode: str | None = None  # order | cleaning | reverse
         self._order_timeout: threading.Timer | None = None
         self._done_timer: threading.Timer | None = None
+        self._ir_poll_stop = threading.Event()
+        self._ir_poll_thread: threading.Thread | None = None
 
     def start(self):
         self._running = True
@@ -408,6 +429,7 @@ class SerialController(HardwareController):
 
     def stop(self):
         self._running = False
+        self._stop_ir_polling()
         self._cancel_timer("_order_timeout")
         self._cancel_timer("_done_timer")
         with _lock:
@@ -459,6 +481,8 @@ class SerialController(HardwareController):
                 raise RuntimeError("There is no pending order to start.")
             if not self._pending_order["initialized"]:
                 raise RuntimeError("ESP32 has not initialized the order yet.")
+            if self._active_run_mode is not None:
+                raise RuntimeError("Cannot start an order while maintenance is active.")
             if self._pending_order["start_sent"]:
                 return
             order_id = self._pending_order["db_order_id"]
@@ -469,6 +493,7 @@ class SerialController(HardwareController):
                 return
             self._pending_order["start_sent"] = True
             self._active_run_mode = "order"
+        self._stop_ir_polling()
         _set_machine_state(MachineState.DISPENSING, progress=1, message="START sent. Preparing drink...", order_id=order_id)
         print(f"[SERIAL] START sent for order #{order_id}.")
 
@@ -495,6 +520,7 @@ class SerialController(HardwareController):
         print("[SERIAL] REVERSE_PUMPS sent (firmware uses 4000 ms per pump).")
 
     def send_clean(self):
+        self._stop_ir_polling()
         with self._pending_lock:
             if self._active_run_mode is not None:
                 raise RuntimeError("Another machine operation is already active.")
@@ -513,6 +539,31 @@ class SerialController(HardwareController):
         if command not in {"CHECK_IR", "CHECK_LEVELS", "CHECK_LINE_STATE"}:
             raise ValueError(f"Unsupported sensor query: {command}")
         self._send_text(command)
+
+    def _start_ir_polling(self):
+        if self._ir_poll_thread and self._ir_poll_thread.is_alive():
+            return
+        self._ir_poll_stop.clear()
+        self._ir_poll_thread = threading.Thread(target=self._ir_poll_loop, daemon=True, name="esp32-ir-poll")
+        self._ir_poll_thread.start()
+
+    def _stop_ir_polling(self):
+        self._ir_poll_stop.set()
+
+    def _ir_poll_loop(self):
+        print("[SERIAL] Starting CHECK_IR polling.")
+        while self._running and not self._ir_poll_stop.is_set():
+            with self._pending_lock:
+                pending = self._pending_order
+                should_poll = bool(pending and pending["initialized"] and not pending["start_sent"])
+            if not should_poll:
+                break
+            try:
+                self._send_text("CHECK_IR")
+            except ConnectionError as exc:
+                print(f"[SERIAL] CHECK_IR send failed: {exc}")
+            self._ir_poll_stop.wait(self.IR_POLL_INTERVAL_SECONDS)
+        print("[SERIAL] CHECK_IR polling stopped.")
 
     @staticmethod
     def _normalise_pumps(pump_commands: list) -> list[dict]:
@@ -612,10 +663,12 @@ class SerialController(HardwareController):
 
         self._cancel_timer("_order_timeout")
         if status == "initialized":
-            _set_machine_state(MachineState.WAITING_GLASS, progress=0, message="Order initialized. Place the glass, then confirm start.", order_id=order_id)
+            _set_machine_state(MachineState.WAITING_GLASS, progress=0, message="Order initialized. Waiting for IR glass detection...", order_id=order_id)
+            self._start_ir_polling()
             print(f"[SERIAL] ORDER {data.get('order_id')} initialized.")
             return
 
+        self._stop_ir_polling()
         reason = str(data.get("reason", "unknown"))
         _record_event("order:rejected", f"Order #{order_id}: {reason}")
         _set_machine_state(MachineState.ERROR, progress=0, message=f"ESP32 rejected order: {reason}", order_id=order_id)
@@ -627,9 +680,29 @@ class SerialController(HardwareController):
         if upper is None or lower is None:
             print(f"[SERIAL] Invalid CHECK_IR response: {data}")
             return
-        # The handoff deliberately defines these as raw GPIO values only.
-        _handle_sensor({"glass_state": "unknown", "upper_sensor": upper, "lower_sensor": lower})
-        print(f"[SERIAL] Raw IR values: upper={upper}, lower={lower}")
+        glass_state = self._classify_glass(upper, lower)
+        _handle_sensor({"glass_state": glass_state, "upper_sensor": upper, "lower_sensor": lower})
+        print(f"[SERIAL] IR values: upper={upper}, lower={lower} -> {glass_state}")
+        if glass_state not in {"small_glass", "large_glass"}:
+            return
+        with self._pending_lock:
+            if self._active_run_mode is not None:
+                return
+        try:
+            self.start_pending_order()
+        except (ConnectionError, RuntimeError) as exc:
+            print(f"[SERIAL] Could not start detected-glass order: {exc}")
+
+    @staticmethod
+    def _classify_glass(upper: int, lower: int) -> str:
+        """Classify the verified active-low two-IR-sensor installation."""
+        if upper == 1 and lower == 1:
+            return "no_glass"
+        if upper == 1 and lower == 0:
+            return "small_glass"
+        if upper == 0 and lower == 0:
+            return "large_glass"
+        return "sensor_error"  # upper=0, lower=1 is physically inconsistent
 
     @staticmethod
     def _raw_binary(value):
@@ -700,9 +773,10 @@ class SerialController(HardwareController):
                     _set_machine_state(
                         MachineState.WAITING_GLASS,
                         progress=0,
-                        message="Cleaning finished. Pending order is still initialized; confirm glass to start.",
+                        message="Cleaning finished. Pending order is still initialized; waiting for IR glass detection...",
                         order_id=pending["db_order_id"],
                     )
+                    self._start_ir_polling()
                 else:
                     _set_machine_state(MachineState.IDLE, progress=0, message="Cleaning finished.", order_id=None)
             return

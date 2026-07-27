@@ -192,24 +192,6 @@ def api_dev_simulate_message():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/order/confirm-glass", methods=["POST"])
-def api_confirm_glass():
-    """Confirm glass placement and send the firmware's separate START command.
-
-    CHECK_IR is intentionally not used as an automatic interlock: the current
-    firmware reports raw GPIO values only, and its handoff explicitly says
-    their physical polarity/meaning has not yet been confirmed.
-    """
-    state = _controller.get_state()
-    if state["machine_status"] != "waiting_glass":
-        return jsonify({"error": f"Machine is not waiting for glass (current: {state['machine_status']})."}), 409
-
-    try:
-        _controller.start_pending_order()
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 409
-    return jsonify({"success": True, "message": "START sent to ESP32."})
-
 # ─────────────────────────────────────────────
 #  CUSTOMER API
 # ─────────────────────────────────────────────
@@ -235,8 +217,8 @@ def api_place_order():
       2. Check machine is idle
       3. Save order to DB
       4. Send ORDER command to ESP32 via controller
-      5. Wait for its initialized response; the glass-confirmation endpoint
-         sends the required separate START command.
+      5. Poll the verified IR sensors after the initialized response; send
+         START automatically only when a valid glass is detected.
     """
     data      = request.get_json() or {}
     recipe_id = data.get("recipe_id")
