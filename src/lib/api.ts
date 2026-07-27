@@ -23,10 +23,10 @@ export async function fetchApi(endpoint: string, options?: RequestInit) {
 
 // Menu / Orders
 export const getMenu = () => fetchApi("/menu");
-export const placeOrder = (recipeId: number) =>
-  fetchApi("/order", { method: "POST", body: JSON.stringify({ recipe_id: recipeId }) });
-export const placeCustomOrder = (ingredients: any[]) =>
-  fetchApi("/order/custom", { method: "POST", body: JSON.stringify({ ingredients }) });
+export const placeOrder = (recipeId: number, ice = false) =>
+  fetchApi("/order", { method: "POST", body: JSON.stringify({ recipe_id: recipeId, ice }) });
+export const placeCustomOrder = (ingredients: any[], ice = false) =>
+  fetchApi("/order/custom", { method: "POST", body: JSON.stringify({ ingredients, ice }) });
 export const abortOrder = () => fetchApi("/abort", { method: "POST" });
 export const getStatus = () => fetchApi("/status");
 

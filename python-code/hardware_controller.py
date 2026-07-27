@@ -462,6 +462,7 @@ class SerialController(HardwareController):
                 "recipe_name": recipe_name,
                 "initialized": False,
                 "start_sent": False,
+                "ice": bool(ice),
             }
 
         try:
@@ -486,6 +487,7 @@ class SerialController(HardwareController):
             if self._pending_order["start_sent"]:
                 return
             order_id = self._pending_order["db_order_id"]
+            ice_enabled = self._pending_order["ice"]
 
         self._send_text("START")
         with self._pending_lock:
@@ -494,7 +496,8 @@ class SerialController(HardwareController):
             self._pending_order["start_sent"] = True
             self._active_run_mode = "order"
         self._stop_ir_polling()
-        _set_machine_state(MachineState.DISPENSING, progress=1, message="START sent. Preparing drink...", order_id=order_id)
+        message = "START sent. Dispensing ice and preparing drink..." if ice_enabled else "START sent. Preparing drink..."
+        _set_machine_state(MachineState.DISPENSING, progress=1, message=message, order_id=order_id)
         print(f"[SERIAL] START sent for order #{order_id}.")
 
     def send_stop_request(self):

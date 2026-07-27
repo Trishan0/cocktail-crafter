@@ -35,6 +35,7 @@ function KioskApp() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [mode, setMode] = useState<"signature" | "custom">("signature");
   const [customIngredients, setCustomIngredients] = useState<any[]>([]);
+  const [wantsIce, setWantsIce] = useState(false);
   const [now, setNow] = useState(new Date());
 
   // SSE State
@@ -161,11 +162,11 @@ function KioskApp() {
     try {
       if (mode === "signature") {
         if (!selected) return;
-        await placeOrder(selected.id);
+        await placeOrder(selected.id, wantsIce);
       } else {
         if (customIngredients.length === 0) return;
         const payload = customIngredients.map(i => ({ id: i.ingredient_id, name: i.name, amount_ml: i.amount_ml }));
-        await placeCustomOrder(payload);
+        await placeCustomOrder(payload, wantsIce);
       }
       // Screen will change via SSE when status becomes waiting_glass or dispensing
     } catch (e: any) {
@@ -181,7 +182,7 @@ function KioskApp() {
 
   const ctx = {
     selected, setSelectedId, mode, setMode, drinks, availablePumps,
-    customIngredients, setCustomIngredients,
+    customIngredients, setCustomIngredients, wantsIce, setWantsIce,
     machineStatus, progress, message, glassState, lowerSensor, upperSensor, poweredOn, totalMl,
     now, go, handleOrder, isSubmitting, orderError, setOrderError
   };
@@ -517,7 +518,7 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
   );
 }
 
-function Review({ selected, mode, customIngredients, now, go, handleOrder, isSubmitting, machineStatus, poweredOn }: any) {
+function Review({ selected, mode, customIngredients, wantsIce, setWantsIce, now, go, handleOrder, isSubmitting, machineStatus, poweredOn }: any) {
   const isCustom = mode === "custom";
   const title = isCustom ? "Custom Mix" : selected?.name;
 
@@ -559,6 +560,27 @@ function Review({ selected, mode, customIngredients, now, go, handleOrder, isSub
               <span className="font-display text-[56px] text-accent">€{selected?.price.toFixed(2)}</span>
             </div>
           )}
+
+          <section className="mb-8" aria-label="Ice preference">
+            <p className="text-xl uppercase tracking-[0.18em] text-muted-foreground mb-3">Would you like ice?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setWantsIce(false)}
+                className={`rounded-2xl border px-5 py-4 text-lg uppercase tracking-widest transition-colors ${!wantsIce ? "border-accent bg-accent text-accent-foreground" : "border-border bg-surface-2 text-muted-foreground hover:border-accent/60"}`}
+              >
+                No ice
+              </button>
+              <button
+                type="button"
+                onClick={() => setWantsIce(true)}
+                className={`rounded-2xl border px-5 py-4 text-lg uppercase tracking-widest transition-colors ${wantsIce ? "border-accent bg-accent text-accent-foreground" : "border-border bg-surface-2 text-muted-foreground hover:border-accent/60"}`}
+              >
+                Add ice
+              </button>
+            </div>
+            {wantsIce && <p className="mt-3 text-sm text-muted-foreground">Ice will dispense in parallel while your drink is prepared.</p>}
+          </section>
 
           <GoldButton big onClick={handleOrder} disabled={!poweredOn || isSubmitting || machineStatus !== "idle"}>
             {isSubmitting ? "PROCESSING..." : "CONFIRM ORDER"}
@@ -740,4 +762,3 @@ function CleaningDone({ now }: any) {
     </div>
   );
 }
-
