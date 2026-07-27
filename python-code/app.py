@@ -144,6 +144,8 @@ def stream():
             "glass_state":    state.get("glass_state", "unknown"),
             "lower_sensor":   state.get("lower_sensor", False),
             "upper_sensor":   state.get("upper_sensor", False),
+            "liquid_levels":  state.get("liquid_levels", {}),
+            "fluid_lines_primed": state.get("fluid_lines_primed"),
             "connected":      state["connected"],
             "firmware_ready": state.get("firmware_ready", False),
             "powered_on":     _is_powered_on(),

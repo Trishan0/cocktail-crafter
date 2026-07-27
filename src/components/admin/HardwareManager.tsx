@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Activity, ShieldAlert, Droplet, Cpu, Radio, Power } from "lucide-react";
+import { Activity, ShieldAlert, Droplet, Cpu, Radio, Power, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { cleanSystem, abortOrder, getPowerState, setPowerState } from "@/lib/api";
+import { cleanSystem, abortOrder, getPowerState, getStatus, queryHardware, setPowerState } from "@/lib/api";
 
 interface HardwareManagerProps {
   machineStatus: string;
@@ -14,6 +14,11 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
   const [switchingMode, setSwitchingMode] = useState(false);
   const [poweredOn, setPoweredOn] = useState<boolean | null>(null);
   const [switchingPower, setSwitchingPower] = useState(false);
+  const [liquidLevels, setLiquidLevels] = useState<Record<string, number | null>>(
+    Object.fromEntries(Array.from({ length: 6 }, (_, index) => [`ls${index + 1}`, null]))
+  );
+  const [checkingLevels, setCheckingLevels] = useState(false);
+  const [levelError, setLevelError] = useState<string | null>(null);
 
   const BASE = `http://${window.location.hostname}:5000`;
 
@@ -26,6 +31,33 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
     getPowerState()
       .then(d => setPoweredOn(d.powered_on))
       .catch(console.error);
+    getStatus()
+      .then(d => updateLiquidLevels(d.liquid_levels))
+      .catch(console.error);
+  }, []);
+
+  const updateLiquidLevels = (levels: Record<string, number | null> | undefined) => {
+    if (!levels) return;
+    setLiquidLevels(Object.fromEntries(
+      Array.from({ length: 6 }, (_, index) => {
+        const key = `ls${index + 1}`;
+        const value = levels[key];
+        return [key, value === 0 || value === 1 ? value : null];
+      })
+    ));
+    setCheckingLevels(false);
+    setLevelError(null);
+  };
+
+  useEffect(() => {
+    const evtSource = new EventSource(`http://${window.location.hostname}:5000/stream`);
+    const updateFromEvent = (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      updateLiquidLevels(data.liquid_levels);
+    };
+    evtSource.addEventListener("init", updateFromEvent);
+    evtSource.addEventListener("sensor", updateFromEvent);
+    return () => evtSource.close();
   }, []);
 
   const handleModeToggle = async (toSimulator: boolean) => {
@@ -85,6 +117,17 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
       alert("STOP request sent. This firmware only stops mixing/ice activity; use the physical emergency stop for a full halt.");
     } catch (e: any) {
       alert("Abort failed: " + e.message);
+    }
+  };
+
+  const handleCheckLevels = async () => {
+    setCheckingLevels(true);
+    setLevelError(null);
+    try {
+      await queryHardware("CHECK_LEVELS");
+    } catch (e: any) {
+      setCheckingLevels(false);
+      setLevelError(e.message || "Could not request liquid-level readings.");
     }
   };
 
@@ -189,6 +232,54 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
           </div>
         </div>
 
+        {/* Liquid-level sensor query: the firmware deliberately returns raw electrical states. */}
+        <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 mb-6">
+            <div className="flex gap-4 md:gap-6 items-center">
+              <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-cyan-500/20 text-cyan-300 border-2 border-cyan-500/30 flex items-center justify-center">
+                <Activity className="w-6 h-6 md:w-8 md:h-8" />
+              </div>
+              <div>
+                <h3 className="text-xl md:text-2xl font-display font-light mb-1 md:mb-2">Liquid-Level Sensors</h3>
+                <p className="text-xs md:text-sm text-muted-foreground max-w-xl">
+                  Reads LS1–LS6 from the ESP32 MCP23017. Values are raw electrical inputs: 1 = HIGH and 0 = LOW.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="lg"
+              onClick={handleCheckLevels}
+              disabled={checkingLevels}
+              className="w-full sm:w-auto rounded-full h-12 px-6 text-sm md:text-base bg-cyan-600 hover:bg-cyan-500 text-white"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${checkingLevels ? "animate-spin" : ""}`} />
+              {checkingLevels ? "Checking..." : "Check Levels"}
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }, (_, index) => {
+              const key = `ls${index + 1}`;
+              const value = liquidLevels[key];
+              const valueLabel = value === null ? "Not read" : value === 1 ? "HIGH (1)" : "LOW (0)";
+              const valueClass = value === null
+                ? "border-white/10 bg-black/20 text-muted-foreground"
+                : value === 1
+                  ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
+                  : "border-orange-500/30 bg-orange-500/10 text-orange-200";
+              return (
+                <div key={key} className={`rounded-2xl border p-4 text-center ${valueClass}`}>
+                  <p className="text-xs uppercase tracking-[0.18em] opacity-70">{key}</p>
+                  <p className="mt-2 text-sm font-semibold">{valueLabel}</p>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-5 text-xs text-muted-foreground">
+            These are not labelled full/empty because the firmware handoff requires the installed sensor polarity and physical meaning to be verified first.
+          </p>
+          {levelError && <p className="mt-3 text-sm text-red-400">{levelError}</p>}
+        </div>
+
         {/* Maintenance / Cleaning */}
         <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex gap-4 md:gap-6 items-center">
@@ -238,4 +329,3 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
     </div>
   );
 }
-

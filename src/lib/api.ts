@@ -79,6 +79,8 @@ export const setSimulatorMode = (enabled: boolean) =>
 export const getPowerState = () => fetchApi("/admin/power");
 export const setPowerState = (poweredOn: boolean) =>
   fetchApi("/admin/power", { method: "POST", body: JSON.stringify({ powered_on: poweredOn }) });
+export const queryHardware = (command: "CHECK_IR" | "CHECK_LEVELS" | "CHECK_LINE_STATE") =>
+  fetchApi("/hardware/query", { method: "POST", body: JSON.stringify({ command }) });
 
 // Dev
 export const simulateHardwareMessage = (message: any) =>
