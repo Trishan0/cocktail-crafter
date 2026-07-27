@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Droplet, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getPumps, getIngredients, assignPump, updatePumpFlowRate, updatePumpTiming, cleanSystem } from "@/lib/api";
+import { getPumps, getIngredients, assignPump, updatePumpFlowRate } from "@/lib/api";
 
 interface PumpsManagerProps {
   machineStatus: string;
@@ -19,21 +19,7 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
   // Edit State
   const [assignId, setAssignId] = useState<string>("none");
   const [flowRate, setFlowRate] = useState<string>("1.5");
-  const [initialExtraMs, setInitialExtraMs] = useState<string>("1460");
-  const [reverseMs, setReverseMs] = useState<string>("5000");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [testingPump, setTestingPump] = useState<number | null>(null);
-
-  const handleTest = async (pumpNumber: number) => {
-    setTestingPump(pumpNumber);
-    try {
-      await cleanSystem("single", pumpNumber);
-    } catch (e: any) {
-      alert(e.message || e);
-    } finally {
-      setTestingPump(null);
-    }
-  };
 
   const loadData = async () => {
     try {
@@ -53,8 +39,6 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
     setSelectedPump(pump);
     setAssignId(pump.ingredient_id ? pump.ingredient_id.toString() : "none");
     setFlowRate(pump.flow_rate_ml_per_s.toString());
-    setInitialExtraMs((pump.initial_extra_ms ?? 1460).toString());
-    setReverseMs((pump.reverse_ms ?? 5000).toString());
     setIsDialogOpen(true);
   };
 
@@ -64,7 +48,6 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
       const ingId = assignId === "none" ? null : parseInt(assignId);
       await assignPump(selectedPump.pump_number, ingId);
       await updatePumpFlowRate(selectedPump.pump_number, parseFloat(flowRate));
-      await updatePumpTiming(selectedPump.pump_number, parseInt(initialExtraMs || "0"), parseInt(reverseMs || "0"));
       setIsDialogOpen(false);
       loadData();
     } catch (e) {
@@ -102,17 +85,8 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
                 
                 {pump.ingredient_name && (
                   <div className="text-left sm:text-right flex flex-col items-start sm:items-end gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleTest(pump.pump_number)}
-                      disabled={machineStatus !== "idle" || testingPump === pump.pump_number}
-                      className="text-xs shrink-0 bg-black/40 border-white/10 hover:bg-white/10"
-                    >
-                      {testingPump === pump.pump_number ? "Testing..." : "Test"}
-                    </Button>
                     <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                      Flow: {pump.flow_rate_ml_per_s} ml/s | Prime +{pump.initial_extra_ms ?? 1460} ms | Reverse {pump.reverse_ms ?? 5000} ms
+                      Flow: {pump.flow_rate_ml_per_s} ml/s
                     </div>
                   </div>
                 )}
@@ -153,15 +127,9 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
               <Input type="number" step="0.1" min="0.1" value={flowRate} onChange={e => setFlowRate(e.target.value)} className="h-12 bg-white/5 border-white/10" />
             </div>
 
-            <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">First Drink Extra Pump Time (ms)</Label>
-              <Input type="number" min="0" step="10" value={initialExtraMs} onChange={e => setInitialExtraMs(e.target.value)} className="h-12 bg-white/5 border-white/10" />
-            </div>
-
-            <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Power Off Reverse Time (ms)</Label>
-              <Input type="number" min="0" step="100" value={reverseMs} onChange={e => setReverseMs(e.target.value)} className="h-12 bg-white/5 border-white/10" />
-            </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              The ESP32 owns feed-line priming (all six lines for 1400 ms when its saved state is empty) and reversal (4000 ms per line). These timings are not configurable from the Pi.
+            </p>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-full">Cancel</Button>
@@ -172,5 +140,4 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
     </div>
   );
 }
-
 

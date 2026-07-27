@@ -1,13 +1,9 @@
-"""
-machine_state.py — MachineState Enum + Transition Validation
-Cocktail-Craft Bartender | Raspberry Pi
+"""Pi-facing state model for the current CocktailCraft ESP32-S3 firmware.
 
-Single source of truth for the machine state enum and all legal state
-transitions as defined in PROTOCOL.md §4.
-
-Used by hardware_controller._handle_status() to validate every incoming
-STATUS message before trusting it. Illegal or unknown transitions are
-logged and rejected — the stale known-good state is preserved instead.
+The ESP32 emits ``DATA:`` events, not high-level STATUS messages.  The Python
+controller maps those events to the values below for the Flask/SSE clients.
+``INITIALIZING`` and ``WAITING_GLASS`` are Pi/UI coordination states; the
+firmware itself stores an ORDER until it receives the separate START command.
 """
 
 from enum import Enum
@@ -19,90 +15,53 @@ from enum import Enum
 
 class MachineState(str, Enum):
     """
-    Full state space for the Cocktail-Craft ESP32 state machine.
-
-    Values are lowercase strings matching what the ESP32 sends over the wire
-    (and what the existing UI/API layer already expects), so the enum can be
-    used directly as a string wherever needed.
-
-    Normal order lifecycle:
-        IDLE → WAITING_GLASS → DISPENSING → MIXING → POURING → DONE
-
-    Post-order auto-clean (fires automatically after every DONE):
-        DONE → REVERSING → [gate: glass_state == "no_glass"] → WASHING → MIXING → DRAINING → RESEALING → IDLE
-
-    Manual clean (admin-triggered, line-only — never enters WASHING/DRAINING/RESEALING):
-        IDLE → REVERSING → IDLE
-
-    Error / abort:
-        Any → ERROR | ABORTED → IDLE (after explicit recovery)
-
-    Design note (PROTOCOL.md §4, open item):
-        MIXING is reused for both the drink-shake step and the post-clean
-        shake step — same physical NEMA17 mechanism. This is intentional;
-        the code comment here serves as the explicit call-out so it's never
-        mistaken for a bug.
+    Values are the stable SSE/API vocabulary.  They are not claimed to be
+    literal ESP32 state strings; only the controller translates firmware
+    events into them.
     """
 
     IDLE          = "idle"
+    INITIALIZING  = "initializing"
     WAITING_GLASS = "waiting_glass"
     DISPENSING    = "dispensing"
-    MIXING        = "mixing"        # used for both drink shake AND post-clean shake
+    MIXING        = "mixing"        # drink and CLEAN both use the oscillator
     POURING       = "pouring"
     DONE          = "done"
-    REVERSING     = "reversing"     # pump lines run backward (first step of auto-clean)
-    WASHING       = "washing"       # water into container
-    DRAINING      = "draining"      # water exits via drink path
-    RESEALING     = "resealing"     # n20 reseals the container
+    REVERSING     = "reversing"     # REVERSE_PUMPS maintenance sequence
+    WASHING       = "washing"       # CLEAN sequence
+    DRAINING      = "draining"      # retained for older SSE consumers
+    RESEALING     = "resealing"     # retained for older SSE consumers
     ERROR         = "error"
-    ABORTED       = "aborted"
+    ABORTED       = "aborted"       # retained only for historical records
 
 
 # ─────────────────────────────────────────────
-#  Legal transition table (PROTOCOL.md §4)
+#  Legal transition table
 # ─────────────────────────────────────────────
 
-# Every set contains the states that are ALLOWED as the next state from the
-# given current state. Incoming STATUS messages are rejected if they would
-# produce a transition not listed here.
-#
-# Self-transitions (e.g. DISPENSING → DISPENSING) are listed where the ESP32
-# sends multiple progress updates within a single phase.
+# Every set contains the states that are allowed after the previous Pi-facing
+# state. The controller rejects an unexpected event mapping instead of letting
+# malformed serial traffic corrupt the UI state. Self-transitions cover
+# successive events within one phase (for example, multiple pump events).
 
 S = MachineState   # local alias for readability
 
 LEGAL_TRANSITIONS: dict[MachineState, set[MachineState]] = {
-    # ── Idle — can start an order or a manual clean
-    S.IDLE:          {S.IDLE, S.WAITING_GLASS, S.REVERSING, S.WASHING, S.MIXING, S.ERROR, S.ABORTED},
-
-    # ── Order sequence ────────────────────────
-    S.WAITING_GLASS: {S.WAITING_GLASS, S.DISPENSING, S.ERROR, S.ABORTED},
-    
-    # DISPENSING self-loop: ESP32 sends multiple updates at different progress %
-    S.DISPENSING:    {S.DISPENSING, S.MIXING, S.DONE, S.ERROR, S.ABORTED},
-
-    # MIXING self-loop for same reason; goes to POURING, DONE, or DRAINING (clean)
-    S.MIXING:        {S.MIXING, S.POURING, S.DONE, S.DRAINING, S.IDLE, S.ERROR, S.ABORTED},
-
-    S.POURING:       {S.DONE, S.ERROR, S.ABORTED},
-
-    # ── Post-order auto-clean sequence ────────
-    # DONE can go to REVERSING (auto-clean) or back to IDLE (if no auto-clean)
-    S.DONE:          {S.REVERSING, S.WASHING, S.IDLE, S.ERROR, S.ABORTED},
-
-    # REVERSING self-loop: two progress updates (0% start, 50% "please remove glass")
-    # REVERSING → WASHING: only after glass_state == "no_glass" (gate enforced ESP32-side)
-    # REVERSING → IDLE:    end of a manual clean cycle
-    S.REVERSING:     {S.REVERSING, S.WASHING, S.IDLE, S.ERROR, S.ABORTED},
-
-    S.WASHING:       {S.WASHING, S.MIXING, S.ERROR, S.ABORTED},
-    S.DRAINING:      {S.DRAINING, S.RESEALING, S.ERROR, S.ABORTED},
-    S.RESEALING:     {S.RESEALING, S.IDLE, S.ERROR, S.ABORTED},
-
-    # ── Error / abort recovery ────────────────
-    # Return to IDLE only; exact ack mechanism TBD (PROTOCOL.md §4.3 open item)
-    S.ERROR:         {S.IDLE, S.ERROR},
-    S.ABORTED:       {S.IDLE, S.ABORTED},
+    S.IDLE:          {S.IDLE, S.INITIALIZING, S.REVERSING, S.WASHING, S.ERROR},
+    S.INITIALIZING:  {S.WAITING_GLASS, S.ERROR, S.IDLE},
+    # CLEAN is accepted by the firmware while an initialized order is loaded;
+    # it preserves that order and returns the Pi to WAITING_GLASS afterwards.
+    S.WAITING_GLASS: {S.WAITING_GLASS, S.DISPENSING, S.WASHING, S.ERROR, S.IDLE},
+    S.DISPENSING:    {S.DISPENSING, S.MIXING, S.ERROR, S.IDLE},
+    S.MIXING:        {S.MIXING, S.POURING, S.IDLE, S.ERROR},
+    S.POURING:       {S.POURING, S.DONE, S.WASHING, S.IDLE, S.ERROR},
+    S.DONE:          {S.DONE, S.IDLE, S.ERROR},
+    S.REVERSING:     {S.REVERSING, S.IDLE, S.ERROR},
+    S.WASHING:       {S.WASHING, S.MIXING, S.POURING, S.WAITING_GLASS, S.IDLE, S.ERROR},
+    S.DRAINING:      {S.DRAINING, S.RESEALING, S.IDLE, S.ERROR},
+    S.RESEALING:     {S.RESEALING, S.IDLE, S.ERROR},
+    S.ERROR:         {S.IDLE, S.INITIALIZING, S.ERROR},
+    S.ABORTED:       {S.IDLE, S.INITIALIZING, S.ABORTED},
 }
 
 # Sanity check: every state has an entry in the table
@@ -112,12 +71,11 @@ assert set(LEGAL_TRANSITIONS.keys()) == set(MachineState), (
 
 
 # ─────────────────────────────────────────────
-#  States that BLOCK new orders (PROTOCOL.md §4)
+#  States that block new orders
 # ─────────────────────────────────────────────
 
-# "No new order is accepted by the Pi from DONE through IDLE."
-# The whole post-order clean cycle is blocking, by design.
 ORDER_BLOCKING_STATES: frozenset[MachineState] = frozenset({
+    S.INITIALIZING,
     S.WAITING_GLASS,
     S.DISPENSING,
     S.MIXING,
@@ -129,7 +87,6 @@ ORDER_BLOCKING_STATES: frozenset[MachineState] = frozenset({
     S.RESEALING,
 })
 
-# States from which a new order IS accepted
 ORDER_ALLOWED_STATES: frozenset[MachineState] = frozenset({
     S.IDLE,
     S.ERROR,
@@ -169,6 +126,3 @@ def can_accept_order(machine_status: str) -> bool:
     if state is None:
         return False
     return state in ORDER_ALLOWED_STATES
-
-
-

@@ -40,19 +40,7 @@ def _is_powered_on() -> bool:
 
 
 def _power_state_payload() -> dict:
-    return {
-        "powered_on": _is_powered_on(),
-        "first_order_after_power_on": bool(db.get_setting("first_order_after_power_on", False)),
-    }
-
-
-def _active_reverse_config() -> list:
-    runtime = db.get_pump_runtime_config()
-    return [
-        {"i": pump_number, "t": cfg["reverse_ms"]}
-        for pump_number, cfg in runtime.items()
-        if cfg.get("is_active", True) and int(cfg.get("reverse_ms", 0)) > 0
-    ]
+    return {"powered_on": _is_powered_on()}
 
 def _swap_controller(simulator: bool):
     """
@@ -125,11 +113,13 @@ def _on_status_change(state: dict):
 
 
 def _on_sensor_update(state: dict):
-    """Called by hardware_controller when the machine sends a SENSOR update."""
+    """Forward raw firmware sensor-query values to SSE clients."""
     _push_event("sensor", {
-        "glass_state":  state.get("glass_state", "no_glass"),
+        "glass_state":  state.get("glass_state", "unknown"),
         "lower_sensor": state.get("lower_sensor", False),
         "upper_sensor": state.get("upper_sensor", False),
+        "liquid_levels": state.get("liquid_levels", {}),
+        "fluid_lines_primed": state.get("fluid_lines_primed"),
     })
 
 
@@ -151,10 +141,11 @@ def stream():
             "machine_status": state["machine_status"],
             "progress":       state["progress"],
             "message":        state["message"],
-            "glass_state":    state.get("glass_state", "no_glass"),
+            "glass_state":    state.get("glass_state", "unknown"),
             "lower_sensor":   state.get("lower_sensor", False),
             "upper_sensor":   state.get("upper_sensor", False),
             "connected":      state["connected"],
+            "firmware_ready": state.get("firmware_ready", False),
             "powered_on":     _is_powered_on(),
         })
         yield f"event: init\ndata: {init_data}\n\n"
@@ -203,16 +194,21 @@ def api_dev_simulate_message():
 
 @app.route("/api/order/confirm-glass", methods=["POST"])
 def api_confirm_glass():
-    """Request an immediate IR check; START remains sensor-controlled."""
+    """Confirm glass placement and send the firmware's separate START command.
+
+    CHECK_IR is intentionally not used as an automatic interlock: the current
+    firmware reports raw GPIO values only, and its handoff explicitly says
+    their physical polarity/meaning has not yet been confirmed.
+    """
     state = _controller.get_state()
     if state["machine_status"] != "waiting_glass":
         return jsonify({"error": f"Machine is not waiting for glass (current: {state['machine_status']})."}), 409
 
     try:
-        _controller.send_glass_ok()  # compatibility method now sends CHECK_IR
+        _controller.start_pending_order()
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 503
-    return jsonify({"success": True, "message": "Glass sensor check requested."})
+        return jsonify({"error": str(exc)}), 409
+    return jsonify({"success": True, "message": "START sent to ESP32."})
 
 # ─────────────────────────────────────────────
 #  CUSTOMER API
@@ -239,7 +235,8 @@ def api_place_order():
       2. Check machine is idle
       3. Save order to DB
       4. Send ORDER command to ESP32 via controller
-      5. Push SSE event to UI
+      5. Wait for its initialized response; the glass-confirmation endpoint
+         sends the required separate START command.
     """
     data      = request.get_json() or {}
     recipe_id = data.get("recipe_id")
@@ -262,32 +259,23 @@ def api_place_order():
     if error:
         return jsonify({"error": error}), 400
 
-    first_after_power_on = bool(db.get_setting("first_order_after_power_on", False))
-
-    # Initialize the order on the ESP32. The controller waits for the
-    # initialization response, polls CHECK_IR, and sends START after detection.
+    # The firmware owns its persistent feed-line priming state. Do not add
+    # extra per-pump time on the Pi side.
     try:
         _controller.send_order(
             order_id=order["order_id"],
             recipe_name=order["recipe_name"],
             pump_commands=order["pump_commands"],
             ice=ice,
-            first_after_power_on=first_after_power_on,
         )
     except Exception as exc:
         recipe_manager.complete_order(order["order_id"], "error")
         return jsonify({"error": f"Could not initialize order: {exc}"}), 503
-    if first_after_power_on:
-        db.mark_order_first_after_power_on(order["order_id"])
-        db.set_setting("first_order_after_power_on", False)
-        db.log_event("order:first_after_power_on", f"Order #{order['order_id']} {order['recipe_name']}")
-
     # Notify all UI clients immediately
     _push_event("order_placed", {
         "order_id":    order["order_id"],
         "recipe_name": order["recipe_name"],
         "pump_commands": order["pump_commands"],
-        "first_after_power_on": first_after_power_on,
     })
 
     return jsonify({
@@ -295,7 +283,6 @@ def api_place_order():
         "order_id":      order["order_id"],
         "recipe_name":   order["recipe_name"],
         "pump_commands": order["pump_commands"],
-        "first_after_power_on": first_after_power_on,
     })
 
 
@@ -326,28 +313,20 @@ def api_place_custom_order():
     if error:
         return jsonify({"error": error}), 400
 
-    first_after_power_on = bool(db.get_setting("first_order_after_power_on", False))
     try:
         _controller.send_order(
             order_id=order["order_id"],
             recipe_name=order["recipe_name"],
             pump_commands=order["pump_commands"],
             ice=ice,
-            first_after_power_on=first_after_power_on,
         )
     except Exception as exc:
         recipe_manager.complete_order(order["order_id"], "error")
         return jsonify({"error": f"Could not initialize order: {exc}"}), 503
-    if first_after_power_on:
-        db.mark_order_first_after_power_on(order["order_id"])
-        db.set_setting("first_order_after_power_on", False)
-        db.log_event("order:first_after_power_on", f"Order #{order['order_id']} {order['recipe_name']}")
-
     _push_event("order_placed", {
         "order_id":    order["order_id"],
         "recipe_name": order["recipe_name"],
         "pump_commands": order["pump_commands"],
-        "first_after_power_on": first_after_power_on,
     })
 
     return jsonify({
@@ -355,19 +334,25 @@ def api_place_custom_order():
         "order_id":      order["order_id"],
         "recipe_name":   order["recipe_name"],
         "pump_commands": order["pump_commands"],
-        "first_after_power_on": first_after_power_on,
     })
 
 
 @app.route("/api/abort", methods=["POST"])
 def api_abort():
-    """Emergency abort — stop all dispensing immediately."""
-    _controller.send_abort()
-    state    = _controller.get_state()
-    order_id = state.get("current_order_id")
-    if order_id:
-        recipe_manager.complete_order(order_id, "aborted")
-    return jsonify({"success": True, "message": "Abort signal sent."})
+    """Request the firmware's limited STOP behavior.
+
+    STOP is not an emergency stop: the supplied firmware only requests that
+    the oscillator complete its current leg and stops an active ice task.  It
+    does not stop pumps, indexing, priming, valve movement, or reversal.
+    """
+    try:
+        _controller.send_stop_request()
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({
+        "success": True,
+        "message": "STOP requested. Use the physical emergency-stop hardware for an immediate full halt.",
+    })
 
 
 @app.route("/api/status")
@@ -379,12 +364,29 @@ def api_status():
         "machine_status": state["machine_status"],
         "progress":       state["progress"],
         "message":        state["message"],
-        "glass_state":    state.get("glass_state", "no_glass"),
+        "glass_state":    state.get("glass_state", "unknown"),
         "lower_sensor":   state.get("lower_sensor", False),
         "upper_sensor":   state.get("upper_sensor", False),
+        "liquid_levels":  state.get("liquid_levels", {}),
+        "fluid_lines_primed": state.get("fluid_lines_primed"),
         "last_seen":      state["last_seen"],
+        "firmware_ready": state.get("firmware_ready", False),
         "powered_on":     _is_powered_on(),
     })
+
+
+@app.route("/api/hardware/query", methods=["POST"])
+def api_hardware_query():
+    """Request one documented raw-sensor/state response from the ESP32."""
+    data = request.get_json(silent=True) or {}
+    command = str(data.get("command", "")).upper()
+    if command not in {"CHECK_IR", "CHECK_LEVELS", "CHECK_LINE_STATE"}:
+        return jsonify({"error": "command must be CHECK_IR, CHECK_LEVELS, or CHECK_LINE_STATE."}), 400
+    try:
+        _controller.query_sensors(command)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"success": True, "command": command})
 
 
 @app.route("/api/orders")
@@ -472,20 +474,6 @@ def api_update_flowrate(pump_number):
     db.update_pump_flow_rate(pump_number, float(flow_rate))
     return jsonify({"success": True})
 
-
-@app.route("/api/admin/pumps/<int:pump_number>/timing", methods=["PUT"])
-def api_update_pump_timing(pump_number):
-    """
-    Update startup prime and shutdown reverse timing for a pump.
-    Body: {"initial_extra_ms": 1460, "reverse_ms": 5000}
-    """
-    data = request.get_json() or {}
-    initial_extra_ms = int(data.get("initial_extra_ms", 1460))
-    reverse_ms = int(data.get("reverse_ms", 5000))
-    if initial_extra_ms < 0 or reverse_ms < 0:
-        return jsonify({"error": "Pump timings must be non-negative milliseconds."}), 400
-    db.update_pump_timing(pump_number, initial_extra_ms, reverse_ms)
-    return jsonify({"success": True})
 
 # ─────────────────────────────────────────────
 #  ADMIN API — Recipes
@@ -652,16 +640,19 @@ def api_set_power():
 
     powered_on = bool(data["powered_on"])
     if powered_on:
+        try:
+            _controller.send_power(True)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 503
         db.set_setting("machine_powered_on", True)
-        db.set_setting("first_order_after_power_on", True)
-        _controller.send_power(True)
         db.log_event("power:on")
     else:
-        reverse_config = _active_reverse_config()
+        try:
+            _controller.send_power(False)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 503
         db.set_setting("machine_powered_on", False)
-        db.set_setting("first_order_after_power_on", False)
-        _controller.send_power(False, reverse_config=reverse_config)
-        db.log_event("power:off", f"reverse={reverse_config}")
+        db.log_event("power:off", "REVERSE_PUMPS (firmware fixed 4000 ms per pump)")
 
     payload = _power_state_payload()
     _push_event("power", payload)
@@ -677,19 +668,25 @@ def api_get_events():
 
 @app.route("/api/admin/clean", methods=["POST"])
 def api_clean():
-    """Run the ESP32 full CLEAN sequence. Only allowed while idle."""
+    """Run CLEAN while idle or while a firmware-initialized order is pending."""
     state = _controller.get_state()
-    if state["machine_status"] != "idle":
+    if state["machine_status"] not in {"idle", "waiting_glass"}:
         return jsonify({
-            "error": f"Cannot clean while machine is {state['machine_status']}. Wait until idle."
+            "error": f"Cannot clean while machine is {state['machine_status']}. Wait until idle or order initialization."
         }), 409
+
+    data = request.get_json(silent=True) or {}
+    if data.get("mode", "all") != "all" or data.get("pump") is not None:
+        return jsonify({
+            "error": "This firmware has no single-pump clean/test command. CLEAN runs pump 1 for 5000 ms."
+        }), 400
 
     try:
         _controller.send_clean()
     except Exception as exc:
         return jsonify({"error": str(exc)}), 503
 
-    return jsonify({"success": True, "message": "Full cleaning sequence started."})
+    return jsonify({"success": True, "message": "CLEAN started (pump 1 for 5000 ms, then mixing and valve opening)."})
 
 
 def get_admin_pin():
@@ -737,9 +734,6 @@ def create_app():
 
     if db.get_setting("machine_powered_on") is None:
         db.set_setting("machine_powered_on", False)
-    if db.get_setting("first_order_after_power_on") is None:
-        db.set_setting("first_order_after_power_on", False)
-
     # Seed simulator_mode from config if not already in DB
     if db.get_setting("simulator_mode") is None:
         db.set_setting("simulator_mode", "1" if config.SIMULATOR_MODE else "0")
@@ -765,8 +759,3 @@ if __name__ == "__main__":
         threaded=True,
         use_reloader=False,   # must be False — hardware thread can't handle reloader
     )
-
-
-
-
-

@@ -31,13 +31,13 @@ def resolve_pump_commands(ingredients: list):
     """
     pump_map = db.get_pump_assignments()   # ingredient_id → {pump_number, flow_rate_ml_per_s}
 
-    commands = []
+    commands_by_pump = {}
     missing = []
 
     for ing in ingredients:
-        amount_ml    = ing["amount_ml"]
-        ing_id       = ing["id"]
-        ing_name     = ing["name"]
+        amount_ml = ing["amount_ml"]
+        ing_id = ing["id"]
+        ing_name = ing["name"]
 
         if amount_ml <= 0:
             continue
@@ -47,23 +47,39 @@ def resolve_pump_commands(ingredients: list):
             missing.append(ing_name)
             continue
 
-        flow_rate   = pump_info["flow_rate_ml_per_s"]
-        duration_ms = int((amount_ml / flow_rate) * 1000)
+        flow_rate = float(pump_info["flow_rate_ml_per_s"])
+        if flow_rate <= 0:
+            return None, f"Pump {pump_info['pump_number']} has an invalid flow-rate calibration."
 
-        commands.append({
-            "pump":             pump_info["pump_number"],
-            "ingredient":       ing_name,
-            "amount_ml":        amount_ml,
-            "duration_ms":      duration_ms,
-            "initial_extra_ms": int(pump_info.get("initial_extra_ms", 1460)),
-            "reverse_ms":       int(pump_info.get("reverse_ms", 5000)),
-        })
+        pump_number = int(pump_info["pump_number"])
+        duration_ms = round((float(amount_ml) / flow_rate) * 1000)
+        existing = commands_by_pump.get(pump_number)
+        if existing:
+            # A duplicate ingredient in a custom recipe must still become one
+            # pump entry: the ESP32 rejects duplicate ``pump`` values.
+            existing["amount_ml"] += amount_ml
+            existing["duration_ms"] += duration_ms
+        else:
+            commands_by_pump[pump_number] = {
+                "pump": pump_number,
+                "ingredient": ing_name,
+                "amount_ml": amount_ml,
+                "duration_ms": duration_ms,
+            }
 
     if missing:
         return None, f"No pump assigned for: {', '.join(missing)}. Please configure pumps in Admin Panel."
 
+    commands = list(commands_by_pump.values())
     if not commands:
         return None, "Recipe has no valid ingredients."
+
+    too_long = [str(command["pump"]) for command in commands if not 1 <= command["duration_ms"] <= config.MAX_PUMP_TIME_MS]
+    if too_long:
+        return None, (
+            f"Pump run time for pump(s) {', '.join(too_long)} is outside the firmware limit "
+            f"of 1-{config.MAX_PUMP_TIME_MS} ms. Recalibrate the pump or reduce the amount."
+        )
 
     # Sort by pump number for deterministic order
     commands.sort(key=lambda c: c["pump"])

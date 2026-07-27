@@ -1,463 +1,305 @@
 #!/usr/bin/env python3
+"""Virtual implementation of the current CocktailCraft ESP32-S3 protocol.
+
+It is a development harness for the real ``SerialController`` path, not a
+second source of firmware behaviour.  It accepts compact ORDER JSON and
+plain-text commands, and emits the current firmware's ``DATA:``/``LOG:``
+lines.  Timings are deliberately accelerated.
+
+Usage (with a virtual serial pair or TCP server) is unchanged::
+
+    python fake_esp32.py --port /dev/pts/3
+    python fake_esp32.py --tcp --tcp-port 9999
 """
-fake_esp32.py — Virtual ESP32 Serial Harness
-Cocktail-Craft Bartender | Development Tool
 
-Simulates the ESP32 firmware over a serial port so the Flask app's
-SerialController can be exercised against real serial I/O without
-physical hardware.
-
-Usage
------
-# Linux / Raspberry Pi (socat virtual pair):
-#   Terminal 1 — create the pair:
-#     socat -d -d pty,raw,echo=0 pty,raw,echo=0
-#   Note the two /dev/pts/N paths it prints, e.g. /dev/pts/2 and /dev/pts/3
-#   Terminal 2 — start fake ESP32 on one end:
-#     python fake_esp32.py --port /dev/pts/3
-#   In config.py set SERIAL_PORT = "/dev/pts/2", SIMULATOR_MODE = False, then run app.
-
-# Windows (TCP loopback via pyserial socket:// URL):
-#   Terminal 1 — start fake ESP32 as a TCP server:
-#     python fake_esp32.py --tcp --tcp-port 9999
-#   In config.py set SERIAL_PORT = "socket://localhost:9999", SIMULATOR_MODE = False, then run app.
-#   (pyserial supports "socket://host:port" as a port string natively)
-
-# Chaos mode — injects malformed JSON lines, artificial delays, and disconnects:
-#     python fake_esp32.py --port /dev/pts/3 --chaos
-
-Protocol implemented (per PROTOCOL.md)
----------------------------------------
-  Receives:  ORDER, ABORT, CLEAN (post_order | manual)
-  Sends:     STATUS, SENSOR
-"""
+from __future__ import annotations
 
 import argparse
 import json
-import random
 import socket
 import sys
 import threading
 import time
 from datetime import datetime
 
-# ─────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────
 
-def log(msg: str):
-    ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-    print(f"[{ts}] [FAKE-ESP32] {msg}", flush=True)
+MAX_PUMP_TIME_MS = 60_000
 
 
-def encode(payload: dict) -> bytes:
-    return (json.dumps(payload) + "\n").encode("utf-8")
+def log(message: str):
+    timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    print(f"[{timestamp}] [FAKE-ESP32] {message}", flush=True)
 
-
-# ─────────────────────────────────────────────
-#  ESP32 State Machine
-# ─────────────────────────────────────────────
 
 class FakeESP32:
-    """
-    Replicates the ESP32 state machine described in PROTOCOL.md.
-    Runs the full ORDER + post-order auto-clean cycle, and handles
-    ABORT and CLEAN (manual) commands.
-    """
+    """Implements the public Pi-facing protocol in the firmware handoff."""
 
-    def __init__(self, send_fn, chaos: bool = False):
-        """
-        send_fn: callable(bytes) — write raw bytes to the serial port
-        chaos:   if True, randomly inject protocol errors
-        """
-        self._send     = send_fn
-        self._chaos    = chaos
-        self._lock     = threading.Lock()
-        self._abort    = threading.Event()
-        self._sequence = None   # currently running sequence thread
+    def __init__(self, send_line):
+        self._send_line = send_line
+        self._lock = threading.RLock()
+        self._loaded_order: dict | None = None
+        self._busy = False
+        self._lines_primed = False
 
-    # ── Command dispatch ──────────────────────
+    def ready(self):
+        self._data({"type": "system", "event": "ready"})
 
-    def on_command(self, data: dict):
-        cmd = data.get("cmd", "").upper()
-        log(f"← Received: {json.dumps(data)}")
+    def on_line(self, line: str):
+        log(f"<- {line}")
+        if line.startswith("{"):
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                self._order_response("rejected", "invalid_json")
+                return
+            self._handle_order(payload)
+            return
 
-        if cmd == "ORDER":
-            self._start_sequence(self._run_order, data)
-        elif cmd == "ABORT":
-            self._do_abort()
-        elif cmd == "CLEAN":
-            trigger = data.get("trigger", "manual")
-            if trigger == "post_order":
-                self._start_sequence(self._run_post_order_clean, data)
-            else:
-                self._start_sequence(self._run_manual_clean, data)
+        command = line.strip().upper()
+        if command in {"S", "START"}:
+            self._start()
+        elif command in {"X", "STOP"}:
+            self._log("STOP REQUESTED (limited to mixer/ice in real firmware)")
+        elif command == "CLEAN":
+            self._start_clean()
+        elif command == "REVERSE_PUMPS":
+            self._start_reverse()
+        elif command == "CHECK_IR":
+            self._data({"type": "response", "command": "CHECK_IR", "upper": 1, "lower": 1})
+        elif command == "CHECK_LEVELS":
+            self._data({"type": "response", "command": "CHECK_LEVELS", **{f"ls{i}": 1 for i in range(1, 7)}})
+        elif command == "CHECK_LINE_STATE":
+            self._data({
+                "type": "response",
+                "command": "CHECK_LINE_STATE",
+                "primed": self._lines_primed,
+                "state": "PRIMED" if self._lines_primed else "EMPTY",
+            })
         else:
-            log(f"Unknown command: {cmd!r}")
+            self._log("ERROR:UNKNOWN_COMMAND")
 
-    def _start_sequence(self, fn, data):
+    def _handle_order(self, payload: dict):
         with self._lock:
-            self._abort.clear()
-        t = threading.Thread(target=fn, args=(data,), daemon=True)
+            if self._busy:
+                self._order_response("rejected", "busy")
+                return
+            if payload.get("command") != "ORDER":
+                self._order_response("rejected", "invalid_command")
+                return
+            order_id = payload.get("order_id")
+            if not isinstance(order_id, str) or not order_id:
+                self._order_response("rejected", "missing_order_id")
+                return
+            pumps = payload.get("pumps")
+            if not isinstance(pumps, list) or not pumps:
+                self._order_response("rejected", "missing_pumps")
+                return
+            seen = set()
+            parsed = []
+            for entry in pumps:
+                try:
+                    pump = int(entry["pump"])
+                    time_ms = int(entry["time_ms"])
+                except (KeyError, TypeError, ValueError):
+                    self._order_response("rejected", "invalid_pump_time")
+                    return
+                if pump not in range(1, 7):
+                    self._order_response("rejected", "invalid_pump_number")
+                    return
+                if not 1 <= time_ms <= MAX_PUMP_TIME_MS:
+                    self._order_response("rejected", "invalid_pump_time")
+                    return
+                if pump in seen:
+                    self._order_response("rejected", "duplicate_pump")
+                    return
+                seen.add(pump)
+                parsed.append({"pump": pump, "time_ms": time_ms})
+
+            self._loaded_order = {
+                "order_id": order_id,
+                "pumps": sorted(parsed, key=lambda item: item["pump"]),
+                "ice": bool(payload.get("ice", {}).get("enabled", False)),
+            }
+        self._order_response("initialized")
+
+    def _start(self):
         with self._lock:
-            self._sequence = t
-        t.start()
+            if self._busy:
+                self._log("BUSY")
+                return
+            if not self._loaded_order:
+                self._log("NO_ORDER_LOADED")
+                return
+            order = dict(self._loaded_order)
+            self._busy = True
+        self._log("ACK:START")
+        threading.Thread(target=self._run_order, args=(order,), daemon=True).start()
 
-    # ── ABORT ─────────────────────────────────
+    def _start_clean(self):
+        with self._lock:
+            if self._busy:
+                self._log("BUSY")
+                return
+            self._busy = True
+        self._log("ACK:CLEAN")
+        threading.Thread(target=self._run_clean, daemon=True).start()
 
-    def _do_abort(self):
-        log("ABORT received — halting all sequences.")
-        self._abort.set()
-        self._status(None, "aborted", 0, "Emergency stop.")
-        self._sleep(1.5)
-        self._status(None, "idle", 0, "Ready")
+    def _start_reverse(self):
+        with self._lock:
+            if self._busy:
+                self._log("BUSY")
+                return
+            self._busy = True
+        self._log("ACK:REVERSE_PUMPS")
+        threading.Thread(target=self._run_reverse, daemon=True).start()
 
-    # ── ORDER sequence ────────────────────────
+    def _run_order(self, order: dict):
+        if not self._lines_primed:
+            self._system("line_priming", "started")
+            self._sleep(0.35)
+            self._lines_primed = True
+            self._system("line_priming", "finished")
+        for command in order["pumps"]:
+            self._system("pump", "forward", pump=command["pump"])
+            self._sleep(0.18)
+            self._system("pump", "stop", pump=command["pump"])
+            self._sleep(0.08)
+        self._system("mixing", "started")
+        self._sleep(0.3)
+        self._system("mixing", "stopped")
+        self._sleep(0.12)
+        self._system("valve", "opened")
+        with self._lock:
+            self._loaded_order = None
+            self._busy = False
 
-    def _run_order(self, data: dict):
-        order_id    = data.get("order_id")
-        recipe_name = data.get("recipe_name", "Unknown")
-        ice         = data.get("ice", False)
+    def _run_clean(self):
+        self._system("cleaning", "started")
+        self._sleep(0.12)
+        self._system("pump", "forward", pump=1)
+        self._sleep(0.25)
+        self._system("pump", "stop", pump=1)
+        self._system("mixing", "started")
+        self._sleep(0.25)
+        self._system("mixing", "stopped")
+        self._sleep(0.12)
+        self._system("valve", "opened")
+        self._system("cleaning", "finished")
+        with self._lock:
+            self._busy = False
 
-        log(f"Starting ORDER #{order_id} — {recipe_name} | ice={ice}")
+    def _run_reverse(self):
+        self._system("reverse_pumps", "started")
+        self._sleep(0.5)
+        self._lines_primed = False
+        self._system("reverse_pumps", "finished")
+        with self._lock:
+            self._busy = False
 
-        self._status(order_id, "waiting_glass", 0, "Waiting for glass...")
-        if self._sleep(2): return
+    def _order_response(self, status: str, reason: str | None = None):
+        body = {"type": "response", "command": "ORDER", "status": status}
+        if reason:
+            body["reason"] = reason
+        elif self._loaded_order:
+            body.update(self._loaded_order)
+        self._data(body)
 
-        # Glass placed
-        import random
-        glass_type = random.choice(["small_glass", "large_glass"])
-        self._sensor(glass_state=glass_type)
-        if self._sleep(0.3): return
+    def _system(self, event: str, action: str | None = None, **extra):
+        body = {"type": "system", "event": event, **extra}
+        if action is not None:
+            body["action"] = action
+        self._data(body)
 
-        if ice:
-            self._status(order_id, "dispensing", 5, "Adding ice...")
-            if self._sleep(1.2): return
+    def _data(self, body: dict):
+        line = "DATA:" + json.dumps(body, separators=(",", ":"))
+        log(f"-> {line}")
+        self._send_line(line)
 
-        self._status(order_id, "dispensing", 10, f"Preparing {recipe_name}...")
-        if self._sleep(1.5): return
+    def _log(self, message: str):
+        line = f"LOG:{message}"
+        log(f"-> {line}")
+        self._send_line(line)
 
-        self._maybe_chaos()   # inject chaos mid-sequence
-
-        self._status(order_id, "dispensing", 40, "Dispensing ingredients...")
-        if self._sleep(2.5): return
-
-        self._status(order_id, "mixing", 60, "Mixing your drink...")
-        if self._sleep(2.0): return
-
-        self._status(order_id, "pouring", 80, "Pouring into glass...")
-        if self._sleep(1.5): return
-
-        self._status(order_id, "done", 100, "Drink is ready! Enjoy!")
-        log(f"ORDER #{order_id} done — starting post-order auto-clean.")
-
-        # Post-order auto-clean fires immediately
-        self._run_post_order_clean({
-            "order_id": order_id,
-            "pumps":    [p["pump"] for p in data.get("pumps", [])],
-        })
-
-    # ── Post-order auto-clean sequence ────────
-
-    def _run_post_order_clean(self, data: dict):
-        order_id = data.get("order_id")
-        pumps    = data.get("pumps", [])
-
-        log(f"Post-order clean → order #{order_id}, reversing pumps {pumps}")
-
-        # REVERSING starts immediately — doesn't need glass gone yet
-        self._status(order_id, "reversing", 0, "Reversing pump lines...")
-        if self._sleep(2.0): return
-
-        # Gate: wait for glass to be removed (no timeout per PROTOCOL.md §4)
-        self._status(order_id, "reversing", 50, "Please remove your glass...")
-        log("Gate: waiting indefinitely for glass removal...")
-        self._wait_for_glass_removal(order_id)
-        if self._abort.is_set(): return
-
-        self._status(order_id, "washing", 0, "Rinsing container with water...")
-        if self._sleep(2.5): return
-
-        self._status(order_id, "mixing", 50, "Shaking container clean...")
-        if self._sleep(2.0): return
-
-        self._status(order_id, "draining", 75, "Draining water...")
-        if self._sleep(1.5): return
-
-        self._status(order_id, "resealing", 90, "Resealing container...")
-        if self._sleep(1.0): return
-
-        self._status(None, "idle", 0, "Ready for next order")
-        log("Auto-clean complete — machine idle.")
-
-    def _wait_for_glass_removal(self, order_id):
-        """
-        In this harness, simulate glass removal after a 3-second pause by
-        sending a SENSOR event. In real life the customer removes their glass
-        and the IR sensor fires — same event, different origin.
-        """
-        time.sleep(3)
-        if self._abort.is_set():
-            return
-        log("Simulating customer removing glass.")
-        self._sensor(glass_state="no_glass")
-
-    # ── Manual clean sequence ─────────────────
-
-    def _run_manual_clean(self, data: dict):
-        mode = data.get("mode", "all")
-        pump = data.get("pump")
-        desc = f"pump {pump}" if mode == "single" else "all pump lines"
-        log(f"Manual clean — {desc}")
-
-        self._status(None, "reversing", 0, f"Flushing {desc}...")
-        if self._sleep(2.5): return
-        self._status(None, "idle", 0, "Ready")
-        log("Manual clean complete.")
-
-    # ── Message senders ───────────────────────
-
-    def _status(self, order_id, status: str, progress: int, message: str):
-        payload = {
-            "type":     "STATUS",
-            "status":   status,
-            "progress": progress,
-            "message":  message,
-        }
-        if order_id is not None:
-            payload["order_id"] = order_id
-        log(f"→ STATUS  {status} ({progress}%) | {message}")
-        self._send(encode(payload))
-
-    def _sensor(self, glass_state: str):
-        payload = {"type": "SENSOR", "glass_state": glass_state}
-        log(f"→ SENSOR  glass_state={glass_state}")
-        self._send(encode(payload))
-
-    # ── Chaos injection ───────────────────────
-
-    def _maybe_chaos(self):
-        """Randomly inject a chaos event if --chaos is active."""
-        if not self._chaos:
-            return
-        roll = random.random()
-        if roll < 0.25:
-            # Send a garbage/malformed line
-            garbage = b"THIS IS NOT JSON\n"
-            log("[CHAOS] Injecting malformed line.")
-            self._send(garbage)
-        elif roll < 0.40:
-            # Inject an artificial delay (simulate slow firmware)
-            delay = random.uniform(1.5, 3.5)
-            log(f"[CHAOS] Injecting {delay:.1f}s delay.")
-            time.sleep(delay)
-        elif roll < 0.50:
-            # Send a JSON line with an unknown message type
-            log("[CHAOS] Injecting unknown message type.")
-            self._send(encode({"type": "TELEMETRY", "motor_temp": 42.7}))
-        # else: no chaos this time
-
-    # ── Sleep helper ──────────────────────────
-
-    def _sleep(self, seconds: float) -> bool:
-        """Sleep in 0.1s chunks; return True if abort was requested."""
-        deadline = time.time() + seconds
-        while time.time() < deadline:
-            if self._abort.is_set():
-                log("Abort flag detected — bailing out of sequence.")
-                self._status(None, "aborted", 0, "Aborted.")
-                time.sleep(0.5)
-                self._status(None, "idle", 0, "Ready")
-                return True
-            time.sleep(0.1)
-        return False
+    @staticmethod
+    def _sleep(seconds: float):
+        time.sleep(seconds)
 
 
-# ─────────────────────────────────────────────
-#  Serial port mode (socat / real port)
-# ─────────────────────────────────────────────
+def run_serial(port_path: str):
+    import serial
 
-def run_serial(port_path: str, chaos: bool):
-    import serial  # noqa: PLC0415 — only needed in this mode
-
-    log(f"Opening serial port: {port_path}")
     try:
         port = serial.Serial(port_path, baudrate=115200, timeout=1)
-    except serial.SerialException as e:
-        log(f"ERROR: Cannot open {port_path}: {e}")
+    except serial.SerialException as exc:
+        log(f"ERROR: Cannot open {port_path}: {exc}")
         sys.exit(1)
 
-    log(f"Listening on {port_path} — waiting for commands from Flask app...")
+    def send_line(line: str):
+        port.write((line + "\n").encode("utf-8"))
+        port.flush()
 
-    def send_fn(data: bytes):
-        try:
-            port.write(data)
-            port.flush()
-        except Exception as e:
-            log(f"Send error: {e}")
-
-    esp = FakeESP32(send_fn, chaos=chaos)
-
+    fake = FakeESP32(send_line)
+    fake.ready()
     try:
         while True:
-            try:
-                raw = port.readline()
-            except serial.SerialException as e:
-                log(f"Read error: {e}")
-                break
-
-            if not raw:
-                continue
-
-            line = raw.decode("utf-8", errors="ignore").strip()
-            if not line:
-                continue
-
-            try:
-                data = json.loads(line)
-            except json.JSONDecodeError:
-                log(f"Non-JSON received: {line!r}")
-                continue
-
-            esp.on_command(data)
-
+            raw = port.readline()
+            if raw:
+                fake.on_line(raw.decode("utf-8", errors="replace").strip())
     except KeyboardInterrupt:
-        log("Interrupted by user.")
+        pass
     finally:
         port.close()
-        log("Port closed.")
 
 
-# ─────────────────────────────────────────────
-#  TCP mode (cross-platform / Windows)
-# ─────────────────────────────────────────────
-
-def run_tcp_server(host: str, tcp_port: int, chaos: bool):
-    """
-    Listens as a raw TCP server.
-    pyserial on the Flask side uses "socket://localhost:<tcp_port>" as SERIAL_PORT.
-    Note: pyserial's socket:// connects as a TCP *client* — so this script is the
-    server side.
-    """
+def run_tcp(host: str, tcp_port: int):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((host, tcp_port))
     server.listen(1)
     log(f"TCP server listening on {host}:{tcp_port}")
-    log("In config.py set: SERIAL_PORT = f'socket://localhost:{tcp_port}', SIMULATOR_MODE = False")
-
-    while True:
-        log("Waiting for Flask app to connect...")
-        try:
-            conn, addr = server.accept()
-        except KeyboardInterrupt:
-            log("Interrupted — shutting down.")
-            break
-
-        log(f"Flask app connected from {addr}")
-        _handle_tcp_connection(conn, chaos)
-        log("Connection closed — ready for next connection.")
-
-    server.close()
-
-
-def _handle_tcp_connection(conn: socket.socket, chaos: bool):
-    buf = b""
-
-    def send_fn(data: bytes):
-        try:
-            conn.sendall(data)
-        except Exception as e:
-            log(f"TCP send error: {e}")
-
-    esp = FakeESP32(send_fn, chaos=chaos)
-
     try:
         while True:
-            try:
-                chunk = conn.recv(4096)
-            except ConnectionResetError:
-                log("Connection reset by Flask app.")
-                break
-
-            if not chunk:
-                log("Flask app disconnected.")
-                break
-
-            buf += chunk
-            while b"\n" in buf:
-                line_bytes, buf = buf.split(b"\n", 1)
-                line = line_bytes.decode("utf-8", errors="ignore").strip()
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    log(f"Non-JSON received: {line!r}")
-                    continue
-                esp.on_command(data)
-
+            connection, address = server.accept()
+            log(f"Client connected from {address}")
+            _serve_connection(connection)
     except KeyboardInterrupt:
         pass
     finally:
-        try:
-            conn.close()
-        except Exception:
-            pass
+        server.close()
 
 
-# ─────────────────────────────────────────────
-#  Entry point
-# ─────────────────────────────────────────────
+def _serve_connection(connection: socket.socket):
+    def send_line(line: str):
+        connection.sendall((line + "\n").encode("utf-8"))
+
+    fake = FakeESP32(send_line)
+    fake.ready()
+    buffer = b""
+    try:
+        while True:
+            chunk = connection.recv(4096)
+            if not chunk:
+                return
+            buffer += chunk
+            while b"\n" in buffer:
+                raw_line, buffer = buffer.split(b"\n", 1)
+                fake.on_line(raw_line.decode("utf-8", errors="replace").strip())
+    finally:
+        connection.close()
+
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Fake ESP32 serial harness for Cocktail-Craft dev/testing.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__,
-    )
-    mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument(
-        "--port", "-p",
-        metavar="PORT",
-        help="Serial port to listen on (e.g. /dev/pts/3 or COM4). "
-             "Use with socat virtual pair on Linux/Pi.",
-    )
-    mode.add_argument(
-        "--tcp",
-        action="store_true",
-        help="Run as a TCP server instead of a serial port. "
-             "Set SERIAL_PORT = 'socket://localhost:<tcp-port>' in config.py.",
-    )
-    parser.add_argument(
-        "--tcp-host",
-        default="localhost",
-        metavar="HOST",
-        help="TCP bind address (default: localhost). Only used with --tcp.",
-    )
-    parser.add_argument(
-        "--tcp-port",
-        type=int,
-        default=9999,
-        metavar="PORT",
-        help="TCP port to listen on (default: 9999). Only used with --tcp.",
-    )
-    parser.add_argument(
-        "--chaos",
-        action="store_true",
-        help="Randomly inject malformed lines, delays, and unknown message types "
-             "to stress-test the Flask app's error handling.",
-    )
-
+    parser = argparse.ArgumentParser(description="Current CocktailCraft ESP32 protocol harness")
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument("--port", "-p", help="Serial port, e.g. /dev/pts/3")
+    target.add_argument("--tcp", action="store_true", help="Run a TCP server for pyserial socket://")
+    parser.add_argument("--tcp-host", default="localhost")
+    parser.add_argument("--tcp-port", type=int, default=9999)
     args = parser.parse_args()
-
-    if args.chaos:
-        log("CHAOS MODE enabled — expect deliberate protocol errors.")
-
     if args.tcp:
-        run_tcp_server(args.tcp_host, args.tcp_port, args.chaos)
+        run_tcp(args.tcp_host, args.tcp_port)
     else:
-        run_serial(args.port, args.chaos)
+        run_serial(args.port)
 
 
 if __name__ == "__main__":

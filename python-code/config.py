@@ -9,6 +9,18 @@ SIMULATOR_MODE  = False             # If True, bypasses hardware and simulates p
 SERIAL_PORT     = "/dev/ttyACM0"   # update if ls /dev/tty* shows differently
 SERIAL_BAUDRATE = 115200
 SERIAL_TIMEOUT  = 1                # seconds read timeout
+SERIAL_RECONNECT_SECONDS = 3
+
+# The current ESP32 firmware rejects an ORDER if a pump time is outside this
+# range. Keep the Pi-side validation in lockstep with MAX_PUMP_TIME_MS in the
+# firmware.
+MAX_PUMP_TIME_MS = 60_000
+ORDER_RESPONSE_TIMEOUT_SECONDS = 8
+
+# The firmware sends no explicit order-completed event; valve-opened is the
+# completion signal. Keep the customer confirmation visible briefly before
+# returning the Pi-facing state to idle.
+DONE_SCREEN_SECONDS = 5
 
 # ─── Flask ────────────────────────────────────────────
 FLASK_PORT  = 5000

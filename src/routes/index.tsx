@@ -41,11 +41,11 @@ function KioskApp() {
   const [machineStatus, setMachineStatus] = useState("idle");
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
-  const [glassState, setGlassState] = useState("no_glass");
+  const [glassState, setGlassState] = useState("unknown");
   const [poweredOn, setPoweredOn] = useState(false);
-  const [lowerSensor, setLowerSensor] = useState(false);
-  const [upperSensor, setUpperSensor] = useState(false);
-  // Tracks whether we're in the post-order cleaning cycle
+  const [lowerSensor, setLowerSensor] = useState<number | null>(null);
+  const [upperSensor, setUpperSensor] = useState<number | null>(null);
+  // Tracks the firmware's explicit CLEAN sequence.
   const inCleanCycle = useRef(false);
 
   // Load menu and available ingredients
@@ -78,8 +78,8 @@ function KioskApp() {
       setProgress(data.progress || 0);
       setMessage(data.message || "");
       setGlassState(data.glass_state);
-      if ("lower_sensor" in data) setLowerSensor(Boolean(data.lower_sensor));
-      if ("upper_sensor" in data) setUpperSensor(Boolean(data.upper_sensor));
+      if ("lower_sensor" in data) setLowerSensor(data.lower_sensor ?? null);
+      if ("upper_sensor" in data) setUpperSensor(data.upper_sensor ?? null);
     });
 
     evtSource.addEventListener("status", (e) => {
@@ -93,10 +93,10 @@ function KioskApp() {
       if (status === "waiting_glass") {
         inCleanCycle.current = false;
         setScreen("waiting_glass");
-      } else if (["dispensing", "pouring"].includes(status)) {
+      } else if (["initializing", "dispensing", "pouring"].includes(status)) {
         setScreen("preparing");
       } else if (status === "mixing") {
-        // mixing is used both during drink-making AND during the clean cycle shake step
+        // Mixing is used both during drink-making and the firmware's CLEAN cycle.
         setScreen(inCleanCycle.current ? "cleaning" : "preparing");
       } else if (status === "done") {
         setScreen("ready");
@@ -129,8 +129,8 @@ function KioskApp() {
     evtSource.addEventListener("sensor", (e) => {
       const data = JSON.parse(e.data);
       setGlassState(data.glass_state);
-      if ("lower_sensor" in data) setLowerSensor(Boolean(data.lower_sensor));
-      if ("upper_sensor" in data) setUpperSensor(Boolean(data.upper_sensor));
+      if ("lower_sensor" in data) setLowerSensor(data.lower_sensor ?? null);
+      if ("upper_sensor" in data) setUpperSensor(data.upper_sensor ?? null);
     });
 
     return () => evtSource.close();
@@ -571,55 +571,30 @@ function Review({ selected, mode, customIngredients, now, go, handleOrder, isSub
 
 function WaitingGlass({ now, glassState, lowerSensor, upperSensor, totalMl }: any) {
   const requiresLarge = totalMl > 200;
-  
-  let ringClass = "border-accent bg-accent/10 text-accent animate-pulse";
-  let title = `Please place a ${requiresLarge ? "LARGE " : ""}glass`;
-  let subtitle = "under the dispenser nozzle";
-  let sensorText = `Lower ${lowerSensor ? "blocked" : "clear"} / Upper ${upperSensor ? "blocked" : "clear"}`;
-
-  if (glassState === "small_glass") {
-    if (requiresLarge) {
-      ringClass = "border-orange-500 bg-orange-500/20 text-orange-500 animate-pulse";
-      title = "Small Glass Detected";
-      subtitle = "Warning: Recipe requires a LARGE glass!";
-    } else {
-      ringClass = "border-green-500 bg-green-500/20 text-green-400";
-      title = "Small Glass Detected";
-      subtitle = "Starting order...";
-    }
-  } else if (glassState === "large_glass") {
-    ringClass = "border-green-500 bg-green-500/20 text-green-400";
-    title = "Large Glass Detected";
-    subtitle = "Starting order...";
-  } else if (glassState === "sensor_error") {
-    ringClass = "border-red-500 bg-red-500/20 text-red-500 animate-pulse";
-    title = "Sensor Alignment Error";
-    subtitle = "Please check the IR sensors";
-  }
+  const raw = (value: number | null) => value === null ? "not read" : String(value);
+  const title = `Please place a ${requiresLarge ? "LARGE " : ""}glass`;
+  const sensorText = `Raw IR — lower: ${raw(lowerSensor)} / upper: ${raw(upperSensor)}`;
 
   return (
     <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
       <StatusBar title="Waiting for Glass" now={now} />
       <div className="absolute top-10 left-8"><Logo /></div>
 
-      <div className={`w-48 h-48 rounded-full flex items-center justify-center mb-12 transition-all duration-500 border-4 ${ringClass}`}>
-        <span className="text-6xl">{glassState === "sensor_error" ? "⚠️" : "🥃"}</span>
+      <div className="w-48 h-48 rounded-full flex items-center justify-center mb-12 transition-all duration-500 border-4 border-accent bg-accent/10 text-accent animate-pulse">
+        <span className="text-6xl">🥃</span>
       </div>
 
-      <h2 className={`font-display text-[56px] font-light text-center ${glassState === "sensor_error" ? "text-red-500" : ""}`}>
-        {title}
-      </h2>
+      <h2 className="font-display text-[56px] font-light text-center">{title}</h2>
       <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em]">
-        {subtitle}
+        under the dispenser nozzle, then confirm start
       </p>
       <p className="text-sm text-muted-foreground/70 mt-4 uppercase tracking-[0.2em]">
         {sensorText}
       </p>
 
-      {/* Bypass button: only advances the UI when explicitly clicked */}
       <div className="absolute bottom-12 z-20">
         <GoldButton onClick={() => confirmGlass()}>
-          Bypass: Place Glass
+          Confirm glass & start
         </GoldButton>
       </div>
     </div>
@@ -754,7 +729,5 @@ function CleaningDone({ now }: any) {
     </div>
   );
 }
-
-
 
 

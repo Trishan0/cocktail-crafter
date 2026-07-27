@@ -82,7 +82,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
   const handleAbort = async () => {
     try {
       await abortOrder();
-      alert("Emergency Stop Triggered");
+      alert("STOP request sent. This firmware only stops mixing/ice activity; use the physical emergency stop for a full halt.");
     } catch (e: any) {
       alert("Abort failed: " + e.message);
     }
@@ -114,7 +114,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
                 {poweredOn === null ? "Loading Power State..." : poweredOn ? "Machine Powered On" : "Machine Powered Off"}
               </h3>
               <p className="text-xs md:text-sm text-muted-foreground max-w-md">
-                Customer ordering is enabled only while powered on. The first order after power-on gets each pump's configured extra prime time.
+                Customer ordering is enabled only while powered on. The ESP32 independently primes all six lines when its saved feed-line state is empty.
               </p>
             </div>
           </div>
@@ -198,7 +198,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
             <div>
               <h3 className="text-xl md:text-2xl font-display font-light mb-1 md:mb-2">System Purge & Clean</h3>
               <p className="text-xs md:text-sm text-muted-foreground max-w-md">
-                Run a cleaning cycle to flush all 6 pumps. Ensure warm water or sanitizer is connected to all inputs.
+                CLEAN closes the valve, runs pump 1 for 5 seconds, mixes, then opens the valve. It does not flush all six pumps.
               </p>
             </div>
           </div>
@@ -216,21 +216,21 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
           </Button>
         </div>
 
-        {/* Emergency Stop */}
+        {/* Firmware STOP limitation */}
         <div className="p-5 md:p-8 rounded-3xl border border-red-500/30 bg-red-500/5 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex gap-4 md:gap-6 items-center">
             <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-red-500/20 text-red-500 border-2 border-red-500/30 flex items-center justify-center">
               <ShieldAlert className="w-6 h-6 md:w-8 md:h-8" />
             </div>
             <div>
-              <h3 className="text-xl md:text-2xl font-display font-light text-red-200 mb-1 md:mb-2">Emergency Stop</h3>
+              <h3 className="text-xl md:text-2xl font-display font-light text-red-200 mb-1 md:mb-2">Limited STOP Request</h3>
               <p className="text-xs md:text-sm text-red-400/80 max-w-md">
-                Immediately halt all pump activity and disable the machine. Requires PIN to unlock.
+                Requests the mixer to finish its current leg and stops active ice movement. It does not halt pumps, valves, indexing, priming, or reversal.
               </p>
             </div>
           </div>
           <Button onClick={handleAbort} className="w-full sm:w-auto rounded-full h-12 md:h-14 px-6 md:px-8 text-sm md:text-lg font-bold uppercase tracking-widest bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 transition-all">
-            Halt Machine
+            Request STOP
           </Button>
         </div>
 
@@ -238,5 +238,4 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
     </div>
   );
 }
-
 

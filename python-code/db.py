@@ -54,8 +54,6 @@ def init_db():
                 pump_number         INTEGER NOT NULL UNIQUE,  -- 1 to 6
                 ingredient_id       INTEGER REFERENCES ingredients(id) ON DELETE SET NULL,
                 flow_rate_ml_per_s  REAL    NOT NULL DEFAULT 1.5,
-                initial_extra_ms    INTEGER NOT NULL DEFAULT 1460,
-                reverse_ms          INTEGER NOT NULL DEFAULT 5000,
                 is_active           INTEGER NOT NULL DEFAULT 1
             );
 
@@ -89,8 +87,7 @@ def init_db():
                 price                REAL    DEFAULT 0.0,
                 ingredients_snapshot TEXT,               -- JSON snapshot of ingredients at order time
                 ordered_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                completed_at         TIMESTAMP,
-                first_after_power_on INTEGER NOT NULL DEFAULT 0
+                completed_at         TIMESTAMP
             );
 
             -- Settings key-value store
@@ -114,15 +111,6 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
-        # Add pump timing columns if they do not exist
-        try:
-            conn.execute("ALTER TABLE pumps ADD COLUMN initial_extra_ms INTEGER NOT NULL DEFAULT 1460;")
-        except sqlite3.OperationalError:
-            pass
-        try:
-            conn.execute("ALTER TABLE pumps ADD COLUMN reverse_ms INTEGER NOT NULL DEFAULT 5000;")
-        except sqlite3.OperationalError:
-            pass
         # Add order columns if they do not exist
         try:
             conn.execute("ALTER TABLE orders ADD COLUMN price REAL DEFAULT 0.0;")
@@ -130,10 +118,6 @@ def init_db():
             pass
         try:
             conn.execute("ALTER TABLE orders ADD COLUMN ingredients_snapshot TEXT;")
-        except sqlite3.OperationalError:
-            pass
-        try:
-            conn.execute("ALTER TABLE orders ADD COLUMN first_after_power_on INTEGER NOT NULL DEFAULT 0;")
         except sqlite3.OperationalError:
             pass
             
@@ -217,8 +201,8 @@ def _seed_defaults():
                     if row:
                         ing_id = row["id"]
                 conn.execute(
-                    """INSERT INTO pumps (pump_number, ingredient_id, flow_rate_ml_per_s, initial_extra_ms, reverse_ms)
-                       VALUES (?, ?, ?, 1460, 5000)""",
+                    """INSERT INTO pumps (pump_number, ingredient_id, flow_rate_ml_per_s)
+                       VALUES (?, ?, ?)""",
                     (pnum, ing_id, config.DEFAULT_FLOW_RATE)
                 )
             print(f"[DB] Seeded {config.NUM_PUMPS} pump slots.")
@@ -298,7 +282,7 @@ def get_all_pumps():
     """
     with get_connection() as conn:
         rows = conn.execute("""
-            SELECT p.id, p.pump_number, p.flow_rate_ml_per_s, p.initial_extra_ms, p.reverse_ms, p.is_active,
+            SELECT p.id, p.pump_number, p.flow_rate_ml_per_s, p.is_active,
                    i.id   AS ingredient_id,
                    i.name AS ingredient_name
             FROM pumps p
@@ -326,17 +310,6 @@ def update_pump_flow_rate(pump_number: int, flow_rate: float):
         )
 
 
-def update_pump_timing(pump_number: int, initial_extra_ms: int, reverse_ms: int):
-    """Update per-pump startup prime and shutdown reverse timings."""
-    with get_connection() as conn:
-        conn.execute(
-            """UPDATE pumps
-               SET initial_extra_ms = ?, reverse_ms = ?
-               WHERE pump_number = ?""",
-            (int(initial_extra_ms), int(reverse_ms), pump_number)
-        )
-
-
 def get_pump_assignments():
     """
     Return a dict: ingredient_id → {pump_number, flow_rate_ml_per_s}
@@ -349,25 +322,9 @@ def get_pump_assignments():
             mapping[p["ingredient_id"]] = {
                 "pump_number":       p["pump_number"],
                 "flow_rate_ml_per_s": p["flow_rate_ml_per_s"],
-                "initial_extra_ms": p.get("initial_extra_ms", 1460),
-                "reverse_ms": p.get("reverse_ms", 5000),
             }
     return mapping
 
-
-
-def get_pump_runtime_config():
-    """Return pump timing config keyed by pump number."""
-    pumps = get_all_pumps()
-    return {
-        int(p["pump_number"]): {
-            "initial_extra_ms": int(p.get("initial_extra_ms") or 1460),
-            "reverse_ms": int(p.get("reverse_ms") or 5000),
-            "is_active": bool(p.get("is_active", 1)),
-            "ingredient_id": p.get("ingredient_id"),
-        }
-        for p in pumps
-    }
 # ─────────────────────────────────────────────
 #  RECIPES
 # ─────────────────────────────────────────────
@@ -487,13 +444,6 @@ def create_order(recipe_id: int, recipe_name: str, pump_commands: list, price: f
         return cursor.lastrowid
 
 
-def mark_order_first_after_power_on(order_id: int):
-    """Mark an order as the first drink started after admin power-on."""
-    with get_connection() as conn:
-        conn.execute(
-            "UPDATE orders SET first_after_power_on = 1 WHERE id = ?",
-            (order_id,)
-        )
 def update_order_status(order_id: int, status: str):
     """Update order status."""
     completed_at = None
@@ -578,6 +528,4 @@ if __name__ == "__main__":
         print(f"  {r['name']} → {ings}")
     print("\n[DB] Pumps:")
     for p in get_all_pumps():
-        print(f"  Pump {p['pump_number']}: {p['ingredient_name'] or '(empty)'} @ {p['flow_rate_ml_per_s']} ml/s, prime +{p.get('initial_extra_ms', 1460)} ms, reverse {p.get('reverse_ms', 5000)} ms")
-
-
+        print(f"  Pump {p['pump_number']}: {p['ingredient_name'] or '(empty)'} @ {p['flow_rate_ml_per_s']} ml/s")
