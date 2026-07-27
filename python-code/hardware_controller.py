@@ -200,6 +200,10 @@ class HardwareController:
     def query_sensors(self, command: str):
         raise NotImplementedError
 
+    def read_liquid_levels(self) -> dict:
+        """Synchronously request the documented raw ``CHECK_LEVELS`` response."""
+        raise NotImplementedError
+
     # Old callers use these names.  They now preserve the actual firmware
     # semantics instead of inventing ABORT/GLASS_OK commands.
     def send_abort(self):
@@ -326,6 +330,11 @@ class SimulatorController(HardwareController):
         else:
             raise ValueError(f"Unsupported sensor query: {command}")
 
+    def read_liquid_levels(self) -> dict:
+        levels = {f"ls{i}": 1 for i in range(1, 7)}
+        _handle_sensor({"liquid_levels": levels})
+        return levels
+
     def _run_order(self, pending: dict):
         order_id = pending["db_order_id"]
         if not self._lines_primed:
@@ -401,6 +410,7 @@ class SerialController(HardwareController):
 
     ORDER_RESPONSE_TIMEOUT_SECONDS = config.ORDER_RESPONSE_TIMEOUT_SECONDS
     IR_POLL_INTERVAL_SECONDS = config.IR_POLL_INTERVAL_SECONDS
+    LEVEL_RESPONSE_TIMEOUT_SECONDS = config.LEVEL_RESPONSE_TIMEOUT_SECONDS
 
     def __init__(self):
         self._serial_port: serial.Serial | None = None
@@ -414,6 +424,10 @@ class SerialController(HardwareController):
         self._done_timer: threading.Timer | None = None
         self._ir_poll_stop = threading.Event()
         self._ir_poll_thread: threading.Thread | None = None
+        self._level_query_gate = threading.Lock()
+        self._level_response_lock = threading.Lock()
+        self._level_response_ready = threading.Event()
+        self._latest_level_response: dict | None = None
 
     def start(self):
         self._running = True
@@ -541,7 +555,28 @@ class SerialController(HardwareController):
         command = command.upper()
         if command not in {"CHECK_IR", "CHECK_LEVELS", "CHECK_LINE_STATE"}:
             raise ValueError(f"Unsupported sensor query: {command}")
+        # The firmware cannot tag CHECK_LEVELS replies. Serialize manual and
+        # pre-order requests so a manual diagnostic cannot satisfy an order's
+        # synchronous safety check.
+        if command == "CHECK_LEVELS":
+            with self._level_query_gate:
+                self._send_text(command)
+            return
         self._send_text(command)
+
+    def read_liquid_levels(self) -> dict:
+        """Request raw LS1..LS6 values and wait briefly for the ESP32 reply."""
+        with self._level_query_gate:
+            with self._level_response_lock:
+                self._latest_level_response = None
+                self._level_response_ready.clear()
+            self._send_text("CHECK_LEVELS")
+            if not self._level_response_ready.wait(self.LEVEL_RESPONSE_TIMEOUT_SECONDS):
+                raise TimeoutError("ESP32 did not respond to CHECK_LEVELS in time.")
+            with self._level_response_lock:
+                if self._latest_level_response is None:
+                    raise RuntimeError("ESP32 returned an invalid CHECK_LEVELS response.")
+                return dict(self._latest_level_response)
 
     def _start_ir_polling(self):
         if self._ir_poll_thread and self._ir_poll_thread.is_alive():
@@ -639,6 +674,9 @@ class SerialController(HardwareController):
         elif command == "CHECK_LEVELS":
             levels = {f"ls{i}": self._raw_binary(data.get(f"ls{i}")) for i in range(1, 7)}
             _handle_sensor({"liquid_levels": levels})
+            with self._level_response_lock:
+                self._latest_level_response = levels
+                self._level_response_ready.set()
             print(f"[SERIAL] Raw liquid levels: {levels}")
         elif command == "CHECK_LINE_STATE":
             _handle_sensor({"fluid_lines_primed": bool(data.get("primed"))})

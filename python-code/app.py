@@ -8,6 +8,7 @@ Communication with the ESP32 is via hardware_controller (wired USB/UART or simul
 """
 
 import json
+import math
 import queue
 import threading
 import time
@@ -198,6 +199,18 @@ def api_dev_simulate_message():
 #  CUSTOMER API
 # ─────────────────────────────────────────────
 
+def _validate_order_liquids(pump_commands: list):
+    """Run the ESP32 threshold check before persisting or starting an order."""
+    try:
+        levels = _controller.read_liquid_levels()
+    except Exception as exc:
+        return f"Could not verify liquid levels: {exc}", 503
+
+    availability_error = recipe_manager.validate_liquid_availability(pump_commands, levels)
+    if availability_error:
+        return availability_error, 409
+    return None, None
+
 @app.route("/api/menu")
 def api_menu():
     """Return visible recipes for the customer drink menu."""
@@ -217,9 +230,10 @@ def api_place_order():
     Flow:
       1. Resolve recipe → pump commands (with duration_ms)
       2. Check machine is idle
-      3. Save order to DB
-      4. Send ORDER command to ESP32 via controller
-      5. Poll the verified IR sensors after the initialized response; send
+      3. Check only the recipe's required pump levels and volume estimates
+      4. Save order to DB
+      5. Send ORDER command to ESP32 via controller
+      6. Poll the verified IR sensors after the initialized response; send
          START automatically only when a valid glass is detected.
     """
     data      = request.get_json() or {}
@@ -239,9 +253,15 @@ def api_place_order():
             "error": f"Machine is busy ({state['machine_status']}). Please wait."
         }), 409
 
-    order, error = recipe_manager.place_order(recipe_id=recipe_id)
+    prepared_order, error = recipe_manager.prepare_order(recipe_id=recipe_id)
     if error:
         return jsonify({"error": error}), 400
+
+    error, status_code = _validate_order_liquids(prepared_order["pump_commands"])
+    if error:
+        return jsonify({"error": error}), status_code
+
+    order = recipe_manager.persist_prepared_order(prepared_order)
 
     # The firmware owns its persistent feed-line priming state. Do not add
     # extra per-pump time on the Pi side.
@@ -293,9 +313,15 @@ def api_place_custom_order():
             "error": f"Machine is busy ({state['machine_status']}). Please wait."
         }), 409
 
-    order, error = recipe_manager.place_custom_order(ingredients=ingredients)
+    prepared_order, error = recipe_manager.prepare_custom_order(ingredients=ingredients)
     if error:
         return jsonify({"error": error}), 400
+
+    error, status_code = _validate_order_liquids(prepared_order["pump_commands"])
+    if error:
+        return jsonify({"error": error}), status_code
+
+    order = recipe_manager.persist_prepared_order(prepared_order)
 
     try:
         _controller.send_order(
@@ -441,7 +467,10 @@ def api_assign_pump(pump_number):
     """
     data          = request.get_json() or {}
     ingredient_id = data.get("ingredient_id")   # None = unassign
-    db.assign_pump(pump_number, ingredient_id)
+    try:
+        db.assign_pump(pump_number, ingredient_id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     return jsonify({"success": True})
 
 
@@ -456,6 +485,38 @@ def api_update_flowrate(pump_number):
     if flow_rate is None or float(flow_rate) <= 0:
         return jsonify({"error": "flow_rate_ml_per_s must be a positive number."}), 400
     db.update_pump_flow_rate(pump_number, float(flow_rate))
+    return jsonify({"success": True})
+
+
+@app.route("/api/admin/pumps/<int:pump_number>/inventory", methods=["PUT"])
+def api_update_pump_inventory(pump_number):
+    """Set a pump's manually measured volume, baseline, and raw-sensor polarity."""
+    if not 1 <= pump_number <= config.NUM_PUMPS:
+        return jsonify({"error": f"pump_number must be between 1 and {config.NUM_PUMPS}."}), 400
+
+    data = request.get_json() or {}
+    try:
+        current_volume_ml = float(data["current_volume_ml"])
+        baseline_volume_ml = float(data["baseline_volume_ml"])
+        level_above_baseline_value = int(data["level_above_baseline_value"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "current_volume_ml, baseline_volume_ml, and level_above_baseline_value are required."}), 400
+
+    if not math.isfinite(current_volume_ml) or not math.isfinite(baseline_volume_ml):
+        return jsonify({"error": "Liquid volumes must be finite numbers."}), 400
+    if current_volume_ml < 0 or baseline_volume_ml < 0:
+        return jsonify({"error": "Liquid volumes cannot be negative."}), 400
+    if current_volume_ml < baseline_volume_ml:
+        return jsonify({"error": "Current volume must be at or above the configured baseline."}), 400
+    if level_above_baseline_value not in {0, 1}:
+        return jsonify({"error": "level_above_baseline_value must be 0 (LOW) or 1 (HIGH)."}), 400
+
+    db.update_pump_inventory(
+        pump_number,
+        current_volume_ml,
+        baseline_volume_ml,
+        level_above_baseline_value,
+    )
     return jsonify({"success": True})
 
 

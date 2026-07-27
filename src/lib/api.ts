@@ -44,6 +44,19 @@ export const assignPump = (pumpNum: number, ingredientId: number | null) =>
   fetchApi(`/admin/pumps/${pumpNum}/assign`, { method: "POST", body: JSON.stringify({ ingredient_id: ingredientId }) });
 export const updatePumpFlowRate = (pumpNum: number, flowRate: number) =>
   fetchApi(`/admin/pumps/${pumpNum}/flowrate`, { method: "PUT", body: JSON.stringify({ flow_rate_ml_per_s: flowRate }) });
+export const updatePumpInventory = (
+  pumpNum: number,
+  currentVolumeMl: number,
+  baselineVolumeMl: number,
+  levelAboveBaselineValue: 0 | 1,
+) => fetchApi(`/admin/pumps/${pumpNum}/inventory`, {
+  method: "PUT",
+  body: JSON.stringify({
+    current_volume_ml: currentVolumeMl,
+    baseline_volume_ml: baselineVolumeMl,
+    level_above_baseline_value: levelAboveBaselineValue,
+  }),
+});
 // Admin - Recipes
 export const getAdminRecipes = () => fetchApi("/admin/recipes");
 export const createRecipe = (recipe: any) => fetchApi("/admin/recipes", { method: "POST", body: JSON.stringify(recipe) });

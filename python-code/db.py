@@ -54,6 +54,9 @@ def init_db():
                 pump_number         INTEGER NOT NULL UNIQUE,  -- 1 to 6
                 ingredient_id       INTEGER REFERENCES ingredients(id) ON DELETE SET NULL,
                 flow_rate_ml_per_s  REAL    NOT NULL DEFAULT 1.5,
+                current_volume_ml  REAL    NOT NULL DEFAULT 0,
+                baseline_volume_ml REAL    NOT NULL DEFAULT 0,
+                level_above_baseline_value INTEGER,
                 is_active           INTEGER NOT NULL DEFAULT 1
             );
 
@@ -120,6 +123,18 @@ def init_db():
             conn.execute("ALTER TABLE orders ADD COLUMN ingredients_snapshot TEXT;")
         except sqlite3.OperationalError:
             pass
+        # Inventory is a Pi-side estimate. The ESP32 only provides a binary
+        # sensor reading at a configured physical baseline, not millilitre
+        # measurements, so existing pumps deliberately start unconfigured.
+        for column, definition in (
+            ("current_volume_ml", "REAL NOT NULL DEFAULT 0"),
+            ("baseline_volume_ml", "REAL NOT NULL DEFAULT 0"),
+            ("level_above_baseline_value", "INTEGER"),
+        ):
+            try:
+                conn.execute(f"ALTER TABLE pumps ADD COLUMN {column} {definition};")
+            except sqlite3.OperationalError:
+                pass
             
     _seed_defaults()
     print("[DB] Database initialized.")
@@ -130,7 +145,7 @@ def init_db():
 # ─────────────────────────────────────────────
 
 DEFAULT_INGREDIENTS = [
-    "Rum", "Vodka", "Gin", "Tequila", "Whiskey",
+    "Water", "Rum", "Vodka", "Gin", "Tequila", "Whiskey",
     "Triple Sec", "Blue Curaçao", "Campari",
     "Lime Juice", "Lemon Juice", "Simple Syrup",
     "Grenadine", "Coconut Cream", "Orange Juice",
@@ -138,7 +153,7 @@ DEFAULT_INGREDIENTS = [
 ]
 
 DEFAULT_PUMP_ASSIGNMENTS = {
-    1: "Rum",
+    1: "Water",
     2: "Vodka",
     3: "Gin",
     4: "Lime Juice",
@@ -181,6 +196,9 @@ DEFAULT_RECIPES = [
 def _seed_defaults():
     """Seed ingredients, pumps, and recipes only if tables are empty."""
     with get_connection() as conn:
+        # Added after initial releases: existing databases need Water as well,
+        # not only newly seeded ones.
+        conn.execute("INSERT OR IGNORE INTO ingredients (name) VALUES ('Water')")
         # Seed ingredients
         ing_count = conn.execute("SELECT COUNT(*) FROM ingredients").fetchone()[0]
         if ing_count == 0:
@@ -282,7 +300,9 @@ def get_all_pumps():
     """
     with get_connection() as conn:
         rows = conn.execute("""
-            SELECT p.id, p.pump_number, p.flow_rate_ml_per_s, p.is_active,
+            SELECT p.id, p.pump_number, p.flow_rate_ml_per_s,
+                   p.current_volume_ml, p.baseline_volume_ml,
+                   p.level_above_baseline_value, p.is_active,
                    i.id   AS ingredient_id,
                    i.name AS ingredient_name
             FROM pumps p
@@ -295,6 +315,12 @@ def get_all_pumps():
 def assign_pump(pump_number: int, ingredient_id: int = None):
     """Assign (or unassign) an ingredient to a pump slot."""
     with get_connection() as conn:
+        if pump_number == 1:
+            ingredient = conn.execute(
+                "SELECT name FROM ingredients WHERE id = ?", (ingredient_id,)
+            ).fetchone()
+            if not ingredient or ingredient["name"].strip().lower() != "water":
+                raise ValueError("Pump 1 is reserved for Water.")
         conn.execute(
             "UPDATE pumps SET ingredient_id = ? WHERE pump_number = ?",
             (ingredient_id, pump_number)
@@ -308,6 +334,32 @@ def update_pump_flow_rate(pump_number: int, flow_rate: float):
             "UPDATE pumps SET flow_rate_ml_per_s = ? WHERE pump_number = ?",
             (flow_rate, pump_number)
         )
+
+
+def update_pump_inventory(pump_number: int, current_volume_ml: float,
+                          baseline_volume_ml: float,
+                          level_above_baseline_value: int):
+    """Store the admin-maintained volume estimate and sensor calibration."""
+    with get_connection() as conn:
+        conn.execute(
+            """UPDATE pumps
+               SET current_volume_ml = ?, baseline_volume_ml = ?,
+                   level_above_baseline_value = ?
+               WHERE pump_number = ?""",
+            (current_volume_ml, baseline_volume_ml, level_above_baseline_value, pump_number),
+        )
+
+
+def deduct_pump_inventory(pump_commands: list):
+    """Deduct successfully dispensed recipe volumes from Pi-side estimates."""
+    with get_connection() as conn:
+        for command in pump_commands:
+            conn.execute(
+                """UPDATE pumps
+                   SET current_volume_ml = MAX(0, current_volume_ml - ?)
+                   WHERE pump_number = ?""",
+                (float(command["amount_ml"]), int(command["pump"])),
+            )
 
 
 def get_pump_assignments():
