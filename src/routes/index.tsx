@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import readyHero from "@/assets/cocktail-ready.png";
 import customBuild from "@/assets/custom-drink.png";
-import defaultDrink from "@/assets/default-drinks.png";
+import defaultDrink from "@/assets/default-drink.png";
 
 
 import { getMenu, placeOrder, placeCustomOrder, getPumps } from "@/lib/api";
