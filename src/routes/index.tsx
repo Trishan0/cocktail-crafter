@@ -1,7 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import robotHero from "@/assets/robot-hero.jpg";
-import readyHero from "@/assets/cocktail-ready.jpg";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ChevronRight,
+  Circle,
+  Droplets,
+  FlaskConical,
+  GlassWater,
+  Martini,
+  Minus,
+  Plus,
+  PowerOff,
+  ShieldCheck,
+  Snowflake,
+  Sparkles,
+} from "lucide-react";
+import readyHero from "@/assets/cocktail-ready.png";
 import { getMenu, placeOrder, placeCustomOrder, getPumps } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
@@ -186,12 +203,9 @@ function KioskApp() {
   };
 
   return (
-    <main className="min-h-screen bg-page text-page-foreground flex items-center justify-center overflow-hidden touch-none select-none">
-      <div className="pointer-events-none fixed inset-0 opacity-60"
-        style={{ background: "radial-gradient(60% 50% at 50% 40%, oklch(0.83 0.09 85 / 8%), transparent 70%)" }} />
-
+    <main className="kiosk-stage">
       <div
-        className="kiosk-frame transition-transform w-[1024px] h-[600px] relative"
+        className="kiosk-frame cc-frame"
         style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
       >
         {!poweredOn && <PoweredOff now={now} />}
@@ -210,13 +224,11 @@ function KioskApp() {
 
         {/* Error Modal Overlay */}
         {orderError && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md animate-in fade-in zoom-in-95 duration-300">
-            <div className="bg-surface-2 border border-red-500/30 p-12 rounded-[3rem] shadow-2xl max-w-xl text-center flex flex-col items-center">
-              <div className="w-24 h-24 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mb-8 border-2 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
-                <span className="text-5xl">⚠️</span>
-              </div>
-              <h3 className="font-display text-4xl mb-4 text-foreground font-light tracking-wide">Cannot Process Order</h3>
-              <p className="text-xl text-muted-foreground mb-12">{orderError}</p>
+          <div className="cc-dialog-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="order-error-title">
+            <div className="cc-dialog">
+              <div className="cc-dialog__icon"><AlertTriangle aria-hidden="true" size={38} /></div>
+              <h3 id="order-error-title">Unable to place order</h3>
+              <p>{orderError}</p>
               <GoldButton onClick={() => setOrderError(null)}>Dismiss</GoldButton>
             </div>
           </div>
@@ -230,43 +242,41 @@ function KioskApp() {
    Shared atoms
    ============================================================ */
 
-function StatusBar({ title, now }: { title: string; now: Date }) {
+function StatusBar({ title, now, online = true }: { title: string; now: Date; online?: boolean }) {
   return (
-    <div className="absolute top-0 inset-x-0 h-14 px-8 flex items-center justify-between text-sm uppercase tracking-[0.2em] text-muted-foreground/90 font-medium z-20 bg-gradient-to-b from-background/80 to-transparent">
-      <div className="flex items-center gap-3">
-        <span className="w-2 h-2 rounded-full bg-accent shadow-[0_0_12px_currentColor]" />
-        <span>Cocktail-Craft Bartender · {title}</span>
-      </div>
-      <div className="flex items-center gap-6">
+    <header className="cc-header" aria-label={`${title} screen`}>
+      <Logo />
+      <div className="cc-status" aria-label={`Station 01 is ${online ? "online" : "offline"}`}>
         <span>Station 01</span>
-        <span>Online</span>
-        <span className="font-bold text-foreground">{now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}</span>
+        <i aria-hidden="true" />
+        <span className={online ? "cc-status__state" : "cc-status__state cc-status__state--offline"}>
+          <Circle size={10} fill="currentColor" aria-hidden="true" />
+          {online ? "Online" : "Offline"}
+        </span>
+        <i aria-hidden="true" />
+        <time>{now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}</time>
       </div>
-    </div>
+    </header>
   );
 }
 
 function Logo() {
   return (
-    <div className="flex items-center gap-3 text-2xl">
-      <span className="brushed-gold w-8 h-8 rounded-full shadow-md" />
-      <span className="font-display tracking-[0.35em] uppercase font-light drop-shadow-md text-foreground">Cocktail-Craft</span>
+    <div className="cc-logo" aria-label="Cocktail Craft">
+      <span className="cc-logo__mark"><Martini size={29} strokeWidth={2.2} aria-hidden="true" /></span>
+      <span>Cocktail Craft</span>
     </div>
   );
 }
 
 function GoldButton({ children, onClick, big = false, variant = "primary", disabled }: any) {
-  const base = "inline-flex items-center justify-center gap-3 font-bold uppercase tracking-[0.2em] transition-all active:scale-[0.95] select-none shadow-xl";
-  const size = big ? "px-24 h-32 text-4xl rounded-[3rem]" : "px-10 h-16 text-lg rounded-[2rem]";
-  if (variant === "ghost") {
-    return (
-      <button onClick={onClick} disabled={disabled} className={`${base} ${size} border-2 border-border-strong text-foreground/90 hover:bg-foreground/5`}>
-        {children}
-      </button>
-    );
-  }
   return (
-    <button onClick={onClick} disabled={disabled} className={`${base} ${size} brushed-gold text-accent-foreground shadow-[0_8px_30px_-8px_oklch(0.83_0.09_85/40%)] hover:shadow-[0_10px_40px_-8px_oklch(0.83_0.09_85/60%)] disabled:opacity-40`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`cc-button cc-button--${variant} ${big ? "cc-button--large" : ""}`}
+    >
       {children}
     </button>
   );
@@ -274,8 +284,9 @@ function GoldButton({ children, onClick, big = false, variant = "primary", disab
 
 function BackChip({ onClick, label = "Back" }: any) {
   return (
-    <button onClick={onClick} className="absolute top-10 right-8 z-30 text-lg uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground flex items-center gap-3 px-8 h-16 rounded-full border-2 border-border/60 hover:border-border-strong bg-background/50 backdrop-blur-md active:scale-[0.95] transition-all">
-      ← {label}
+    <button type="button" onClick={onClick} className="cc-back">
+      <ArrowLeft size={22} aria-hidden="true" />
+      {label}
     </button>
   );
 }
@@ -286,38 +297,40 @@ function BackChip({ onClick, label = "Back" }: any) {
 
 function PoweredOff({ now }: any) {
   return (
-    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
-      <StatusBar title="Offline" now={now} />
-      <div className="absolute top-10 left-8"><Logo /></div>
-      <div className="w-48 h-48 rounded-full border-4 border-red-500 bg-red-500/10 flex items-center justify-center mb-12 text-red-400">
-        <span className="text-6xl">OFF</span>
+    <div className="cc-screen cc-unavailable">
+      <StatusBar title="Machine unavailable" now={now} online={false} />
+      <div className="cc-state-card cc-state-card--warning">
+        <div className="cc-state-card__icon"><PowerOff size={44} aria-hidden="true" /></div>
+        <p className="cc-eyebrow">Station unavailable</p>
+        <h1>Machine is offline</h1>
+        <p>Please ask a member of staff for assistance. Orders will be available once the station is powered on.</p>
       </div>
-      <h2 className="font-display text-[56px] font-light text-center text-red-400">
-        Machine Powered Off
-      </h2>
-      <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em]">
-        Please ask staff to power on the machine
-      </p>
     </div>
   );
 }
+
 function Welcome({ now, go }: any) {
   return (
-    <div className="absolute inset-0">
+    <div className="cc-screen cc-welcome">
       <StatusBar title="Welcome" now={now} />
-      <img src={robotHero} alt="" className="absolute inset-0 h-full w-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-background/40" />
-      <div className="absolute top-10 left-8"><Logo /></div>
-      <button onClick={() => go("experience")} className="absolute inset-0 w-full h-full cursor-pointer text-left focus:outline-none">
-        <div className="relative h-full flex flex-col items-center justify-center z-10">
-          <h1 className="font-display text-[80px] leading-[1] font-light tracking-tight text-center drop-shadow-2xl">
-            Good <em className="italic font-normal">evening.</em>
-          </h1>
-          <div className="mt-16 animate-pulse hover:animate-none">
-            <GoldButton big>Touch anywhere to order</GoldButton>
-          </div>
-        </div>
-      </button>
+      <div className="cc-welcome__glow" aria-hidden="true" />
+      <section className="cc-welcome__copy">
+        <p className="cc-eyebrow">Touchscreen cocktail station</p>
+        <h1>Ready for<br />your next <span>drink?</span></h1>
+        <p className="cc-welcome__intro">Choose a house classic or create a drink with the ingredients available at this station.</p>
+        <GoldButton big onClick={() => go("experience")}>
+          <Martini size={30} aria-hidden="true" />
+          Start Order
+          <ChevronRight size={26} aria-hidden="true" />
+        </GoldButton>
+      </section>
+      <div className="cc-welcome__art" aria-hidden="true">
+        <div className="cc-welcome__rear-card" />
+        <figure className="cc-welcome__drink-card">
+          <img src={readyHero} alt="" />
+          <figcaption><Sparkles size={18} /> Cocktail Craft</figcaption>
+        </figure>
+      </div>
     </div>
   );
 }
@@ -330,94 +343,150 @@ function Experience({ now, go, setMode, setCustomIngredients, setWantsIce }: any
     go(m === "signature" ? "catalog" : "compose");
   };
   return (
-    <div className="absolute inset-0">
+    <div className="cc-screen cc-experience">
       <StatusBar title="Choose Experience" now={now} />
-      <div className="absolute top-10 left-8"><Logo /></div>
       <BackChip onClick={() => go("welcome")} label="Home" />
-      <div className="h-full pt-28 pb-12 px-16 flex flex-col">
-        <h2 className="font-display text-5xl font-light text-center mb-12 drop-shadow-md">What are we pouring?</h2>
-        <div className="flex-1 grid grid-cols-2 gap-10">
-          <button onClick={() => choose("signature")} className="relative rounded-[3rem] overflow-hidden group hover:ring-4 hover:ring-accent/80 transition-all active:scale-[0.98] shadow-2xl">
-            <div className="absolute inset-0 bg-surface-2 flex items-center justify-center font-display text-[56px]">House Classics</div>
-          </button>
-          <button onClick={() => choose("custom")} className="relative rounded-[3rem] overflow-hidden group hover:ring-4 hover:ring-accent/80 transition-all active:scale-[0.98] shadow-2xl">
-            <div className="absolute inset-0 bg-surface-2 flex items-center justify-center font-display text-[56px]">Custom Creation</div>
-          </button>
-        </div>
+      <div className="cc-experience__heading">
+        <p className="cc-eyebrow">Choose your experience</p>
+        <h1>How would you like to <span>order?</span></h1>
+        <p>Choose one option to continue.</p>
+      </div>
+      <div className="cc-experience__cards">
+        <button type="button" onClick={() => choose("signature")} className="cc-experience-card">
+          <div className="cc-experience-card__visual cc-experience-card__visual--classic"><Martini size={110} strokeWidth={1.25} aria-hidden="true" /></div>
+          <div className="cc-experience-card__body">
+            <span className="cc-card-icon"><Sparkles size={25} /></span>
+            <h2>House Classics</h2>
+            <p>Browse signature cocktails</p>
+            <span className="cc-select-label">Select <ChevronRight size={24} /></span>
+          </div>
+        </button>
+        <button type="button" onClick={() => choose("custom")} className="cc-experience-card">
+          <div className="cc-experience-card__visual cc-experience-card__visual--custom"><FlaskConical size={108} strokeWidth={1.25} aria-hidden="true" /></div>
+          <div className="cc-experience-card__body">
+            <span className="cc-card-icon"><Sparkles size={25} /></span>
+            <h2>Build Your Own</h2>
+            <p>Create a custom mix</p>
+            <span className="cc-select-label">Select <ChevronRight size={24} /></span>
+          </div>
+        </button>
       </div>
     </div>
   );
+}
+
+function categoryLabel(category: string) {
+  return category.replace(/[-_]/g, " ").replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function drinkImageUrl(imageUrl?: string) {
+  return imageUrl ? `http://localhost:5000${imageUrl}` : undefined;
 }
 
 function Catalog({ now, go, setSelectedId, drinks }: any) {
-  return (
-    <div className="absolute inset-0">
-      <StatusBar title="Menu" now={now} />
-      <div className="absolute top-10 left-8"><Logo /></div>
-      <BackChip onClick={() => go("welcome")} label="Home" />
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [page, setPage] = useState(0);
+  const categories = useMemo(
+    () => Array.from(new Set(drinks.map((drink: any) => String(drink.category || "classic")))).sort(),
+    [drinks],
+  );
+  const filteredDrinks = useMemo(
+    () => activeCategory === "all" ? drinks : drinks.filter((drink: any) => String(drink.category || "classic") === activeCategory),
+    [activeCategory, drinks],
+  );
+  const pageCount = Math.max(1, Math.ceil(filteredDrinks.length / 4));
+  const visibleDrinks = filteredDrinks.slice(page * 4, page * 4 + 4);
 
-      <div className="h-full pt-28 pb-10 px-12 flex flex-col">
-        <div className="flex-1 overflow-y-auto overflow-x-hidden pr-4 pb-12 hide-scrollbar">
-          <div className="grid grid-cols-2 gap-8">
-            {drinks.map((d: any) => (
-              <button key={d.id} onClick={() => { setSelectedId(d.id); go("detail"); }}
-                className={`surface-card relative text-left rounded-[2rem] overflow-hidden flex flex-col h-[380px] hover:ring-4 hover:ring-accent/80 transition active:scale-[0.98] group shadow-xl ${!d.available && 'opacity-50 grayscale'}`}
-                disabled={!d.available}
-              >
-                {d.image_url && <img src={`http://localhost:5000${d.image_url}`} alt={d.name} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />}
-                <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/60 to-transparent" />
-                <div className="absolute top-6 right-6 text-4xl z-10">{d.available ? '🍸' : '❌'}</div>
-                <div className="absolute bottom-0 inset-x-0 p-8 flex justify-between items-end z-10">
-                  <div>
-                    <h4 className="font-display text-[44px] leading-none mb-2 text-foreground">{d.name}</h4>
-                    <div className="text-2xl text-accent font-light">€{d.price.toFixed(2)}</div>
-                    {!d.available && <div className="text-red-400 mt-2 text-sm uppercase tracking-widest">Ingredients Unavailable</div>}
-                  </div>
-                  <div className="brushed-gold w-16 h-16 rounded-full flex items-center justify-center text-accent-foreground text-2xl shadow-lg">→</div>
-                </div>
-              </button>
-            ))}
-          </div>
+  useEffect(() => setPage(0), [activeCategory]);
+  useEffect(() => setPage(current => Math.min(current, pageCount - 1)), [pageCount]);
+
+  return (
+    <div className="cc-screen cc-catalog">
+      <StatusBar title="House Classics" now={now} />
+      <BackChip onClick={() => go("welcome")} label="Home" />
+      <div className="cc-catalog__top">
+        <div>
+          <p className="cc-eyebrow">Cocktail menu</p>
+          <h1>House Classics</h1>
+          <p>Tap a drink to continue.</p>
         </div>
+        <div className="cc-filters" aria-label="Drink categories">
+          <button type="button" className={activeCategory === "all" ? "is-active" : ""} onClick={() => setActiveCategory("all")}>All</button>
+          {categories.map((category: string) => (
+            <button type="button" key={category} className={activeCategory === category ? "is-active" : ""} onClick={() => setActiveCategory(category)}>
+              {categoryLabel(category)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="cc-drink-grid">
+        {visibleDrinks.map((drink: any) => (
+          <button
+            type="button"
+            key={drink.id}
+            onClick={() => { setSelectedId(drink.id); go("detail"); }}
+            className={`cc-drink-card ${!drink.available ? "cc-drink-card--unavailable" : ""}`}
+            disabled={!drink.available}
+          >
+            <div className="cc-drink-card__image">
+              {drinkImageUrl(drink.image_url) ? <img src={drinkImageUrl(drink.image_url)} alt={drink.name} /> : <Martini size={88} strokeWidth={1.1} aria-hidden="true" />}
+            </div>
+            <div className="cc-drink-card__content">
+              <h2>{drink.name}</h2>
+              <p>{drink.description || categoryLabel(drink.category || "classic")}</p>
+              <div><strong>€{Number(drink.price || 0).toFixed(2)}</strong><span>View <ChevronRight size={18} /></span></div>
+              {!drink.available && <small>Ingredients unavailable</small>}
+            </div>
+          </button>
+        ))}
+        {visibleDrinks.length === 0 && <div className="cc-empty-menu">No drinks are available in this category.</div>}
+      </div>
+      <div className="cc-pagination" aria-label="Menu pagination">
+        <button type="button" aria-label="Previous drinks" disabled={page === 0} onClick={() => setPage(current => Math.max(0, current - 1))}><ArrowLeft size={24} /></button>
+        <div>{Array.from({ length: pageCount }, (_, index) => <i key={index} className={index === page ? "is-active" : ""} />)}</div>
+        <button type="button" aria-label="Next drinks" disabled={page === pageCount - 1} onClick={() => setPage(current => Math.min(pageCount - 1, current + 1))}><ArrowRight size={24} /></button>
       </div>
     </div>
   );
 }
 
-function Detail({ selected, now, go }: any) {
+function Detail({ selected, now, go, wantsIce, setWantsIce }: any) {
   if (!selected) return null;
   return (
-    <div className="absolute inset-0">
+    <div className="cc-screen cc-detail">
       <StatusBar title={selected.name} now={now} />
-      <div className="absolute top-10 left-8 z-30"><Logo /></div>
       <BackChip onClick={() => go("catalog")} />
-
-      <div className="h-full flex">
-        <div className="w-[45%] relative bg-surface-2 flex items-center justify-center text-6xl overflow-hidden">
-          {selected.image_url ? (
-            <img src={`http://localhost:5000${selected.image_url}`} alt={selected.name} className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            "🍸"
-          )}
-        </div>
-        <div className="w-[55%] px-10 pb-12 pt-24 flex flex-col justify-center bg-background relative z-10">
-          <h2 className="font-display text-[64px] font-light leading-none mb-2">{selected.name}</h2>
-          <p className="text-xl text-muted-foreground mb-6">{selected.description}</p>
-          <div className="font-display text-5xl text-accent mb-8">
-            €{Math.floor(selected.price)}
-            <span className="text-3xl">.{(selected.price % 1).toFixed(2).slice(2)}</span>
-          </div>
-
-          <div className="flex flex-wrap gap-2 mb-12">
-            {selected.ingredients.map((i: any) =>
-              <span key={i.id} className="px-5 py-2 rounded-2xl bg-surface-2 text-lg font-medium border border-border-strong text-foreground whitespace-nowrap">{i.name} {i.amount_ml}ml</span>
-            )}
-          </div>
-          <div>
-            <GoldButton big onClick={() => go("review")}>ORDER NOW</GoldButton>
-          </div>
+      <div className="cc-detail__visual">
+        <div className="cc-detail__image">
+          {drinkImageUrl(selected.image_url) ? <img src={drinkImageUrl(selected.image_url)} alt={selected.name} /> : <Martini size={210} strokeWidth={1.1} aria-hidden="true" />}
         </div>
       </div>
+      <section className="cc-detail__content">
+        <p className="cc-eyebrow">House classic</p>
+        <h1>{selected.name}</h1>
+        <p className="cc-detail__description">{selected.description || "A carefully balanced house favourite."}</p>
+        <p className="cc-price">€{Number(selected.price || 0).toFixed(2)}</p>
+        <div className="cc-ingredient-section">
+          <p>Ingredients</p>
+          <div className="cc-ingredient-grid">
+            {selected.ingredients.map((ingredient: any) => (
+              <div key={ingredient.id} className="cc-ingredient">
+                <Droplets size={21} aria-hidden="true" />
+                <span>{ingredient.name}</span>
+                <small>{ingredient.amount_ml} ml</small>
+              </div>
+            ))}
+          </div>
+        </div>
+        <fieldset className="cc-ice-choice">
+          <legend>Ice</legend>
+          <button type="button" className={!wantsIce ? "is-selected" : ""} onClick={() => setWantsIce(false)}><Snowflake size={24} /> No Ice</button>
+          <button type="button" className={wantsIce ? "is-selected" : ""} onClick={() => setWantsIce(true)}><Snowflake size={24} /> Add Ice</button>
+        </fieldset>
+        <GoldButton big onClick={() => go("review")}>
+          <Martini size={28} /> Add to Order
+        </GoldButton>
+      </section>
     </div>
   );
 }
@@ -450,148 +519,82 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
   const isZero = totalMl === 0;
 
   return (
-    <div className="absolute inset-0">
+    <div className="cc-screen cc-compose">
       <StatusBar title="Custom Creation" now={now} />
-      <div className="absolute top-10 left-8"><Logo /></div>
       <BackChip onClick={() => go("experience")} />
-
-      <div className="h-full pt-28 pb-10 px-12 grid grid-cols-[1fr_400px] gap-12">
-        <div className="flex flex-col gap-8 overflow-y-auto pr-4 pb-8 hide-scrollbar">
-
-          <div>
-            <div className="text-xl uppercase tracking-[0.2em] text-muted-foreground mb-4 flex justify-between">
-              <span>Your Recipe</span>
-              <span className={isOverLimit ? "text-red-400" : ""}>{totalMl} / {MAX_TOTAL} ml</span>
+      <section className="cc-compose__main">
+        <div className="cc-compose__heading"><div><p className="cc-eyebrow">Build your own</p><h1>Your recipe</h1></div><strong className={isOverLimit ? "is-over-limit" : ""}>{totalMl} / {MAX_TOTAL} ml</strong></div>
+        <div className="cc-compose__selected">
+          {customIngredients.map((ingredient: any, index: number) => (
+            <div key={ingredient.ingredient_id} className="cc-compose-row">
+              <span>{ingredient.name}</span>
+              <div>
+                <button type="button" aria-label={`Decrease ${ingredient.name}`} onClick={() => updateAmount(index, ingredient.amount_ml - 5)}><Minus size={20} /></button>
+                <strong>{ingredient.amount_ml} ml</strong>
+                <button type="button" aria-label={`Increase ${ingredient.name}`} onClick={() => updateAmount(index, ingredient.amount_ml + 5)}><Plus size={20} /></button>
+                <button type="button" className="cc-remove" aria-label={`Remove ${ingredient.name}`} onClick={() => removeIngredient(index)}>×</button>
+              </div>
             </div>
-
-            <div className="flex flex-col gap-4">
-              {customIngredients.map((ing: any, idx: number) => (
-                <div key={ing.ingredient_id} className="surface-card rounded-2xl p-4 flex items-center justify-between">
-                  <div className="font-display text-2xl">{ing.name}</div>
-                  <div className="flex items-center gap-4">
-
-                    <button onClick={() => updateAmount(idx, ing.amount_ml - 5)} className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-2xl flex items-center justify-center">-</button>
-                    <div className="text-xl w-16 text-center tabular-nums">{ing.amount_ml}ml</div>
-                    <button onClick={() => updateAmount(idx, ing.amount_ml + 5)} className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 text-2xl flex items-center justify-center">+</button>
-                    <button onClick={() => removeIngredient(idx)} className="w-12 h-12 ml-2 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xl flex items-center justify-center">×</button>
-                  </div>
-                </div>
-              ))}
-              {customIngredients.length === 0 && (
-                <div className="text-center p-8 border border-dashed border-white/20 rounded-2xl text-muted-foreground">
-                  Select ingredients to begin composing your drink.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xl uppercase tracking-[0.2em] text-muted-foreground mb-4">Available Ingredients</div>
-            <div className="flex flex-wrap gap-3">
-              {availablePumps.map((p: any) => {
-                const isSelected = customIngredients.some((i: any) => i.ingredient_id === p.ingredient_id);
-                return (
-                  <button key={p.ingredient_id} onClick={() => addIngredient(p)} disabled={isSelected}
-                    className={`py-3 px-6 rounded-2xl text-lg font-medium transition-all ${isSelected ? "bg-primary/20 text-primary border border-primary/30 opacity-50" : "bg-surface border-2 border-border-strong text-muted-foreground hover:bg-surface-2 hover:text-foreground"}`}>
-                    {p.ingredient_name}
-                  </button>
-                );
-              })}
-              {availablePumps.length === 0 && (
-                <p className="text-muted-foreground">No active ingredients are configured. Ask staff to configure pumps.</p>
-              )}
-            </div>
-          </div>
-
+          ))}
+          {customIngredients.length === 0 && <div className="cc-compose-empty"><FlaskConical size={30} /><span>Select ingredients below to start your mix.</span></div>}
         </div>
-
-        <div className="relative rounded-[3rem] overflow-hidden flex flex-col justify-end shadow-2xl bg-surface-2 p-8">
-          <div className="relative z-10 flex flex-col h-full justify-between">
-            <div>
-              <div className="text-[120px] text-center mb-4">🧪</div>
-              <div className="font-display text-5xl mb-2 text-foreground text-center">Custom Mix</div>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              {isOverLimit && <div className="text-red-400 text-center uppercase tracking-widest text-sm font-bold">Total exceeds {MAX_TOTAL}ml limit</div>}
-              {isZero && <div className="text-red-400 text-center uppercase tracking-widest text-sm font-bold">Please add ingredients</div>}
-              <GoldButton big onClick={() => go("review")} disabled={isOverLimit || isZero}>REVIEW</GoldButton>
-            </div>
+        <div className="cc-compose__available">
+          <p>Available ingredients</p>
+          <div>
+            {availablePumps.map((pump: any) => {
+              const isSelected = customIngredients.some((ingredient: any) => ingredient.ingredient_id === pump.ingredient_id);
+              return <button type="button" key={pump.ingredient_id} onClick={() => addIngredient(pump)} disabled={isSelected}>{pump.ingredient_name}</button>;
+            })}
+            {availablePumps.length === 0 && <span className="cc-no-pumps">No active ingredients are configured. Ask staff for assistance.</span>}
           </div>
         </div>
-      </div>
+      </section>
+      <aside className="cc-compose__summary">
+        <div><FlaskConical size={78} aria-hidden="true" /><p>Custom Mix</p><span>{customIngredients.length} ingredient{customIngredients.length === 1 ? "" : "s"} selected</span></div>
+        {isOverLimit && <small>Total exceeds {MAX_TOTAL} ml</small>}
+        {isZero && <small>Choose at least one ingredient</small>}
+        <GoldButton big onClick={() => go("review")} disabled={isOverLimit || isZero}>Review mix <ChevronRight size={24} /></GoldButton>
+      </aside>
     </div>
   );
 }
 
-function Review({ selected, mode, customIngredients, wantsIce, setWantsIce, now, go, handleOrder, isSubmitting, machineStatus, poweredOn }: any) {
+function Review({ selected, mode, customIngredients, wantsIce, now, go, handleOrder, isSubmitting, machineStatus, poweredOn }: any) {
   const isCustom = mode === "custom";
   const title = isCustom ? "Custom Mix" : selected?.name;
 
   return (
-    <div className="absolute inset-0 flex flex-col justify-center items-center bg-background">
+    <div className="cc-screen cc-review">
       <StatusBar title="Confirm Order" now={now} />
-      <div className="absolute top-10 left-8"><Logo /></div>
       <BackChip onClick={() => go(isCustom ? "compose" : "detail")} label="Edit" />
-
-      <div className="w-full max-w-[850px] flex gap-12 items-center">
-        <div className="w-[380px] h-[380px] rounded-[3rem] overflow-hidden relative shrink-0 shadow-2xl bg-surface-2 flex items-center justify-center text-[150px]">
-          {isCustom ? "🧪" : "🍸"}
+      <div className="cc-review__panel">
+        <div className="cc-review__visual">
+          {!isCustom && drinkImageUrl(selected?.image_url) ? <img src={drinkImageUrl(selected.image_url)} alt={title} /> : <FlaskConical size={132} strokeWidth={1.1} aria-hidden="true" />}
         </div>
-
-        <div className="flex-1 flex flex-col">
-          <h2 className="font-display text-[56px] font-light leading-none mb-8">{title}</h2>
-
-          <div className="flex flex-col gap-3 mb-8 max-h-[200px] overflow-y-auto pr-4 hide-scrollbar">
+        <section className="cc-review__content">
+          <p className="cc-eyebrow">Order confirmation</p>
+          <h1>{title}</h1>
+          <div className="cc-review__items">
             {isCustom ? (
-              customIngredients.map((ing: any) => (
-                <div key={ing.ingredient_id} className="flex justify-between items-center text-2xl border-b border-border/40 pb-4">
-                  <span className="text-muted-foreground uppercase tracking-widest text-lg">{ing.name}</span>
-                  <span className="font-medium">{ing.amount_ml} ml</span>
+              customIngredients.map((ingredient: any) => (
+                <div key={ingredient.ingredient_id}>
+                  <span>{ingredient.name}</span><strong>{ingredient.amount_ml} ml</strong>
                 </div>
               ))
             ) : (
-              selected?.ingredients.map((ing: any) => (
-                <div key={ing.id} className="flex justify-between items-center text-2xl border-b border-border/40 pb-4">
-                  <span className="text-muted-foreground uppercase tracking-widest text-lg">{ing.name}</span>
-                  <span className="font-medium">{ing.amount_ml} ml</span>
+              selected?.ingredients.map((ingredient: any) => (
+                <div key={ingredient.id}>
+                  <span>{ingredient.name}</span><strong>{ingredient.amount_ml} ml</strong>
                 </div>
               ))
             )}
           </div>
-
-          {!isCustom && (
-            <div className="flex items-center justify-between mb-8">
-              <span className="text-2xl uppercase tracking-[0.2em] text-muted-foreground">Total</span>
-              <span className="font-display text-[56px] text-accent">€{selected?.price.toFixed(2)}</span>
-            </div>
-          )}
-
-          <section className="mb-8" aria-label="Ice preference">
-            <p className="text-xl uppercase tracking-[0.18em] text-muted-foreground mb-3">Would you like ice?</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setWantsIce(false)}
-                className={`rounded-2xl border px-5 py-4 text-lg uppercase tracking-widest transition-colors ${!wantsIce ? "border-accent bg-accent text-accent-foreground" : "border-border bg-surface-2 text-muted-foreground hover:border-accent/60"}`}
-              >
-                No ice
-              </button>
-              <button
-                type="button"
-                onClick={() => setWantsIce(true)}
-                className={`rounded-2xl border px-5 py-4 text-lg uppercase tracking-widest transition-colors ${wantsIce ? "border-accent bg-accent text-accent-foreground" : "border-border bg-surface-2 text-muted-foreground hover:border-accent/60"}`}
-              >
-                Add ice
-              </button>
-            </div>
-            {wantsIce && <p className="mt-3 text-sm text-muted-foreground">Ice will dispense in parallel while your drink is prepared.</p>}
-          </section>
-
+          <div className="cc-review__ice"><Snowflake size={22} /><span>Ice</span><strong>{wantsIce ? "Add Ice" : "No Ice"}</strong></div>
+          <div className="cc-review__total"><span>Total</span><strong>{isCustom ? "—" : `€${Number(selected?.price || 0).toFixed(2)}`}</strong></div>
           <GoldButton big onClick={handleOrder} disabled={!poweredOn || isSubmitting || machineStatus !== "idle"}>
-            {isSubmitting ? "PROCESSING..." : "CONFIRM ORDER"}
+            <Check size={26} /> {isSubmitting ? "Processing…" : "Confirm Order"}
           </GoldButton>
-        </div>
+        </section>
       </div>
     </div>
   );
@@ -602,40 +605,32 @@ function WaitingGlass({ now, glassState, lowerSensor, upperSensor, totalMl }: an
   const raw = (value: number | null) => value === null ? "not read" : String(value);
   let title = `Please place a ${requiresLarge ? "LARGE " : ""}glass`;
   let subtitle = "under the dispenser nozzle";
-  let ringClass = "border-accent bg-accent/10 text-accent animate-pulse";
+  let ringClass = "is-waiting";
 
   if (glassState === "small_glass") {
     title = "Small Glass Detected";
     subtitle = "Starting order...";
-    ringClass = "border-green-500 bg-green-500/20 text-green-400";
+    ringClass = "is-detected";
   } else if (glassState === "large_glass") {
     title = "Large Glass Detected";
     subtitle = "Starting order...";
-    ringClass = "border-green-500 bg-green-500/20 text-green-400";
+    ringClass = "is-detected";
   } else if (glassState === "sensor_error") {
     title = "IR Sensor Alignment Error";
     subtitle = "Please check the glass position and sensors";
-    ringClass = "border-red-500 bg-red-500/20 text-red-500 animate-pulse";
+    ringClass = "is-sensor-error";
   }
   const sensorText = `Raw IR — lower: ${raw(lowerSensor)} / upper: ${raw(upperSensor)}`;
 
   return (
-    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
+    <div className="cc-screen cc-machine-state">
       <StatusBar title="Waiting for Glass" now={now} />
-      <div className="absolute top-10 left-8"><Logo /></div>
-
-      <div className={`w-48 h-48 rounded-full flex items-center justify-center mb-12 transition-all duration-500 border-4 ${ringClass}`}>
-        <span className="text-6xl">🥃</span>
+      <div className={`cc-machine-state__icon ${ringClass}`}>
+        <GlassWater size={74} aria-hidden="true" />
       </div>
-
-      <h2 className="font-display text-[56px] font-light text-center">{title}</h2>
-      <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em]">
-        {subtitle}
-      </p>
-      <p className="text-sm text-muted-foreground/70 mt-4 uppercase tracking-[0.2em]">
-        {sensorText}
-      </p>
-
+      <h1>{title}</h1>
+      <p>{subtitle}</p>
+      <small>{sensorText}</small>
     </div>
   );
 }
@@ -648,123 +643,63 @@ function Preparing({ selected, mode, progress, machineStatus, message, now }: an
   const drinkName = mode === "signature" ? selected?.name : "Custom Mix";
 
   return (
-    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
+    <div className="cc-screen cc-machine-state cc-preparing">
       <StatusBar title={title} now={now} />
-      <div className="absolute top-10 left-8"><Logo /></div>
-
-      <div className="relative flex flex-col items-center justify-center">
-        <div className="relative">
-          <svg width="400" height="400" viewBox="0 0 400 400" className="-rotate-90 drop-shadow-2xl">
-            <circle cx="200" cy="200" r={180} stroke="oklch(1 0 0 / 10%)" strokeWidth="6" fill="none" />
-            <circle cx="200" cy="200" r={180} stroke="url(#gold)" strokeWidth="12" fill="none" strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 180} strokeDashoffset={(2 * Math.PI * 180) * (1 - (progress / 100))} style={{ transition: "stroke-dashoffset 300ms linear" }} />
-            <defs>
-              <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="oklch(0.78 0.08 85)" />
-                <stop offset="100%" stopColor="oklch(0.92 0.09 88)" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="font-display text-[100px] font-light leading-none tabular-nums text-foreground">
-              {progress}%
-            </div>
-          </div>
-        </div>
-
-        <h2 className="font-display text-[56px] mt-16 font-light">{drinkName}</h2>
-        <div className="text-2xl uppercase tracking-[0.3em] text-muted-foreground mt-4 animate-pulse">{message || title}</div>
+      <div className="cc-progress-ring" style={{ "--progress": `${Math.max(0, Math.min(100, progress))}%` } as React.CSSProperties}>
+        <div>{progress}%</div>
       </div>
+      <h1>{drinkName}</h1>
+      <p>{message || title}</p>
     </div>
   );
 }
 
 function Ready({ now }: any) {
   return (
-    <div className="absolute inset-0">
+    <div className="cc-screen cc-ready">
       <StatusBar title="Ready" now={now} />
-      <img src={readyHero} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/30" />
-      <div className="absolute top-10 left-8 z-20"><Logo /></div>
-
-      <div className="relative h-full flex flex-col justify-end pb-12 px-16 max-w-[80%] z-10">
-        <div className="text-xl uppercase tracking-[0.4em] text-accent mb-2">Order Complete</div>
-        <h1 className="font-display text-[72px] leading-[1] font-light tracking-tight mb-8 drop-shadow-lg">
-          Your drink is <em className="italic font-normal gold-text">ready.</em>
-        </h1>
-        <p className="text-xl text-muted-foreground uppercase tracking-[0.3em] animate-pulse">
-          Enjoy your drink. Remove the glass to start cleaning
-        </p>
-      </div>
+      <img src={readyHero} alt="" className="cc-ready__image" />
+      <div className="cc-ready__overlay" />
+      <section>
+        <p className="cc-eyebrow">Order complete</p>
+        <h1>Your drink is <span>ready.</span></h1>
+        <p>Enjoy your drink. Remove the glass to start cleaning.</p>
+      </section>
     </div>
   );
 }
 
 function ErrorScreen({ now, message }: any) {
   return (
-    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
+    <div className="cc-screen cc-machine-state cc-error-state">
       <StatusBar title="System Error" now={now} />
-      <div className="absolute top-10 left-8"><Logo /></div>
-
-      <div className="w-48 h-48 rounded-full border-4 border-red-500 bg-red-500/10 flex items-center justify-center mb-12 animate-pulse text-red-400">
-        <span className="text-6xl">⚠️</span>
-      </div>
-
-      <h2 className="font-display text-[56px] font-light text-center text-red-500">
-        Order Error
-      </h2>
-      <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em] max-w-2xl text-center">
-        {message || "Please contact staff for assistance"}
-      </p>
+      <div className="cc-machine-state__icon"><AlertTriangle size={68} aria-hidden="true" /></div>
+      <h1>Order unavailable</h1>
+      <p>{message || "Please contact staff for assistance."}</p>
     </div>
   );
 }
 
 function CleaningScreen({ now, progress, message }: any) {
   return (
-    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
+    <div className="cc-screen cc-machine-state cc-cleaning">
       <StatusBar title="Machine Maintenance" now={now} />
-      <div className="absolute top-10 left-8"><Logo /></div>
-
-      <div className="w-48 h-48 rounded-full border-4 border-blue-500 bg-blue-500/10 flex items-center justify-center mb-12 animate-pulse text-blue-400">
-        <span className="text-6xl">✨</span>
-      </div>
-
-      <h2 className="font-display text-[56px] font-light text-center text-blue-400">
-        Cleaning in Progress
-      </h2>
-      <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em]">
-        Please Wait
-      </p>
-
-      <div className="w-[600px] mt-16">
-        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${progress}%` }} />
-        </div>
-        <p className="text-center text-muted-foreground uppercase tracking-widest text-sm mt-6">
-          {message || "Rinsing systems..."}
-        </p>
-      </div>
+      <div className="cc-machine-state__icon"><Sparkles size={68} aria-hidden="true" /></div>
+      <h1>Cleaning in progress</h1>
+      <p>Please wait while the station is prepared for the next order.</p>
+      <div className="cc-cleaning__bar"><i style={{ width: `${progress}%` }} /></div>
+      <small>{message || "Rinsing systems…"}</small>
     </div>
   );
 }
 
 function CleaningDone({ now }: any) {
   return (
-    <div className="absolute inset-0 bg-background flex flex-col items-center justify-center">
+    <div className="cc-screen cc-machine-state cc-cleaning-done">
       <StatusBar title="All Clean" now={now} />
-      <div className="absolute top-10 left-8"><Logo /></div>
-
-      <div className="w-48 h-48 rounded-full border-4 border-green-500 bg-green-500/10 flex items-center justify-center mb-12 text-green-400">
-        <span className="text-[80px] leading-none">✓</span>
-      </div>
-
-      <h2 className="font-display text-[64px] font-light text-center text-green-400">
-        All Clean!
-      </h2>
-      <p className="text-2xl text-muted-foreground mt-4 uppercase tracking-[0.2em] animate-pulse">
-        Machine ready for next order
-      </p>
+      <div className="cc-machine-state__icon"><Check size={74} aria-hidden="true" /></div>
+      <h1>All clean</h1>
+      <p>Machine ready for the next order.</p>
     </div>
   );
 }
