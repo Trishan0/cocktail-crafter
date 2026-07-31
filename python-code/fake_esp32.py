@@ -169,6 +169,7 @@ class FakeESP32:
         self._system("mixing", "stopped")
         self._sleep(0.12)
         self._system("valve", "opened")
+        self._system("drink", "ready", order_id=order["order_id"])
         with self._lock:
             self._loaded_order = None
             self._busy = False

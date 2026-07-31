@@ -94,6 +94,9 @@ export const setPowerState = (poweredOn: boolean) =>
   fetchApi("/admin/power", { method: "POST", body: JSON.stringify({ powered_on: poweredOn }) });
 export const queryHardware = (command: "CHECK_IR" | "CHECK_LEVELS" | "CHECK_LINE_STATE") =>
   fetchApi("/hardware/query", { method: "POST", body: JSON.stringify({ command }) });
+export const sendHardwareDebugCommand = (command: string) =>
+  fetchApi("/admin/hardware/debug", { method: "POST", body: JSON.stringify({ command }) });
+export const getAdminEvents = (limit = 20) => fetchApi(`/admin/events?limit=${limit}`);
 
 // Dev
 export const simulateHardwareMessage = (message: any) =>

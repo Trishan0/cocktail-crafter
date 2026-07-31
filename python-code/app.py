@@ -399,6 +399,28 @@ def api_hardware_query():
     return jsonify({"success": True, "command": command})
 
 
+@app.route("/api/admin/hardware/debug", methods=["POST"])
+def api_admin_hardware_debug():
+    """Run a documented, allow-listed ESP32 diagnostic command from Admin."""
+    data = request.get_json(silent=True) or {}
+    command = str(data.get("command", "")).upper()
+    allowed = {"CHECK_IR", "CHECK_LEVELS", "CHECK_LINE_STATE", "ICE_STATUS", "ICE", "ICE_SET_OPEN", "ICE_SET_CLOSED"}
+    if command not in allowed:
+        return jsonify({"error": "Unsupported diagnostic command."}), 400
+
+    # The firmware itself enforces this for ice commands. Reject it on the Pi
+    # as well, so an accidental Admin click cannot start/alter ice mid-order.
+    if command in {"ICE", "ICE_SET_OPEN", "ICE_SET_CLOSED"} and _controller.get_state()["machine_status"] != "idle":
+        return jsonify({"error": "Ice diagnostics are available only while the machine is idle."}), 409
+
+    try:
+        _controller.send_debug_command(command)
+        db.log_event("admin:hardware_debug", command)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"success": True, "command": command, "message": f"{command} sent. Check the diagnostic log for the ESP32 reply."})
+
+
 @app.route("/api/orders")
 def api_orders():
     """Recent order history."""

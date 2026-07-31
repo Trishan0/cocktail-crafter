@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
-import { Activity, ShieldAlert, Droplet, Cpu, Radio, Power, RefreshCw } from "lucide-react";
+import { Activity, ShieldAlert, Droplet, Cpu, Radio, Power, RefreshCw, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cleanSystem, abortOrder, getLiquidLevelConfig, getPowerState, getStatus, queryHardware, setLiquidLevelConfig, setPowerState } from "@/lib/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cleanSystem, abortOrder, getAdminEvents, getLiquidLevelConfig, getPowerState, getStatus, queryHardware, sendHardwareDebugCommand, setLiquidLevelConfig, setPowerState } from "@/lib/api";
 
 interface HardwareManagerProps {
   machineStatus: string;
@@ -20,6 +30,9 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
   const [levelError, setLevelError] = useState<string | null>(null);
   const [levelAboveValue, setLevelAboveValue] = useState<number | null>(null);
   const [savingLevelPolarity, setSavingLevelPolarity] = useState(false);
+  const [debugCommand, setDebugCommand] = useState<string | null>(null);
+  const [pendingDebugCommand, setPendingDebugCommand] = useState<string | null>(null);
+  const [debugOutput, setDebugOutput] = useState<string[]>([]);
 
   const BASE = `http://${window.location.hostname}:5000`;
 
@@ -150,8 +163,64 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
     }
   };
 
+  const refreshDebugOutput = async () => {
+    const events = await getAdminEvents(12);
+    const lines = events.map((event: any) => {
+      const time = event.timestamp ? new Date(`${event.timestamp}Z`).toLocaleTimeString() : "";
+      return `${time}  ${event.event_type}${event.detail ? `: ${event.detail}` : ""}`;
+    });
+    setDebugOutput(lines);
+    return lines.length;
+  };
+
+  const runDebugCommand = async (command: string) => {
+    setDebugCommand(command);
+    try {
+      const result = await sendHardwareDebugCommand(command);
+      await new Promise(resolve => window.setTimeout(resolve, 300));
+      const outputCount = await refreshDebugOutput();
+      if (!outputCount) setDebugOutput([result.message]);
+    } catch (e: any) {
+      setDebugOutput([`ERROR: ${e.message || e}`]);
+    } finally {
+      setDebugCommand(null);
+    }
+  };
+
+  const handleDebugCommand = (command: string) => {
+    setPendingDebugCommand(command);
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <AlertDialog open={pendingDebugCommand !== null} onOpenChange={(open) => !open && setPendingDebugCommand(null)}>
+        <AlertDialogContent className="sm:max-w-md rounded-3xl border-amber-500/30 bg-card/95 text-card-foreground backdrop-blur-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl font-light text-amber-200">Confirm diagnostic command</AlertDialogTitle>
+            <AlertDialogDescription className="leading-relaxed text-muted-foreground">
+              <span className="font-mono text-amber-300">{pendingDebugCommand}</span>{" "}
+              {pendingDebugCommand === "ICE"
+                ? "starts the standalone ice cycle and physically moves the ice mechanism."
+                : ["ICE_SET_OPEN", "ICE_SET_CLOSED"].includes(pendingDebugCommand || "")
+                  ? "changes the saved ice position only; it does not move the mechanism. Use it only after verifying the physical position."
+                  : "will request a live diagnostic reading from the ESP32 and add its response to the diagnostic log."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-full bg-amber-500 text-black hover:bg-amber-400"
+              onClick={() => {
+                const command = pendingDebugCommand;
+                setPendingDebugCommand(null);
+                if (command) void runDebugCommand(command);
+              }}
+            >
+              Confirm action
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-10 gap-4">
         <div>
           <h2 className="text-3xl md:text-4xl font-serif font-light mb-1 md:mb-2">Hardware Controls</h2>
@@ -248,6 +317,37 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
             {machineStatus !== "idle" && (
               <span className="text-xs text-orange-400 mt-1">Machine busy — switch unavailable</span>
             )}
+          </div>
+        </div>
+
+        {/* Documented ESP32 diagnostics. This is intentionally a fixed command list, not a serial terminal. */}
+        <div className="p-5 md:p-8 rounded-3xl border border-amber-500/20 bg-card/40 backdrop-blur-md">
+          <div className="flex gap-4 md:gap-6 items-center mb-5">
+            <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-amber-500/15 text-amber-300 border-2 border-amber-500/30 flex items-center justify-center">
+              <Terminal className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+            <div>
+              <h3 className="text-xl md:text-2xl font-display font-light mb-1">ESP32 Diagnostics</h3>
+              <p className="text-xs md:text-sm text-muted-foreground max-w-xl">Runs only documented firmware commands. Replies and firmware logs appear below; ice movement and saved-position changes require confirmation.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              ["CHECK_IR", "Read IR sensors"],
+              ["CHECK_LINE_STATE", "Read line state"],
+              ["ICE_STATUS", "Read ice status"],
+              ["ICE", "Test ice cycle"],
+              ["ICE_SET_CLOSED", "Set ice CLOSED"],
+              ["ICE_SET_OPEN", "Set ice OPEN"],
+            ].map(([command, label]) => (
+              <Button key={command} variant="outline" size="sm" disabled={debugCommand !== null}
+                onClick={() => handleDebugCommand(command)} className="rounded-full">
+                {debugCommand === command ? "Sending..." : label}
+              </Button>
+            ))}
+          </div>
+          <div className="mt-5 rounded-xl border border-black/40 bg-black/40 p-3 min-h-20 font-mono text-xs text-amber-100/80 whitespace-pre-wrap">
+            {debugOutput.length ? debugOutput.join("\n") : "No diagnostic command run in this session."}
           </div>
         </div>
 

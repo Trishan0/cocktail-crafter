@@ -200,6 +200,10 @@ class HardwareController:
     def query_sensors(self, command: str):
         raise NotImplementedError
 
+    def send_debug_command(self, command: str):
+        """Send one allow-listed maintenance command from the admin console."""
+        raise NotImplementedError
+
     def read_liquid_levels(self) -> dict:
         """Synchronously request the documented raw ``CHECK_LEVELS`` response."""
         raise NotImplementedError
@@ -329,6 +333,17 @@ class SimulatorController(HardwareController):
             _handle_sensor({"fluid_lines_primed": self._lines_primed})
         else:
             raise ValueError(f"Unsupported sensor query: {command}")
+
+    def send_debug_command(self, command: str):
+        command = command.upper()
+        if command in {"CHECK_IR", "CHECK_LEVELS", "CHECK_LINE_STATE"}:
+            self.query_sensors(command)
+        elif command == "ICE_STATUS":
+            _record_event("esp32:log", "ICE_POSITION:CLOSED,STATE:IDLE,BUSY:NO (simulator)")
+        elif command in {"ICE", "ICE_SET_OPEN", "ICE_SET_CLOSED"}:
+            _record_event("hardware:debug", f"{command} accepted by simulator")
+        else:
+            raise ValueError(f"Unsupported diagnostic command: {command}")
 
     def read_liquid_levels(self) -> dict:
         levels = {f"ls{i}": 1 for i in range(1, 7)}
@@ -564,6 +579,20 @@ class SerialController(HardwareController):
             return
         self._send_text(command)
 
+    def send_debug_command(self, command: str):
+        """Transmit an admin-only, documented maintenance command.
+
+        This deliberately uses a closed allow-list so the web admin panel
+        cannot become an arbitrary serial terminal.
+        """
+        command = command.upper()
+        if command in {"CHECK_IR", "CHECK_LEVELS", "CHECK_LINE_STATE"}:
+            self.query_sensors(command)
+            return
+        if command not in {"ICE", "ICE_STATUS", "ICE_SET_OPEN", "ICE_SET_CLOSED"}:
+            raise ValueError(f"Unsupported diagnostic command: {command}")
+        self._send_text(command)
+
     def read_liquid_levels(self) -> dict:
         """Request raw LS1..LS6 values and wait briefly for the ESP32 reply."""
         with self._level_query_gate:
@@ -635,7 +664,7 @@ class SerialController(HardwareController):
                 port = self._serial_port
                 connected = _state["connected"]
             if port is None or not connected:
-                raise ConnectionError(f"ESP32 is not connected; cannot send {line!r}")
+                raise ConnectionError(f"Please Contact the Support")
             try:
                 port.write((line + "\n").encode("utf-8"))
                 port.flush()
@@ -796,9 +825,35 @@ class SerialController(HardwareController):
 
         if event == "valve" and action == "opened":
             if run_mode == "order":
-                self._finish_order_after_display(order_id)
+                # Opening the valve starts the final pour; the firmware's
+                # drink:ready event is the authoritative completion signal.
+                _set_machine_state(
+                    MachineState.POURING,
+                    progress=95,
+                    message="Pouring drink. Waiting for drink-ready confirmation...",
+                    order_id=order_id,
+                )
             elif run_mode == "cleaning":
                 _set_machine_state(MachineState.WASHING, progress=95, message="Opening valve to finish cleaning...", order_id=None)
+            return
+
+        if event == "drink" and action == "ready":
+            if run_mode != "order" or not pending:
+                print(f"[SERIAL] Drink-ready event without an active order: {data}")
+                return
+
+            firmware_order_id = data.get("order_id")
+            if firmware_order_id is not None and str(firmware_order_id) != str(pending.get("wire_order_id")):
+                # Some firmware builds use their own order label (for example
+                # ALL-PUMPS-001). There can only be one active Pi order, so use
+                # that tracked order while retaining the mismatch in diagnostics.
+                _record_event(
+                    "esp32:drink_ready",
+                    f"Pi order {order_id}; firmware order_id={firmware_order_id}",
+                )
+            else:
+                _record_event("esp32:drink_ready", f"Pi order {order_id}")
+            self._finish_order_after_display(order_id)
             return
 
         if event == "cleaning":
@@ -838,9 +893,9 @@ class SerialController(HardwareController):
 
     def _finish_order_after_display(self, order_id: int | None):
         if order_id is None:
-            print("[SERIAL] Valve opened without a tracked order; keeping controller state unchanged.")
+            print("[SERIAL] Drink-ready event without a tracked order; keeping controller state unchanged.")
             return
-        _set_machine_state(MachineState.DONE, progress=100, message="Drink completed.", order_id=order_id)
+        _set_machine_state(MachineState.DONE, progress=100, message="Drink ready.", order_id=order_id)
         self._cancel_timer("_done_timer")
         self._done_timer = threading.Timer(config.DONE_SCREEN_SECONDS, self._return_to_idle_after_order, args=(order_id,))
         self._done_timer.daemon = True
