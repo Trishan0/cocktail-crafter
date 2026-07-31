@@ -49,18 +49,16 @@ function KioskApp() {
   // Tracks the firmware's explicit CLEAN sequence.
   const inCleanCycle = useRef(false);
 
-  // Load menu and available ingredients
+  // Load menu and the currently configured custom-drink ingredients once.
+  // Reloading this data on every screen transition used to overwrite a mix
+  // while the customer moved from Compose to Review.
   useEffect(() => {
     getMenu().then(data => setDrinks(data.drinks)).catch(console.error);
     getPumps().then(data => {
-      const active = data.pumps.filter((p: any) => p.ingredient_id !== null);
+      const active = data.pumps.filter((p: any) => p.ingredient_id !== null && Boolean(p.is_active));
       setAvailablePumps(active);
-      // Initialize custom with first available ingredient
-      if (active.length > 0) {
-        setCustomIngredients([{ ingredient_id: active[0].ingredient_id, name: active[0].ingredient_name, amount_ml: 50 }]);
-      }
     }).catch(console.error);
-  }, [screen]); // Reload menu when returning to start
+  }, []);
 
   // Clock
   useEffect(() => {
@@ -324,8 +322,13 @@ function Welcome({ now, go }: any) {
   );
 }
 
-function Experience({ now, go, setMode }: any) {
-  const choose = (m: string) => { setMode(m); go(m === "signature" ? "catalog" : "compose"); };
+function Experience({ now, go, setMode, setCustomIngredients, setWantsIce }: any) {
+  const choose = (m: string) => {
+    setMode(m);
+    setWantsIce(false);
+    if (m === "custom") setCustomIngredients([]);
+    go(m === "signature" ? "catalog" : "compose");
+  };
   return (
     <div className="absolute inset-0">
       <StatusBar title="Choose Experience" now={now} />
@@ -494,6 +497,9 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
                   </button>
                 );
               })}
+              {availablePumps.length === 0 && (
+                <p className="text-muted-foreground">No active ingredients are configured. Ask staff to configure pumps.</p>
+              )}
             </div>
           </div>
 

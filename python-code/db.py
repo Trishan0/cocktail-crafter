@@ -257,6 +257,20 @@ def get_all_ingredients():
     return [dict(r) for r in rows]
 
 
+def get_ingredients_by_ids(ingredient_ids: list[int]):
+    """Return an ID-to-ingredient mapping for server-side custom-order input."""
+    unique_ids = sorted(set(ingredient_ids))
+    if not unique_ids:
+        return {}
+    placeholders = ",".join("?" for _ in unique_ids)
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"SELECT id, name FROM ingredients WHERE id IN ({placeholders})",
+            unique_ids,
+        ).fetchall()
+    return {row["id"]: dict(row) for row in rows}
+
+
 def create_ingredient(name: str, description: str = ""):
     """Insert a new ingredient. Returns new id or raises if name exists."""
     name = name.strip()

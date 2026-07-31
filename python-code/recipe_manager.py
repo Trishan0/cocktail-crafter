@@ -8,6 +8,7 @@ manages order lifecycle.
 """
 
 import json
+import math
 
 import db
 import config
@@ -113,11 +114,15 @@ def prepare_order(recipe_id: int):
 
 def prepare_custom_order(ingredients: list):
     """Resolve a custom drink into a validated, but not persisted, order."""
-    err = validate_recipe_ingredients(ingredients)
+    canonical_ingredients, err = canonicalise_custom_ingredients(ingredients)
     if err:
         return None, err
 
-    commands, error = resolve_pump_commands(ingredients)
+    err = validate_recipe_ingredients(canonical_ingredients)
+    if err:
+        return None, err
+
+    commands, error = resolve_pump_commands(canonical_ingredients)
     if error:
         return None, error
 
@@ -126,7 +131,7 @@ def prepare_custom_order(ingredients: list):
         "recipe_name": "Custom Drink",
         "pump_commands": commands,
         "price": 0.0,
-        "ingredients_snapshot": ingredients,
+        "ingredients_snapshot": canonical_ingredients,
     }, None
 
 
@@ -255,6 +260,43 @@ def get_menu():
 #  VALIDATION HELPERS
 # ─────────────────────────────────────────────
 
+def canonicalise_custom_ingredients(ingredients: list):
+    """Trust database ingredient IDs, not the browser's ingredient names.
+
+    Duplicate IDs are deliberately combined before limits are checked. This
+    prevents two 100 ml entries for the same pump from bypassing the 100 ml
+    per-ingredient safety limit.
+    """
+    if not isinstance(ingredients, list) or not ingredients:
+        return None, "Custom drink needs at least one ingredient."
+
+    grouped_amounts: dict[int, float] = {}
+    for item in ingredients:
+        if not isinstance(item, dict):
+            return None, "Each custom ingredient must be an object."
+        try:
+            ingredient_id = int(item["id"])
+            amount_ml = float(item["amount_ml"])
+        except (KeyError, TypeError, ValueError):
+            return None, "Each custom ingredient needs a valid id and amount_ml."
+        if not math.isfinite(amount_ml):
+            return None, "Ingredient amount must be a finite number."
+        grouped_amounts[ingredient_id] = grouped_amounts.get(ingredient_id, 0.0) + amount_ml
+
+    known_ingredients = db.get_ingredients_by_ids(list(grouped_amounts))
+    unknown_ids = sorted(set(grouped_amounts) - set(known_ingredients))
+    if unknown_ids:
+        return None, f"Unknown ingredient id(s): {', '.join(map(str, unknown_ids))}."
+
+    return [
+        {
+            "id": ingredient_id,
+            "name": known_ingredients[ingredient_id]["name"],
+            "amount_ml": amount_ml,
+        }
+        for ingredient_id, amount_ml in sorted(grouped_amounts.items())
+    ], None
+
 def validate_recipe_ingredients(ingredients: list):
     """
     Validate a list of {ingredient_id, amount_ml} pairs.
@@ -265,7 +307,12 @@ def validate_recipe_ingredients(ingredients: list):
 
     total = 0
     for ing in ingredients:
-        amount = ing.get("amount_ml", 0)
+        try:
+            amount = float(ing.get("amount_ml", 0))
+        except (AttributeError, TypeError, ValueError):
+            return "Ingredient amount must be a number."
+        if not math.isfinite(amount):
+            return "Ingredient amount must be a finite number."
         if amount < 0:
             return "Ingredient amount cannot be negative."
         if 0 < amount < config.MIN_ML_PER_INGREDIENT:
