@@ -1,0 +1,34 @@
+*Kaveesha*
+
+- Mechanical system design and implementation
+- Pinch-valve mechanism design and embedded control logic development
+- Mixing mechanism design, prototyping, and integration
+- Custom 3D design and additive manufacturing of mechanical components
+- Hardware assembly, wiring, and system integration
+
+*Trishan*
+
+- Raspberry Pi software development and system management
+- Touch-display integration and UI/UX development
+- Motor-control PCB design and electrical routing
+- Hardware assembly, wiring, and system integration
+
+*Dulmina*
+
+- Main PCB design and integration
+- Internal power management system
+- Dispenser stepper-motor control
+- Dispenser Hall-sensor integration
+- Hardware assembly, wiring, and system integration
+
+*Amaya*
+
+- Ice dispensing mechanism development (stepper motor and lead-screw linear actuator)
+- Liquid-level sensor integration
+- Cocktail recipe testing and preparation
+
+*Thiseni*
+
+- Peristaltic pump integration
+- IR sensor integration for glass detection and validation
+- Cocktail recipe testing and preparation
