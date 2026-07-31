@@ -23,7 +23,7 @@ The command displays two paths such as `/dev/pts/2` and `/dev/pts/3`.
 1. Start the harness on one path:
 
    ```bash
-   cd python-code
+   cd backend
    python fake_esp32.py --port /dev/pts/3
    ```
 

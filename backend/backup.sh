@@ -9,10 +9,10 @@
 # CRONTAB (run `crontab -e` and paste one of the lines below):
 #
 #   Every hour, keep last 168 copies (~7 days of hourly backups):
-#   0 * * * * /home/pi/luxe-bar-scribe/python-code/backup.sh >> /home/pi/backup.log 2>&1
+#   0 * * * * /home/pi/luxe-bar-scribe/backend/backup.sh >> /home/pi/backup.log 2>&1
 #
 #   Every 15 minutes, keep last 96 copies (~1 day):
-#   */15 * * * * /home/pi/luxe-bar-scribe/python-code/backup.sh >> /home/pi/backup.log 2>&1
+#   */15 * * * * /home/pi/luxe-bar-scribe/backend/backup.sh >> /home/pi/backup.log 2>&1
 
 set -euo pipefail
 
