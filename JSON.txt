@@ -1,0 +1,1 @@
+{"command":"ORDER","order_id":"ALL-PUMPS-001","pumps":[{"pump":1,"time_ms":3000},{"pump":2,"time_ms":3000},{"pump":3,"time_ms":3000},{"pump":4,"time_ms":3000},{"pump":5,"time_ms":3000},{"pump":6,"time_ms":3000}],"ice":{"enabled":true}}
