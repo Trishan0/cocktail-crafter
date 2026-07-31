@@ -62,7 +62,6 @@ function KioskApp() {
   const [glassState, setGlassState] = useState("unknown");
   const [poweredOn, setPoweredOn] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [firmwareReady, setFirmwareReady] = useState(false);
   const [lowerSensor, setLowerSensor] = useState<number | null>(null);
   const [upperSensor, setUpperSensor] = useState<number | null>(null);
   // Tracks the firmware's explicit CLEAN sequence.
@@ -94,7 +93,6 @@ function KioskApp() {
       setMachineStatus(data.machine_status);
       setPoweredOn(Boolean(data.powered_on));
       setConnected(Boolean(data.connected));
-      setFirmwareReady(Boolean(data.firmware_ready));
       setProgress(data.progress || 0);
       setMessage(data.message || "");
       setGlassState(data.glass_state);
@@ -108,7 +106,6 @@ function KioskApp() {
       setMachineStatus(status);
       if ("powered_on" in data) setPoweredOn(Boolean(data.powered_on));
       if (typeof data.connected === "boolean") setConnected(data.connected);
-      if (typeof data.firmware_ready === "boolean") setFirmwareReady(data.firmware_ready);
       setProgress(data.progress || 0);
       setMessage(data.message || "");
 
@@ -157,13 +154,12 @@ function KioskApp() {
 
     evtSource.onerror = () => {
       setConnected(false);
-      setFirmwareReady(false);
     };
 
     return () => evtSource.close();
   }, []);
 
-  const stationReady = poweredOn && connected && firmwareReady;
+  const stationReady = poweredOn && connected;
 
   // Auto-navigate from cleaning_done back to welcome after 4 seconds
   useEffect(() => {
@@ -212,7 +208,7 @@ function KioskApp() {
     selected, setSelectedId, mode, setMode, drinks, availablePumps,
     customIngredients, setCustomIngredients, wantsIce, setWantsIce,
     machineStatus, progress, message, glassState, lowerSensor, upperSensor, poweredOn,
-    connected, firmwareReady, stationReady, totalMl,
+    connected, stationReady, totalMl,
     now, go, handleOrder, isSubmitting, orderError, setOrderError
   };
 
@@ -222,7 +218,7 @@ function KioskApp() {
         className="kiosk-frame cc-frame"
         style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
       >
-        {!stationReady && <PoweredOff now={now} poweredOn={poweredOn} connected={connected} firmwareReady={firmwareReady} />}
+        {!stationReady && <PoweredOff now={now} poweredOn={poweredOn} connected={connected} />}
         {stationReady && screen === "welcome" && <Welcome {...ctx} />}
         {stationReady && screen === "experience" && <Experience {...ctx} />}
         {stationReady && screen === "catalog" && <Catalog {...ctx} />}
@@ -309,26 +305,21 @@ function BackChip({ onClick, label = "Back" }: any) {
    Screens
    ============================================================ */
 
-function PoweredOff({ now, poweredOn, connected, firmwareReady }: any) {
+function PoweredOff({ now, poweredOn, connected }: any) {
   const unavailable = !poweredOn;
-  const connectionLost = poweredOn && !connected;
   const heading = unavailable
     ? "Machine is offline"
-    : connectionLost
-      ? "Controller is unavailable"
-      : "Starting the station";
+    : "Controller is unavailable";
   const description = unavailable
     ? "Please ask a member of staff for assistance. Orders will be available once the station is powered on."
-    : connectionLost
-      ? "The station cannot communicate with its controller. Please ask a member of staff for assistance."
-      : "Waiting for the machine controller to report that it is ready. Please wait a moment.";
+    : "The station cannot communicate with its controller. Please ask a member of staff for assistance.";
 
   return (
     <div className="cc-screen cc-unavailable">
       <StatusBar title="Machine unavailable" now={now} online={false} />
       <div className="cc-state-card cc-state-card--warning">
         <div className="cc-state-card__icon"><PowerOff size={44} aria-hidden="true" /></div>
-        <p className="cc-eyebrow">{firmwareReady ? "Station unavailable" : "Station status"}</p>
+        <p className="cc-eyebrow">Station unavailable</p>
         <h1>{heading}</h1>
         <p>{description}</p>
       </div>

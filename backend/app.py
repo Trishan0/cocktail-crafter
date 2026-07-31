@@ -44,12 +44,10 @@ def _power_state_payload() -> dict:
     return {"powered_on": _is_powered_on()}
 
 
-def _firmware_ready_error(state: dict) -> str | None:
-    """Return the protocol prerequisite that currently prevents an ORDER."""
+def _connection_error(state: dict) -> str | None:
+    """Return the connection prerequisite that currently prevents an ORDER."""
     if not state.get("connected"):
         return "ESP32 is not connected. Please contact staff."
-    if not state.get("firmware_ready"):
-        return "ESP32 firmware is still starting. Please wait for the station to become ready."
     return None
 
 def _swap_controller(simulator: bool):
@@ -259,9 +257,9 @@ def api_place_order():
 
     # Check machine is free — only accept orders from idle (or post-error/abort)
     state = _controller.get_state()
-    firmware_error = _firmware_ready_error(state)
-    if firmware_error:
-        return jsonify({"error": firmware_error}), 503
+    connection_error = _connection_error(state)
+    if connection_error:
+        return jsonify({"error": connection_error}), 503
     if not ms.can_accept_order(state["machine_status"]):
         return jsonify({
             "error": f"Machine is busy ({state['machine_status']}). Please wait."
@@ -322,9 +320,9 @@ def api_place_custom_order():
 
     # Check machine is free
     state = _controller.get_state()
-    firmware_error = _firmware_ready_error(state)
-    if firmware_error:
-        return jsonify({"error": firmware_error}), 503
+    connection_error = _connection_error(state)
+    if connection_error:
+        return jsonify({"error": connection_error}), 503
     if not ms.can_accept_order(state["machine_status"]):
         return jsonify({
             "error": f"Machine is busy ({state['machine_status']}). Please wait."

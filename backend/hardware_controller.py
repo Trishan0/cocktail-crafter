@@ -479,8 +479,6 @@ class SerialController(HardwareController):
         with _lock:
             if not _state["connected"]:
                 raise ConnectionError("ESP32 is not connected.")
-            if not _state["firmware_ready"]:
-                raise RuntimeError("ESP32 firmware has not reported ready yet.")
         pumps = self._normalise_pumps(pump_commands)
         wire_order_id = f"ORD-{order_id}"
         payload = {
