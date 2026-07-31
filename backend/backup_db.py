@@ -14,8 +14,8 @@ snapshot without locking writes).
 
 Crontab (edit with `crontab -e`):
     # Backup every hour, keep last 7 days of hourly copies
-    0 * * * * /home/pi/luxe-bar-scribe/python-code/.venv/bin/python \
-              /home/pi/luxe-bar-scribe/python-code/backup_db.py \
+    0 * * * * /home/pi/luxe-bar-scribe/backend/.venv/bin/python \
+              /home/pi/luxe-bar-scribe/backend/backup_db.py \
               --dest /home/pi/db-backups --keep 168 >> /home/pi/backup.log 2>&1
 """
 
