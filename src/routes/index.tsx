@@ -19,6 +19,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import readyHero from "@/assets/cocktail-ready.png";
+import customBuild from "@/assets/custom-drink.png";
+import defaultDrink from "@/assets/default-drinks.png";
+
+
 import { getMenu, placeOrder, placeCustomOrder, getPumps } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
@@ -371,7 +375,7 @@ function Experience({ now, go, setMode, setCustomIngredients, setWantsIce }: any
       </div>
       <div className="cc-experience__cards">
         <button type="button" onClick={() => choose("signature")} className="cc-experience-card">
-          <div className="cc-experience-card__visual cc-experience-card__visual--classic"><Martini size={110} strokeWidth={1.25} aria-hidden="true" /></div>
+          <div className="cc-experience-card__visual cc-experience-card__visual--classic"><img src={defaultDrink} alt="" /></div>
           <div className="cc-experience-card__body">
             <span className="cc-card-icon"><Sparkles size={25} /></span>
             <h2>House Classics</h2>
@@ -380,7 +384,7 @@ function Experience({ now, go, setMode, setCustomIngredients, setWantsIce }: any
           </div>
         </button>
         <button type="button" onClick={() => choose("custom")} className="cc-experience-card">
-          <div className="cc-experience-card__visual cc-experience-card__visual--custom"><FlaskConical size={108} strokeWidth={1.25} aria-hidden="true" /></div>
+          <div className="cc-experience-card__visual cc-experience-card__visual--custom"><img src={customBuild} alt="" /></div>
           <div className="cc-experience-card__body">
             <span className="cc-card-icon"><Sparkles size={25} /></span>
             <h2>Build Your Own</h2>
