@@ -3,6 +3,8 @@ HardwareSerial MySerial(1);
 #define RXD2 18
 #define TXD2 17
 
+#define STEPPER_EN_PIN 16
+
 void sendCmd(String cmd)
 {
   MySerial.println(cmd);
@@ -18,7 +20,7 @@ void runMotorForward(int motor)
 
   sendCmd(forwardCmd);
 
-  delay(1400);
+  delay(500);
 
   sendCmd(stopCmd);
 }
@@ -54,6 +56,9 @@ void setup()
   Serial.println("1-6 : Run motor forward for 4 seconds");
   Serial.println("a   : Reverse all motors one by one");
   Serial.println("s   : STOP all motors");
+
+  pinMode(STEPPER_EN_PIN, OUTPUT);
+  digitalWrite(STEPPER_EN_PIN, HIGH);
 }
 
 void loop()
