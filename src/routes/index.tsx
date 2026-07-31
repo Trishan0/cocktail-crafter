@@ -61,6 +61,8 @@ function KioskApp() {
   const [message, setMessage] = useState("");
   const [glassState, setGlassState] = useState("unknown");
   const [poweredOn, setPoweredOn] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [firmwareReady, setFirmwareReady] = useState(false);
   const [lowerSensor, setLowerSensor] = useState<number | null>(null);
   const [upperSensor, setUpperSensor] = useState<number | null>(null);
   // Tracks the firmware's explicit CLEAN sequence.
@@ -91,6 +93,8 @@ function KioskApp() {
       const data = JSON.parse(e.data);
       setMachineStatus(data.machine_status);
       setPoweredOn(Boolean(data.powered_on));
+      setConnected(Boolean(data.connected));
+      setFirmwareReady(Boolean(data.firmware_ready));
       setProgress(data.progress || 0);
       setMessage(data.message || "");
       setGlassState(data.glass_state);
@@ -103,6 +107,8 @@ function KioskApp() {
       const status = data.machine_status;
       setMachineStatus(status);
       if ("powered_on" in data) setPoweredOn(Boolean(data.powered_on));
+      if (typeof data.connected === "boolean") setConnected(data.connected);
+      if (typeof data.firmware_ready === "boolean") setFirmwareReady(data.firmware_ready);
       setProgress(data.progress || 0);
       setMessage(data.message || "");
 
@@ -149,8 +155,15 @@ function KioskApp() {
       if ("upper_sensor" in data) setUpperSensor(data.upper_sensor ?? null);
     });
 
+    evtSource.onerror = () => {
+      setConnected(false);
+      setFirmwareReady(false);
+    };
+
     return () => evtSource.close();
   }, []);
+
+  const stationReady = poweredOn && connected && firmwareReady;
 
   // Auto-navigate from cleaning_done back to welcome after 4 seconds
   useEffect(() => {
@@ -172,7 +185,7 @@ function KioskApp() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleOrder = async () => {
-    if (!poweredOn || machineStatus !== "idle" || isSubmitting) return;
+    if (!stationReady || machineStatus !== "idle" || isSubmitting) return;
     setIsSubmitting(true);
     try {
       if (mode === "signature") {
@@ -198,7 +211,8 @@ function KioskApp() {
   const ctx = {
     selected, setSelectedId, mode, setMode, drinks, availablePumps,
     customIngredients, setCustomIngredients, wantsIce, setWantsIce,
-    machineStatus, progress, message, glassState, lowerSensor, upperSensor, poweredOn, totalMl,
+    machineStatus, progress, message, glassState, lowerSensor, upperSensor, poweredOn,
+    connected, firmwareReady, stationReady, totalMl,
     now, go, handleOrder, isSubmitting, orderError, setOrderError
   };
 
@@ -208,19 +222,19 @@ function KioskApp() {
         className="kiosk-frame cc-frame"
         style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
       >
-        {!poweredOn && <PoweredOff now={now} />}
-        {poweredOn && screen === "welcome" && <Welcome {...ctx} />}
-        {poweredOn && screen === "experience" && <Experience {...ctx} />}
-        {poweredOn && screen === "catalog" && <Catalog {...ctx} />}
-        {poweredOn && screen === "detail" && <Detail {...ctx} />}
-        {poweredOn && screen === "compose" && <Compose {...ctx} />}
-        {poweredOn && screen === "review" && <Review {...ctx} />}
-        {poweredOn && screen === "waiting_glass" && <WaitingGlass {...ctx} />}
-        {poweredOn && screen === "preparing" && <Preparing {...ctx} />}
-        {poweredOn && screen === "ready" && <Ready {...ctx} />}
-        {poweredOn && screen === "error" && <ErrorScreen now={now} message={message} />}
-        {poweredOn && screen === "cleaning" && <CleaningScreen now={now} progress={progress} message={message} />}
-        {poweredOn && screen === "cleaning_done" && <CleaningDone now={now} />}
+        {!stationReady && <PoweredOff now={now} poweredOn={poweredOn} connected={connected} firmwareReady={firmwareReady} />}
+        {stationReady && screen === "welcome" && <Welcome {...ctx} />}
+        {stationReady && screen === "experience" && <Experience {...ctx} />}
+        {stationReady && screen === "catalog" && <Catalog {...ctx} />}
+        {stationReady && screen === "detail" && <Detail {...ctx} />}
+        {stationReady && screen === "compose" && <Compose {...ctx} />}
+        {stationReady && screen === "review" && <Review {...ctx} />}
+        {stationReady && screen === "waiting_glass" && <WaitingGlass {...ctx} />}
+        {stationReady && screen === "preparing" && <Preparing {...ctx} />}
+        {stationReady && screen === "ready" && <Ready {...ctx} />}
+        {stationReady && screen === "error" && <ErrorScreen now={now} message={message} />}
+        {stationReady && screen === "cleaning" && <CleaningScreen now={now} progress={progress} message={message} />}
+        {stationReady && screen === "cleaning_done" && <CleaningDone now={now} />}
 
         {/* Error Modal Overlay */}
         {orderError && (
@@ -295,15 +309,28 @@ function BackChip({ onClick, label = "Back" }: any) {
    Screens
    ============================================================ */
 
-function PoweredOff({ now }: any) {
+function PoweredOff({ now, poweredOn, connected, firmwareReady }: any) {
+  const unavailable = !poweredOn;
+  const connectionLost = poweredOn && !connected;
+  const heading = unavailable
+    ? "Machine is offline"
+    : connectionLost
+      ? "Controller is unavailable"
+      : "Starting the station";
+  const description = unavailable
+    ? "Please ask a member of staff for assistance. Orders will be available once the station is powered on."
+    : connectionLost
+      ? "The station cannot communicate with its controller. Please ask a member of staff for assistance."
+      : "Waiting for the machine controller to report that it is ready. Please wait a moment.";
+
   return (
     <div className="cc-screen cc-unavailable">
       <StatusBar title="Machine unavailable" now={now} online={false} />
       <div className="cc-state-card cc-state-card--warning">
         <div className="cc-state-card__icon"><PowerOff size={44} aria-hidden="true" /></div>
-        <p className="cc-eyebrow">Station unavailable</p>
-        <h1>Machine is offline</h1>
-        <p>Please ask a member of staff for assistance. Orders will be available once the station is powered on.</p>
+        <p className="cc-eyebrow">{firmwareReady ? "Station unavailable" : "Station status"}</p>
+        <h1>{heading}</h1>
+        <p>{description}</p>
       </div>
     </div>
   );

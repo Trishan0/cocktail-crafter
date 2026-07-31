@@ -465,14 +465,22 @@ class SerialController(HardwareController):
             port = self._serial_port
             self._serial_port = None
             _state["connected"] = False
+            _state["firmware_ready"] = False
+            state_copy = _serialise_state()
         if port:
             try:
                 port.close()
             except serial.SerialException:
                 pass
+        _notify_status(state_copy)
         print("[SERIAL] SerialController stopped.")
 
     def send_order(self, order_id: int, recipe_name: str, pump_commands: list, ice: bool = False):
+        with _lock:
+            if not _state["connected"]:
+                raise ConnectionError("ESP32 is not connected.")
+            if not _state["firmware_ready"]:
+                raise RuntimeError("ESP32 firmware has not reported ready yet.")
         pumps = self._normalise_pumps(pump_commands)
         wire_order_id = f"ORD-{order_id}"
         payload = {
@@ -494,14 +502,28 @@ class SerialController(HardwareController):
                 "ice": bool(ice),
             }
 
+        # Set the Pi-facing state before transmitting. The ESP32 can reply
+        # immediately after the write, and its initialized response must never
+        # race an out-of-order INITIALIZING state update.
+        _set_machine_state(
+            MachineState.INITIALIZING,
+            progress=0,
+            message="Loading order into controller...",
+            order_id=order_id,
+        )
         try:
             self._send_json(payload)
-        except Exception:
+        except Exception as exc:
             with self._pending_lock:
                 self._pending_order = None
+            _set_machine_state(
+                MachineState.ERROR,
+                progress=0,
+                message=f"Could not send ORDER to ESP32: {exc}",
+                order_id=order_id,
+            )
             raise
 
-        _set_machine_state(MachineState.INITIALIZING, progress=0, message="Loading order into controller...", order_id=order_id)
         self._start_order_timeout(order_id)
         print(f"[SERIAL] ORDER sent: {wire_order_id} ({recipe_name}), ice={bool(ice)}")
 
@@ -517,16 +539,22 @@ class SerialController(HardwareController):
                 return
             order_id = self._pending_order["db_order_id"]
             ice_enabled = self._pending_order["ice"]
-
-        self._send_text("START")
-        with self._pending_lock:
-            if not self._pending_order:
-                return
             self._pending_order["start_sent"] = True
             self._active_run_mode = "order"
+
         self._stop_ir_polling()
         message = "START sent. Dispensing ice and preparing drink..." if ice_enabled else "START sent. Preparing drink..."
         _set_machine_state(MachineState.DISPENSING, progress=1, message=message, order_id=order_id)
+        try:
+            self._send_text("START")
+        except Exception as exc:
+            _set_machine_state(
+                MachineState.ERROR,
+                progress=0,
+                message=f"Could not send START to ESP32: {exc}",
+                order_id=order_id,
+            )
+            raise
         print(f"[SERIAL] START sent for order #{order_id}.")
 
     def send_stop_request(self):
@@ -659,6 +687,12 @@ class SerialController(HardwareController):
         self._write_line(command.strip())
 
     def _write_line(self, line: str):
+        if not line:
+            raise ValueError("ESP32 commands cannot be empty.")
+        if "\r" in line or "\n" in line:
+            raise ValueError("ESP32 commands must be a single line.")
+        if len(line) > 512:
+            raise ValueError("ESP32 commands must not exceed 512 characters.")
         with self._command_lock:
             with _lock:
                 port = self._serial_port
@@ -671,6 +705,9 @@ class SerialController(HardwareController):
             except serial.SerialException as exc:
                 with _lock:
                     _state["connected"] = False
+                    _state["firmware_ready"] = False
+                    state_copy = _serialise_state()
+                _notify_status(state_copy)
                 raise ConnectionError(f"ESP32 serial send failed: {exc}") from exc
 
     def _start_order_timeout(self, order_id: int):
@@ -789,7 +826,9 @@ class SerialController(HardwareController):
         if event == "ready":
             with _lock:
                 _state["firmware_ready"] = True
+                state_copy = _serialise_state()
             _record_event("esp32:ready")
+            _notify_status(state_copy)
             print("[SERIAL] ESP32 reported ready.")
             return
 
@@ -825,35 +864,12 @@ class SerialController(HardwareController):
 
         if event == "valve" and action == "opened":
             if run_mode == "order":
-                # Opening the valve starts the final pour; the firmware's
-                # drink:ready event is the authoritative completion signal.
-                _set_machine_state(
-                    MachineState.POURING,
-                    progress=95,
-                    message="Pouring drink. Waiting for drink-ready confirmation...",
-                    order_id=order_id,
-                )
+                # The documented firmware has no drink-complete event. Its
+                # valve-opened DATA event is the final normal-order signal.
+                _record_event("esp32:valve_opened", f"Pi order {order_id}")
+                self._finish_order_after_display(order_id)
             elif run_mode == "cleaning":
                 _set_machine_state(MachineState.WASHING, progress=95, message="Opening valve to finish cleaning...", order_id=None)
-            return
-
-        if event == "drink" and action == "ready":
-            if run_mode != "order" or not pending:
-                print(f"[SERIAL] Drink-ready event without an active order: {data}")
-                return
-
-            firmware_order_id = data.get("order_id")
-            if firmware_order_id is not None and str(firmware_order_id) != str(pending.get("wire_order_id")):
-                # Some firmware builds use their own order label (for example
-                # ALL-PUMPS-001). There can only be one active Pi order, so use
-                # that tracked order while retaining the mismatch in diagnostics.
-                _record_event(
-                    "esp32:drink_ready",
-                    f"Pi order {order_id}; firmware order_id={firmware_order_id}",
-                )
-            else:
-                _record_event("esp32:drink_ready", f"Pi order {order_id}")
-            self._finish_order_after_display(order_id)
             return
 
         if event == "cleaning":
@@ -932,6 +948,9 @@ class SerialController(HardwareController):
                 print(f"[SERIAL] Read error: {exc}")
                 with _lock:
                     _state["connected"] = False
+                    _state["firmware_ready"] = False
+                    state_copy = _serialise_state()
+                _notify_status(state_copy)
                 self._reconnect()
             except Exception as exc:  # retain serial reader availability on malformed input
                 print(f"[SERIAL] Unexpected reader error: {exc}")
@@ -939,8 +958,7 @@ class SerialController(HardwareController):
     def _process_line(self, line: str):
         if line.startswith("LOG:"):
             message = line[4:]
-            _record_event("esp32:log", message)
-            print(f"[ESP32] {message}")
+            self._handle_log(message)
             return
         if not line.startswith("DATA:"):
             print(f"[SERIAL] Unclassified ESP32 line: {line!r}")
@@ -958,6 +976,49 @@ class SerialController(HardwareController):
         else:
             print(f"[SERIAL] Unknown DATA message type: {data}")
 
+    def _handle_log(self, message: str):
+        """Store ESP32 diagnostic logs and surface command rejection safely.
+
+        The firmware reports acknowledgements and plain-text errors through
+        ``LOG:`` rather than JSON.  A log error can only be attributed to the
+        one Pi-managed operation currently in flight; unrelated admin ice
+        diagnostics remain diagnostic-only.
+        """
+        message = message.strip()
+        _record_event("esp32:log", message)
+        print(f"[ESP32] {message}")
+
+        error_logs = {
+            "BUSY",
+            "NO_ORDER_LOADED",
+            "ICE_TASK_UNAVAILABLE",
+            "ICE_BUSY",
+            "ICE_POSITION_NOT_CLOSED",
+            "ICE_QUEUE_ERROR",
+            "ERROR:UNKNOWN_COMMAND",
+            "ERROR:COMMAND_TOO_LONG",
+        }
+        if message.upper() not in error_logs:
+            return
+
+        with self._pending_lock:
+            pending = dict(self._pending_order) if self._pending_order else None
+            run_mode = self._active_run_mode
+            if run_mode not in {"order", "cleaning", "reverse"}:
+                return
+            self._pending_order = None
+            self._active_run_mode = None
+
+        self._stop_ir_polling()
+        self._cancel_timer("_order_timeout")
+        order_id = pending["db_order_id"] if pending else None
+        _set_machine_state(
+            MachineState.ERROR,
+            progress=0,
+            message=f"ESP32 command rejected: {message}",
+            order_id=order_id,
+        )
+
     def _open_port(self) -> serial.Serial | None:
         port_to_try = config.SERIAL_PORT
         ports = list(serial.tools.list_ports.comports())
@@ -973,8 +1034,14 @@ class SerialController(HardwareController):
             port = serial.serial_for_url(
                 port_to_try,
                 baudrate=config.SERIAL_BAUDRATE,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
                 timeout=config.SERIAL_TIMEOUT,
                 write_timeout=2,
+                xonxoff=False,
+                rtscts=False,
+                dsrdtr=False,
             )
             time.sleep(1)
             port.reset_input_buffer()
@@ -990,11 +1057,13 @@ class SerialController(HardwareController):
             self._serial_port = None
             _state["connected"] = False
             _state["firmware_ready"] = False
+            state_copy = _serialise_state()
         if old_port:
             try:
                 old_port.close()
             except serial.SerialException:
                 pass
+        _notify_status(state_copy)
         while self._running:
             time.sleep(config.SERIAL_RECONNECT_SECONDS)
             port = self._open_port()
@@ -1002,6 +1071,9 @@ class SerialController(HardwareController):
                 with _lock:
                     self._serial_port = port
                     _state["connected"] = True
+                    _state["firmware_ready"] = False
+                    state_copy = _serialise_state()
+                _notify_status(state_copy)
                 print("[SERIAL] Reconnected successfully.")
                 return
 

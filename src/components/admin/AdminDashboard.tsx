@@ -25,6 +25,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
   const [currentOrderId, setCurrentOrderId] = useState<number | null>(null);
+  const [hardwareConnected, setHardwareConnected] = useState(false);
+  const [firmwareReady, setFirmwareReady] = useState(false);
 
   useEffect(() => {
     const evtSource = new EventSource(`http://${window.location.hostname}:5000/stream`);
@@ -35,6 +37,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       setProgress(data.progress || 0);
       setMessage(data.message || "");
       setCurrentOrderId(data.current_order_id || null);
+      setHardwareConnected(Boolean(data.connected));
+      setFirmwareReady(Boolean(data.firmware_ready));
     });
 
     evtSource.addEventListener("status", (e) => {
@@ -43,7 +47,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       setProgress(data.progress || 0);
       setMessage(data.message || "");
       setCurrentOrderId(data.order_id || null);
+      if (typeof data.connected === "boolean") setHardwareConnected(data.connected);
+      if (typeof data.firmware_ready === "boolean") setFirmwareReady(data.firmware_ready);
     });
+
+    evtSource.onerror = () => {
+      setHardwareConnected(false);
+      setFirmwareReady(false);
+    };
 
     return () => evtSource.close();
   }, []);
@@ -56,6 +67,19 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     { id: "hardware", label: "Hardware", icon: Activity },
     { id: "settings", label: "Settings", icon: Settings2 },
   ];
+  const stationReady = hardwareConnected && firmwareReady;
+  const stationState = !hardwareConnected
+    ? "controller offline"
+    : !firmwareReady
+      ? "controller starting"
+      : machineStatus.replace("_", " ");
+  const stationClass = !stationReady
+    ? (hardwareConnected ? "is-busy" : "is-error")
+    : machineStatus === "idle"
+      ? "is-idle"
+      : machineStatus === "error"
+        ? "is-error"
+        : "is-busy";
 
   return (
     <div className="admin-dashboard">
@@ -88,10 +112,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       <main className="admin-dashboard__main">
         <header className="admin-dashboard__header">
           <div><p>Staff administration</p><h1>{navItems.find(item => item.id === activeTab)?.label}</h1></div>
-          <div className={`admin-dashboard__status ${machineStatus === "idle" ? "is-idle" : machineStatus === "error" ? "is-error" : "is-busy"}`}>
+          <div className={`admin-dashboard__status ${stationClass}`}>
             <i aria-hidden="true" />
-            <span>Station 01 · {machineStatus.replace("_", " ")}</span>
-            {currentOrderId && machineStatus !== "idle" && <small>Order #{currentOrderId}</small>}
+            <span>Station 01 · {stationState}</span>
+            {stationReady && currentOrderId && machineStatus !== "idle" && <small>Order #{currentOrderId}</small>}
           </div>
         </header>
 

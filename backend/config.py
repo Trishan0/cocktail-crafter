@@ -31,7 +31,7 @@ SECRET_KEY  = "Cocktail-Craft_bartender_secret_2025"
 
 # ─── Pump Hardware ────────────────────────────────────
 NUM_PUMPS             = 6
-DEFAULT_FLOW_RATE     = 1.5    # ml per second — default for new pumps
+DEFAULT_FLOW_RATE     = 2.5    # ml per second — default for new pumps
 
 # ─── Recipe / Volume Limits ───────────────────────────
 MAX_ML_PER_INGREDIENT = 100   # max ml of any single ingredient per drink
