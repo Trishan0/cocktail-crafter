@@ -436,7 +436,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Fill a bottle above the fixed line, press Check Levels, then save the matching value once. Every order uses this shared calibration plus the current bottle amount saved in Pump Configuration.
+            Fill a bottle above the fixed line, press Check Levels, then save the matching value once. Before ORDER, the Pi requires both this physical reading and enough tracked bottle volume for the recipe plus the 15 ml reserve configured by the backend.
           </p>
           {levelError && <p className="mt-3 text-sm text-red-400">{levelError}</p>}
         </div>

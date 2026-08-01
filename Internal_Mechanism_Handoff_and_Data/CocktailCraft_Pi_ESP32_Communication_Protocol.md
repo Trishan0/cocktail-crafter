@@ -358,6 +358,25 @@ Values are raw electrical states:
 0 = LOW
 ```
 
+### Raspberry Pi bottle-inventory policy
+
+This is application logic on the Pi; it does not add anything to the ESP32
+wire protocol. Admin staff enter the starting/current volume for each installed
+bottle in **Admin → Pumps**. Before sending `ORDER`, the Pi checks only the
+pumps used by that recipe and requires both:
+
+1. the corresponding raw `CHECK_LEVELS` value must match the configured
+   “above the fixed sensor line” polarity; and
+2. the tracked bottle volume must be at least the recipe amount plus a 15 ml
+   safety reserve.
+
+For example, a 50 ml pump request needs at least 65 ml tracked. If either check
+fails, the Pi returns an ingredient-specific error to the customer UI and sends
+no `ORDER`. If both pass, the Pi atomically deducts only the requested 50 ml,
+leaving the reserve untouched. The deduction is restored if the Pi cannot save
+or send the order. Updated bottle estimates are pushed to open Admin and kiosk
+screens over SSE.
+
 ---
 
 ## 13. CHECK_IR

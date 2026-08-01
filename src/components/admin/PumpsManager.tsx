@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings } from "lucide-react";
+import { RefreshCw, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,11 +21,13 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
   const [flowRate, setFlowRate] = useState<string>("1.5");
   const [currentVolume, setCurrentVolume] = useState<string>("0");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [reserveMargin, setReserveMargin] = useState(15);
 
   const loadData = async () => {
     try {
       const [pRes, iRes] = await Promise.all([getPumps(), getIngredients()]);
       setPumps(pRes.pumps);
+      setReserveMargin(Number(pRes.reserve_margin_ml ?? 15));
       setIngredients(iRes.ingredients);
     } catch (e) {
       console.error("Failed to load pumps/ingredients", e);
@@ -35,6 +37,25 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const events = new EventSource(`http://${window.location.hostname}:5000/stream`);
+    events.addEventListener("inventory", (event) => {
+      const data = JSON.parse((event as MessageEvent).data);
+      if (Array.isArray(data.pumps)) setPumps(data.pumps);
+      if (Number.isFinite(data.reserve_margin_ml)) setReserveMargin(data.reserve_margin_ml);
+    });
+    return () => events.close();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPump) return;
+    const updated = pumps.find((pump: any) => pump.pump_number === selectedPump.pump_number);
+    if (updated && updated.current_volume_ml !== selectedPump.current_volume_ml) {
+      setSelectedPump(updated);
+      setCurrentVolume(String(updated.current_volume_ml ?? 0));
+    }
+  }, [pumps, selectedPump]);
 
   const openConfig = (pump: any) => {
     setSelectedPump(pump);
@@ -46,6 +67,10 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
 
   const handleSave = async () => {
     if (!selectedPump) return;
+    if (machineStatus !== "idle") {
+      alert(`Bottle volumes cannot be changed while the machine is "${machineStatus}".`);
+      return;
+    }
     const current = parseFloat(currentVolume);
     const flow = parseFloat(flowRate);
     if (!Number.isFinite(current) || current < 0) {
@@ -72,9 +97,14 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-10 gap-4">
         <div>
-          <h2 className="text-3xl md:text-4xl font-serif font-light mb-1 md:mb-2">Pump Configuration</h2>
-          <p className="text-sm md:text-base text-muted-foreground">Assign liquids to the 6 hardware pumps</p>
+          <h2 className="text-3xl md:text-4xl font-serif font-light mb-1 md:mb-2">Bottle Inventory &amp; Pumps</h2>
+          <p className="text-sm md:text-base text-muted-foreground">
+            Set each installed bottle's starting/current volume. Orders require their recipe amount plus a {reserveMargin} ml reserve.
+          </p>
         </div>
+        <Button variant="outline" onClick={loadData} className="rounded-full">
+          <RefreshCw className="w-4 h-4 mr-2" /> Refresh Volumes
+        </Button>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
@@ -102,7 +132,10 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
                     Flow: {pump.flow_rate_ml_per_s} ml/s
                   </div>
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    Estimated bottle volume: {pump.current_volume_ml ?? 0} ml
+                    Tracked bottle volume: {pump.current_volume_ml ?? 0} ml
+                  </div>
+                  <div className="text-[10px] uppercase tracking-widest text-emerald-300/80">
+                    Available for orders: {pump.orderable_volume_ml ?? Math.max(0, Number(pump.current_volume_ml || 0) - reserveMargin)} ml
                   </div>
                   </div>
                 )}
@@ -144,20 +177,20 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
             </div>
 
             <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Current Bottle Volume (ml)</Label>
+              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Starting / Current Bottle Volume (ml)</Label>
               <Input type="number" step="1" min="0" value={currentVolume} onChange={e => setCurrentVolume(e.target.value)} className="h-12 bg-white/5 border-white/10" />
               <p className="text-xs leading-5 text-muted-foreground">
-                Enter the measured amount whenever the bottle is installed or refilled. Completed drinks deduct their recipe amount automatically.
+                Enter the measured amount whenever this bottle is installed or refilled. A placed order deducts only its recipe amount; the final {reserveMargin} ml stays protected as a safety margin.
               </p>
             </div>
 
             <p className="text-xs leading-5 text-muted-foreground">
-              Pump 1 is reserved for water. Edit recipes in Recipe Management so they use the ingredients assigned to pumps 2–6; there is no hard-coded recipe-to-pump mapping. The ESP32 owns feed-line priming and reversal timings.
+              The Pi also checks this bottle's physical liquid-level sensor before sending an order. Both the raw sensor reading and this tracked estimate must pass. Pump 1 is reserved for water; the ESP32 firmware is unchanged.
             </p>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-full">Cancel</Button>
-            <Button onClick={handleSave} className="rounded-full bg-primary text-primary-foreground">Save</Button>
+            <Button onClick={handleSave} disabled={machineStatus !== "idle"} className="rounded-full bg-primary text-primary-foreground">Save</Button>
           </div>
         </DialogContent>
       </Dialog>

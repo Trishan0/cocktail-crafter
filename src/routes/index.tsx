@@ -70,6 +70,7 @@ function KioskApp() {
   const [upperSensor, setUpperSensor] = useState<number | null>(null);
   const [requiredGlass, setRequiredGlass] = useState<string | null>(null);
   const [orderVolumeMl, setOrderVolumeMl] = useState<number | null>(null);
+  const [reserveMarginMl, setReserveMarginMl] = useState(15);
   // Tracks the firmware's explicit CLEAN sequence.
   const inCleanCycle = useRef(false);
 
@@ -81,6 +82,7 @@ function KioskApp() {
     getPumps().then(data => {
       const active = data.pumps.filter((p: any) => p.ingredient_id !== null && Boolean(p.is_active));
       setAvailablePumps(active);
+      setReserveMarginMl(Number(data.reserve_margin_ml ?? 15));
     }).catch(console.error);
   }, []);
 
@@ -145,6 +147,15 @@ function KioskApp() {
           );
         }
       }
+    });
+
+    evtSource.addEventListener("inventory", (e) => {
+      const data = JSON.parse(e.data);
+      if (Array.isArray(data.pumps)) {
+        setAvailablePumps(data.pumps.filter((pump: any) => pump.ingredient_id !== null && Boolean(pump.is_active)));
+      }
+      if (Number.isFinite(data.reserve_margin_ml)) setReserveMarginMl(data.reserve_margin_ml);
+      getMenu().then(menu => setDrinks(menu.drinks)).catch(console.error);
     });
 
 
@@ -218,7 +229,7 @@ function KioskApp() {
     selected, setSelectedId, mode, setMode, drinks, availablePumps,
     customIngredients, setCustomIngredients, wantsIce, setWantsIce,
     machineStatus, progress, message, glassState, lowerSensor, upperSensor, poweredOn,
-    connected, stationReady, totalMl, requiredGlass, orderVolumeMl,
+    connected, stationReady, totalMl, requiredGlass, orderVolumeMl, reserveMarginMl,
     now, go, handleOrder, isSubmitting, orderError, setOrderError
   };
 
@@ -463,7 +474,7 @@ function Catalog({ now, go, setSelectedId, drinks }: any) {
               <h2>{drink.name}</h2>
               <p>{drink.description || categoryLabel(drink.category || "classic")}</p>
               <div><strong>€{Number(drink.price || 0).toFixed(2)}</strong><span>View <ChevronRight size={18} /></span></div>
-              {!drink.available && <small>Ingredients unavailable</small>}
+              {!drink.available && <small>{drink.availability_reason || "Ingredients unavailable"}</small>}
             </div>
           </button>
         ))}
@@ -511,7 +522,8 @@ function Detail({ selected, now, go, wantsIce, setWantsIce }: any) {
           <button type="button" className={!wantsIce ? "is-selected" : ""} onClick={() => setWantsIce(false)}><Snowflake size={24} /> No Ice</button>
           <button type="button" className={wantsIce ? "is-selected" : ""} onClick={() => setWantsIce(true)}><Snowflake size={24} /> Add Ice</button>
         </fieldset>
-        <GoldButton big onClick={() => go("review")}>
+        {!selected.available && <p className="cc-detail__description">{selected.availability_reason || "One or more ingredients are unavailable."}</p>}
+        <GoldButton big onClick={() => go("review")} disabled={!selected.available}>
           <Martini size={28} /> Add to Order
         </GoldButton>
       </section>
@@ -519,7 +531,7 @@ function Detail({ selected, now, go, wantsIce, setWantsIce }: any) {
   );
 }
 
-function Compose({ now, go, availablePumps, customIngredients, setCustomIngredients }: any) {
+function Compose({ now, go, availablePumps, customIngredients, setCustomIngredients, reserveMarginMl }: any) {
   const totalMl = customIngredients.reduce((sum: number, i: any) => sum + i.amount_ml, 0);
   const MAX_TOTAL = 300;
   const MAX_PER_ING = 100;
@@ -527,6 +539,12 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
   const updateAmount = (idx: number, amount: number) => {
     if (amount < 0) amount = 0;
     if (amount > MAX_PER_ING) amount = MAX_PER_ING;
+
+    const pump = availablePumps.find((item: any) => item.ingredient_id === customIngredients[idx].ingredient_id);
+    if (pump) {
+      const orderableMl = Math.max(0, Number(pump.current_volume_ml || 0) - reserveMarginMl);
+      if (amount > orderableMl) amount = Math.floor(orderableMl / 5) * 5;
+    }
 
     const newIngs = [...customIngredients];
     newIngs[idx].amount_ml = amount;
@@ -536,7 +554,10 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
   const addIngredient = (pump: any) => {
     if (customIngredients.length >= 6) return;
     if (customIngredients.find((i: any) => i.ingredient_id === pump.ingredient_id)) return;
-    setCustomIngredients([...customIngredients, { ingredient_id: pump.ingredient_id, name: pump.ingredient_name, amount_ml: 25 }]);
+    const orderableMl = Math.max(0, Number(pump.current_volume_ml || 0) - reserveMarginMl);
+    const initialAmount = Math.min(25, Math.floor(orderableMl / 5) * 5);
+    if (initialAmount < 5) return;
+    setCustomIngredients([...customIngredients, { ingredient_id: pump.ingredient_id, name: pump.ingredient_name, amount_ml: initialAmount }]);
   };
 
   const removeIngredient = (idx: number) => {
@@ -545,6 +566,11 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
 
   const isOverLimit = totalMl > MAX_TOTAL;
   const isZero = totalMl === 0;
+  const inventoryErrors = customIngredients.filter((ingredient: any) => {
+    const pump = availablePumps.find((item: any) => item.ingredient_id === ingredient.ingredient_id);
+    const orderableMl = pump ? Math.max(0, Number(pump.current_volume_ml || 0) - reserveMarginMl) : 0;
+    return ingredient.amount_ml > orderableMl;
+  });
 
   return (
     <div className="cc-screen cc-compose">
@@ -571,7 +597,12 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
           <div>
             {availablePumps.map((pump: any) => {
               const isSelected = customIngredients.some((ingredient: any) => ingredient.ingredient_id === pump.ingredient_id);
-              return <button type="button" key={pump.ingredient_id} onClick={() => addIngredient(pump)} disabled={isSelected}>{pump.ingredient_name}</button>;
+              const orderableMl = Math.max(0, Number(pump.current_volume_ml || 0) - reserveMarginMl);
+              return (
+                <button type="button" key={pump.ingredient_id} onClick={() => addIngredient(pump)} disabled={isSelected || orderableMl < 5}>
+                  {pump.ingredient_name} · {Number(orderableMl.toFixed(1))} ml available
+                </button>
+              );
             })}
             {availablePumps.length === 0 && <span className="cc-no-pumps">No active ingredients are configured. Ask staff for assistance.</span>}
           </div>
@@ -581,7 +612,8 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
         <div><FlaskConical size={78} aria-hidden="true" /><p>Custom Mix</p><span>{customIngredients.length} ingredient{customIngredients.length === 1 ? "" : "s"} selected</span></div>
         {isOverLimit && <small>Total exceeds {MAX_TOTAL} ml</small>}
         {isZero && <small>Choose at least one ingredient</small>}
-        <GoldButton big onClick={() => go("review")} disabled={isOverLimit || isZero}>Review mix <ChevronRight size={24} /></GoldButton>
+        {inventoryErrors.length > 0 && <small>One or more bottles no longer have enough tracked volume plus the {reserveMarginMl} ml reserve.</small>}
+        <GoldButton big onClick={() => go("review")} disabled={isOverLimit || isZero || inventoryErrors.length > 0}>Review mix <ChevronRight size={24} /></GoldButton>
       </aside>
     </div>
   );
