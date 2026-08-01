@@ -183,6 +183,13 @@ function KioskApp() {
       getMenu().then(menu => setDrinks(menu.drinks)).catch(console.error);
     });
 
+    evtSource.addEventListener("menu_updated", () => {
+      getMenu().then(menu => {
+        setDrinks(menu.drinks);
+        setShowPrices(Boolean(menu.show_prices));
+      }).catch(console.error);
+    });
+
 
     evtSource.addEventListener("power", (e) => {
       const data = JSON.parse(e.data);

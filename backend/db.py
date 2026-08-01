@@ -77,6 +77,7 @@ def init_db():
                 category    TEXT    NOT NULL DEFAULT 'classic',
                 price       REAL    DEFAULT 0.0,
                 is_visible  INTEGER NOT NULL DEFAULT 1,
+                display_order INTEGER NOT NULL DEFAULT 0,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -125,6 +126,13 @@ def init_db():
             conn.execute("ALTER TABLE recipes ADD COLUMN image_url TEXT;")
         except sqlite3.OperationalError:
             pass
+        try:
+            conn.execute("ALTER TABLE recipes ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0;")
+        except sqlite3.OperationalError:
+            pass
+        # Existing recipes receive a stable initial menu order. New recipes
+        # are appended and Admin can subsequently move any recipe up/down.
+        conn.execute("UPDATE recipes SET display_order = id WHERE display_order <= 0")
 
         # Add order columns if they do not exist
         try:
@@ -238,11 +246,11 @@ def _seed_defaults():
         # Seed recipes
         recipe_count = conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0]
         if recipe_count == 0:
-            for r in DEFAULT_RECIPES:
+            for position, r in enumerate(DEFAULT_RECIPES, start=1):
                 cursor = conn.execute(
-                    """INSERT INTO recipes (name, description, category, price)
-                       VALUES (?, ?, ?, ?)""",
-                    (r["name"], r["description"], r["category"], r["price"])
+                    """INSERT INTO recipes (name, description, category, price, display_order)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (r["name"], r["description"], r["category"], r["price"], position)
                 )
                 recipe_id = cursor.lastrowid
                 for ing_name, amount_ml in r["ingredients"].items():
@@ -473,11 +481,11 @@ def get_all_recipes(visible_only=True):
     with get_connection() as conn:
         if visible_only:
             rows = conn.execute(
-                "SELECT * FROM recipes WHERE is_visible = 1 ORDER BY category, name"
+                "SELECT * FROM recipes WHERE is_visible = 1 ORDER BY display_order, id"
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM recipes ORDER BY category, name"
+                "SELECT * FROM recipes ORDER BY display_order, id"
             ).fetchall()
 
         result = []
@@ -519,9 +527,13 @@ def create_recipe(name: str, description: str, category: str, price: float, ingr
     Returns new recipe_id.
     """
     with get_connection() as conn:
+        next_display_order = conn.execute(
+            "SELECT COALESCE(MAX(display_order), 0) + 1 FROM recipes"
+        ).fetchone()[0]
         cursor = conn.execute(
-            "INSERT INTO recipes (name, description, category, price, image_url) VALUES (?, ?, ?, ?, ?)",
-            (name.strip(), description, category, price, image_url)
+            """INSERT INTO recipes (name, description, category, price, image_url, display_order)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (name.strip(), description, category, price, image_url, next_display_order)
         )
         recipe_id = cursor.lastrowid
         for ing in ingredients:
@@ -570,6 +582,26 @@ def delete_recipe(recipe_id: int) -> bool:
         conn.execute("UPDATE orders SET recipe_id = NULL WHERE recipe_id = ?", (recipe_id,))
         cursor = conn.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,))
     return cursor.rowcount > 0
+
+
+def set_recipe_display_order(recipe_ids: list[int]):
+    """Persist a complete, explicit admin-selected recipe menu order."""
+    normalised_ids = [int(recipe_id) for recipe_id in recipe_ids]
+    if len(normalised_ids) != len(set(normalised_ids)):
+        raise ValueError("Recipe order cannot contain duplicate recipes.")
+
+    with get_connection() as conn:
+        existing_ids = {
+            int(row["id"])
+            for row in conn.execute("SELECT id FROM recipes").fetchall()
+        }
+        if set(normalised_ids) != existing_ids:
+            raise ValueError("Recipe order must include every current recipe exactly once.")
+        for position, recipe_id in enumerate(normalised_ids, start=1):
+            conn.execute(
+                "UPDATE recipes SET display_order = ? WHERE id = ?",
+                (position, recipe_id),
+            )
 
 
 # ─────────────────────────────────────────────

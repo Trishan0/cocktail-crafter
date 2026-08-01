@@ -73,6 +73,8 @@ export const getAdminRecipes = () => fetchApi("/admin/recipes");
 export const createRecipe = (recipe: any) => fetchApi("/admin/recipes", { method: "POST", body: JSON.stringify(recipe) });
 export const updateRecipe = (id: number, recipe: any) => fetchApi(`/admin/recipes/${id}`, { method: "PUT", body: JSON.stringify(recipe) });
 export const deleteRecipe = (id: number) => fetchApi(`/admin/recipes/${id}`, { method: "DELETE" });
+export const setRecipeDisplayOrder = (recipeIds: number[]) =>
+  fetchApi("/admin/recipes/order", { method: "PUT", body: JSON.stringify({ recipe_ids: recipeIds }) });
 export const uploadRecipeImage = async (id: number, file: File) => {
   const formData = new FormData();
   formData.append("file", file);

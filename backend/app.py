@@ -687,6 +687,21 @@ def api_admin_get_recipes():
     return jsonify({"recipes": db.get_all_recipes(visible_only=False)})
 
 
+@app.route("/api/admin/recipes/order", methods=["PUT"])
+def api_set_recipe_order():
+    """Persist the complete customer-menu ordering chosen in Admin."""
+    data = request.get_json(silent=True) or {}
+    recipe_ids = data.get("recipe_ids")
+    if not isinstance(recipe_ids, list):
+        return jsonify({"error": "recipe_ids must be an array."}), 400
+    try:
+        db.set_recipe_display_order(recipe_ids)
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    _push_event("menu_updated", {"reason": "recipe_order"})
+    return jsonify({"success": True, "recipe_ids": recipe_ids})
+
+
 @app.route("/api/admin/recipes", methods=["POST"])
 def api_create_recipe():
     """

@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAdminRecipes, getIngredients, createRecipe, updateRecipe, deleteRecipe, uploadRecipeImage } from "@/lib/api";
+import { getAdminRecipes, getIngredients, createRecipe, updateRecipe, deleteRecipe, setRecipeDisplayOrder, uploadRecipeImage } from "@/lib/api";
 
 export function DrinksManager() {
   const [recipes, setRecipes] = useState<any[]>([]);
@@ -15,6 +15,7 @@ export function DrinksManager() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [currentRecipe, setCurrentRecipe] = useState<any>(null);
+  const [reorderingRecipeId, setReorderingRecipeId] = useState<number | null>(null);
 
   // Form State
   const [name, setName] = useState("");
@@ -87,6 +88,24 @@ export function DrinksManager() {
       loadData();
     } catch (e) {
       alert(e);
+    }
+  };
+
+  const moveRecipe = async (index: number, direction: -1 | 1) => {
+    const destination = index + direction;
+    if (destination < 0 || destination >= recipes.length) return;
+
+    const reordered = [...recipes];
+    [reordered[index], reordered[destination]] = [reordered[destination], reordered[index]];
+    setRecipes(reordered);
+    setReorderingRecipeId(recipes[index].id);
+    try {
+      await setRecipeDisplayOrder(reordered.map(recipe => recipe.id));
+    } catch (e) {
+      alert(e);
+      loadData();
+    } finally {
+      setReorderingRecipeId(null);
     }
   };
 
@@ -188,7 +207,7 @@ export function DrinksManager() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-10 gap-4">
         <div>
           <h2 className="text-3xl md:text-4xl font-serif font-light mb-1 md:mb-2">Recipe Management</h2>
-          <p className="text-sm md:text-base text-muted-foreground">Add, edit, or remove drink recipes</p>
+          <p className="text-sm md:text-base text-muted-foreground">Add, edit, remove, or arrange the customer menu</p>
         </div>
         
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
@@ -210,12 +229,33 @@ export function DrinksManager() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-        {recipes.map((drink) => (
+        {recipes.map((drink, index) => (
           <div key={drink.id} className={`surface-card rounded-2xl p-5 md:p-6 flex flex-col justify-between hover:ring-1 hover:ring-accent/60 transition border border-white/10 ${drink.is_visible ? 'bg-card/40' : 'bg-card/10 opacity-70'}`}>
             <div>
               <div className="flex justify-between items-start mb-2">
-                <h3 className="text-xl md:text-2xl font-display font-light">{drink.name}</h3>
-                <span className="text-accent font-medium">€{drink.price}</span>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Menu position {index + 1}</p>
+                  <h3 className="text-xl md:text-2xl font-display font-light">{drink.name}</h3>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-accent font-medium mr-1">€{drink.price}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full"
+                    aria-label={`Move ${drink.name} up in the customer menu`}
+                    disabled={index === 0 || reorderingRecipeId !== null}
+                    onClick={() => moveRecipe(index, -1)}
+                  ><ChevronUp className="w-4 h-4" /></Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full"
+                    aria-label={`Move ${drink.name} down in the customer menu`}
+                    disabled={index === recipes.length - 1 || reorderingRecipeId !== null}
+                    onClick={() => moveRecipe(index, 1)}
+                  ><ChevronDown className="w-4 h-4" /></Button>
+                </div>
               </div>
               <p className="text-xs md:text-sm text-muted-foreground mb-4">{drink.description}</p>
               <div className="flex flex-wrap gap-1 mb-4">
