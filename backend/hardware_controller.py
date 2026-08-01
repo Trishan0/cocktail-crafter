@@ -489,6 +489,12 @@ class SimulatorController(HardwareController):
             )
             threading.Timer(0.5, self._simulate_glass_detection).start()
         else:
+            # A completed order remains associated with the controller until
+            # its post-drink CLEAN sequence has finished.
+            with self._lock:
+                if self._pending and self._pending.get("drink_ready"):
+                    self._pending = None
+            _clear_glass_requirement()
             _set_machine_state(MachineState.IDLE, progress=0, message="Cleaning finished.", order_id=None)
 
     def _run_reverse(self):
@@ -500,13 +506,40 @@ class SimulatorController(HardwareController):
         _set_machine_state(MachineState.IDLE, progress=0, message="Pump reversal finished.", order_id=None)
 
     def _finish_order(self, order_id: int):
-        _set_machine_state(MachineState.DONE, progress=100, message="Drink completed.", order_id=order_id)
-        time.sleep(config.DONE_SCREEN_SECONDS)
         with self._lock:
-            self._pending = None
+            if not self._pending or self._pending.get("db_order_id") != order_id:
+                return
+            self._pending["drink_ready"] = True
             self._run_mode = None
         _clear_glass_requirement()
-        _set_machine_state(MachineState.IDLE, progress=0, message="Ready.", order_id=order_id)
+        _set_machine_state(
+            MachineState.DONE,
+            progress=100,
+            message="Drink ready. Remove the glass to start cleaning.",
+            order_id=order_id,
+        )
+        # The simulator has no physical IR sensors.  Model the user removing
+        # the glass so local demos still exercise the same ready -> clean flow.
+        timer = threading.Timer(1.0, self._simulate_glass_removal, args=(order_id,))
+        timer.daemon = True
+        timer.start()
+
+    def _simulate_glass_removal(self, order_id: int):
+        with self._lock:
+            pending = self._pending
+            if (
+                not self._running
+                or not pending
+                or pending.get("db_order_id") != order_id
+                or not pending.get("drink_ready")
+                or self._run_mode is not None
+            ):
+                return
+        _handle_sensor({"glass_state": "no_glass", "upper_sensor": 1, "lower_sensor": 1})
+        try:
+            self.send_clean()
+        except RuntimeError as exc:  # pragma: no cover - defensive simulator race guard
+            print(f"[SIM] Could not start post-drink cleaning: {exc}")
 
     def _wait(self, seconds: float) -> bool:
         deadline = time.monotonic() + seconds
@@ -538,9 +571,10 @@ class SerialController(HardwareController):
         self._pending_order: dict | None = None
         self._active_run_mode: str | None = None  # order | cleaning | reverse
         self._order_timeout: threading.Timer | None = None
-        self._done_timer: threading.Timer | None = None
         self._ir_poll_stop = threading.Event()
         self._ir_poll_thread: threading.Thread | None = None
+        self._post_drink_ir_poll_stop = threading.Event()
+        self._post_drink_ir_poll_thread: threading.Thread | None = None
         self._level_query_gate = threading.Lock()
         self._level_response_lock = threading.Lock()
         self._level_response_ready = threading.Event()
@@ -561,8 +595,8 @@ class SerialController(HardwareController):
     def stop(self):
         self._running = False
         self._stop_ir_polling()
+        self._stop_post_drink_ir_polling()
         self._cancel_timer("_order_timeout")
-        self._cancel_timer("_done_timer")
         _clear_glass_requirement()
         with _lock:
             port = self._serial_port
@@ -715,6 +749,7 @@ class SerialController(HardwareController):
 
     def send_clean(self):
         self._stop_ir_polling()
+        self._stop_post_drink_ir_polling()
         with self._pending_lock:
             if self._active_run_mode is not None:
                 raise RuntimeError("Another machine operation is already active.")
@@ -779,6 +814,27 @@ class SerialController(HardwareController):
     def _stop_ir_polling(self):
         self._ir_poll_stop.set()
 
+    def _start_post_drink_ir_polling(self):
+        """Poll for glass removal after the firmware has made the drink.
+
+        The target firmware emits ``drink/ready`` only after all order work,
+        including any parallel ice/pump-6 work, has finished.  It does not
+        autonomously clean after that event, so the Pi owns this short
+        customer hand-off phase and sends CLEAN once CHECK_IR says no glass.
+        """
+        if self._post_drink_ir_poll_thread and self._post_drink_ir_poll_thread.is_alive():
+            return
+        self._post_drink_ir_poll_stop.clear()
+        self._post_drink_ir_poll_thread = threading.Thread(
+            target=self._post_drink_ir_poll_loop,
+            daemon=True,
+            name="esp32-post-drink-ir-poll",
+        )
+        self._post_drink_ir_poll_thread.start()
+
+    def _stop_post_drink_ir_polling(self):
+        self._post_drink_ir_poll_stop.set()
+
     def _ir_poll_loop(self):
         print("[SERIAL] Starting CHECK_IR polling.")
         while self._running and not self._ir_poll_stop.is_set():
@@ -793,6 +849,27 @@ class SerialController(HardwareController):
                 print(f"[SERIAL] CHECK_IR send failed: {exc}")
             self._ir_poll_stop.wait(self.IR_POLL_INTERVAL_SECONDS)
         print("[SERIAL] CHECK_IR polling stopped.")
+
+    def _post_drink_ir_poll_loop(self):
+        print("[SERIAL] Starting post-drink CHECK_IR polling for glass removal.")
+        while self._running and not self._post_drink_ir_poll_stop.is_set():
+            with self._pending_lock:
+                pending = self._pending_order
+                should_poll = bool(
+                    pending
+                    and pending.get("initialized")
+                    and pending.get("start_sent")
+                    and pending.get("drink_ready")
+                    and self._active_run_mode is None
+                )
+            if not should_poll:
+                break
+            try:
+                self._send_text("CHECK_IR")
+            except ConnectionError as exc:
+                print(f"[SERIAL] Post-drink CHECK_IR send failed: {exc}")
+            self._post_drink_ir_poll_stop.wait(self.IR_POLL_INTERVAL_SECONDS)
+        print("[SERIAL] Post-drink CHECK_IR polling stopped.")
 
     @staticmethod
     def _normalise_pumps(pump_commands: list) -> list[dict]:
@@ -926,12 +1003,39 @@ class SerialController(HardwareController):
         glass_state = self._classify_glass(upper, lower)
         _handle_sensor({"glass_state": glass_state, "upper_sensor": upper, "lower_sensor": lower})
         print(f"[SERIAL] IR values: upper={upper}, lower={lower} -> {glass_state}")
-        if glass_state not in {"small_glass", "large_glass"}:
-            return
         with self._pending_lock:
             pending = dict(self._pending_order) if self._pending_order else None
-            if self._active_run_mode is not None or not pending:
+            waiting_for_removal = bool(
+                pending
+                and pending.get("initialized")
+                and pending.get("start_sent")
+                and pending.get("drink_ready")
+                and self._active_run_mode is None
+            )
+
+        if waiting_for_removal:
+            # Active-low upper=1/lower=1 is the installed no-glass state.
+            # Keep polling while any glass is still present; the customer must
+            # first take the completed drink away before flushing the system.
+            if glass_state != "no_glass":
                 return
+            self._stop_post_drink_ir_polling()
+            try:
+                self.send_clean()
+            except (ConnectionError, RuntimeError) as exc:
+                print(f"[SERIAL] Could not start automatic post-drink cleaning: {exc}")
+                _set_machine_state(
+                    MachineState.ERROR,
+                    progress=0,
+                    message=f"Drink is ready, but automatic cleaning could not start: {exc}",
+                    order_id=None,
+                )
+            return
+
+        if glass_state not in {"small_glass", "large_glass"}:
+            return
+        if not pending or self._active_run_mode is not None:
+            return
         if not _glass_matches_requirement(glass_state, pending["required_glass"]):
             _set_machine_state(
                 MachineState.WAITING_GLASS,
@@ -1013,12 +1117,47 @@ class SerialController(HardwareController):
 
         if event == "valve" and action == "opened":
             if run_mode == "order":
-                # The documented firmware has no drink-complete event. Its
-                # valve-opened DATA event is the final normal-order signal.
                 _record_event("esp32:valve_opened", f"Pi order {order_id}")
-                self._finish_order_after_display(order_id)
+                # Valve opening can occur before a later pump-6 or parallel
+                # ice task is done.  The target firmware's drink/ready event
+                # is the sole completion signal for the customer UI.
+                _set_machine_state(
+                    MachineState.POURING,
+                    progress=92,
+                    message="Pouring drink. Awaiting final completion signal...",
+                    order_id=order_id,
+                )
             elif run_mode == "cleaning":
                 _set_machine_state(MachineState.WASHING, progress=95, message="Opening valve to finish cleaning...", order_id=None)
+            return
+
+        if event == "drink" and action == "ready":
+            reported_order_id = str(data.get("order_id", ""))
+            with self._pending_lock:
+                pending = self._pending_order
+                if not pending or self._active_run_mode != "order":
+                    print(f"[SERIAL] Unexpected drink-ready event: {data}")
+                    return
+                if reported_order_id and reported_order_id != pending["wire_order_id"]:
+                    print(
+                        f"[SERIAL] Ignoring drink-ready event for {reported_order_id}; "
+                        f"expected {pending['wire_order_id']}."
+                    )
+                    return
+                order_id = pending["db_order_id"]
+                pending["drink_ready"] = True
+                self._active_run_mode = None
+
+            self._stop_ir_polling()
+            _clear_glass_requirement()
+            _record_event("esp32:drink_ready", f"Pi order {order_id}")
+            _set_machine_state(
+                MachineState.DONE,
+                progress=100,
+                message="Drink ready. Remove the glass to start cleaning.",
+                order_id=order_id,
+            )
+            self._start_post_drink_ir_polling()
             return
 
         if event == "cleaning":
@@ -1030,6 +1169,10 @@ class SerialController(HardwareController):
                 with self._pending_lock:
                     self._active_run_mode = None
                     pending = dict(self._pending_order) if self._pending_order else None
+                    completed_order = bool(pending and pending.get("drink_ready") and pending.get("start_sent"))
+                    if completed_order:
+                        self._pending_order = None
+                self._stop_post_drink_ir_polling()
                 if pending and pending["initialized"] and not pending["start_sent"]:
                     _set_machine_state(
                         MachineState.WAITING_GLASS,
@@ -1039,6 +1182,8 @@ class SerialController(HardwareController):
                     )
                     self._start_ir_polling()
                 else:
+                    if completed_order:
+                        _clear_glass_requirement()
                     _set_machine_state(MachineState.IDLE, progress=0, message="Cleaning finished.", order_id=None)
             return
 
@@ -1055,26 +1200,6 @@ class SerialController(HardwareController):
             return
 
         print(f"[SERIAL] Unhandled system event: {data}")
-
-    def _finish_order_after_display(self, order_id: int | None):
-        if order_id is None:
-            print("[SERIAL] Drink-ready event without a tracked order; keeping controller state unchanged.")
-            return
-        _set_machine_state(MachineState.DONE, progress=100, message="Drink ready.", order_id=order_id)
-        self._cancel_timer("_done_timer")
-        self._done_timer = threading.Timer(config.DONE_SCREEN_SECONDS, self._return_to_idle_after_order, args=(order_id,))
-        self._done_timer.daemon = True
-        self._done_timer.start()
-
-    def _return_to_idle_after_order(self, order_id: int):
-        with self._pending_lock:
-            pending = self._pending_order
-            if not pending or pending.get("db_order_id") != order_id:
-                return
-            self._pending_order = None
-            self._active_run_mode = None
-        _clear_glass_requirement()
-        _set_machine_state(MachineState.IDLE, progress=0, message="Ready.", order_id=order_id)
 
     def _reader_loop(self):
         while self._running:
@@ -1156,14 +1281,21 @@ class SerialController(HardwareController):
             run_mode = self._active_run_mode
             if run_mode not in {"order", "cleaning", "reverse"}:
                 return
+            post_drink_clean = bool(
+                run_mode == "cleaning" and pending and pending.get("drink_ready")
+            )
             self._pending_order = None
             self._active_run_mode = None
 
         self._stop_ir_polling()
+        self._stop_post_drink_ir_polling()
         self._cancel_timer("_order_timeout")
         if pending:
             _clear_glass_requirement()
-        order_id = pending["db_order_id"] if pending else None
+        # The drink is already complete when its automatic cleanup begins;
+        # a later CLEAN rejection must not rewrite that customer order as an
+        # error in the database.
+        order_id = None if post_drink_clean else (pending["db_order_id"] if pending else None)
         _set_machine_state(
             MachineState.ERROR,
             progress=0,

@@ -45,25 +45,82 @@ class SerialProtocolAlignmentTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "512"):
             controller._write_line("X" * 513)
 
-    def test_valve_opened_finishes_the_tracked_order(self):
+    def test_valve_opened_is_progress_not_order_completion(self):
         controller = hw.SerialController()
         controller._pending_order = {"db_order_id": 42, "wire_order_id": "ORD-42"}
         controller._active_run_mode = "order"
+        with hw._lock:
+            hw._state["machine_status"] = MachineState.POURING
 
-        with patch.object(controller, "_finish_order_after_display") as finish, patch.object(hw, "_record_event"):
+        with patch.object(hw, "_record_event"):
             controller._handle_system_event({"type": "system", "event": "valve", "action": "opened"})
 
-        finish.assert_called_once_with(42)
+        self.assertEqual(hw.get_state()["machine_status"], MachineState.POURING.value)
+        self.assertEqual(controller._active_run_mode, "order")
+        self.assertNotIn("drink_ready", controller._pending_order)
 
-    def test_undocumented_drink_ready_event_does_not_control_completion(self):
+    def test_drink_ready_starts_post_drink_glass_removal_polling(self):
         controller = hw.SerialController()
-        controller._pending_order = {"db_order_id": 42, "wire_order_id": "ORD-42"}
+        controller._pending_order = {
+            "db_order_id": 42,
+            "wire_order_id": "ORD-42",
+            "initialized": True,
+            "start_sent": True,
+        }
         controller._active_run_mode = "order"
+        with hw._lock:
+            hw._state["machine_status"] = MachineState.POURING
 
-        with patch.object(controller, "_finish_order_after_display") as finish:
-            controller._handle_system_event({"type": "system", "event": "drink", "action": "ready"})
+        with (
+            patch.object(controller, "_stop_ir_polling") as stop_pre_order_poll,
+            patch.object(controller, "_start_post_drink_ir_polling") as start_removal_poll,
+            patch.object(hw, "_record_event"),
+        ):
+            controller._handle_system_event(
+                {"type": "system", "event": "drink", "action": "ready", "order_id": "ORD-42"}
+            )
 
-        finish.assert_not_called()
+        self.assertEqual(hw.get_state()["machine_status"], MachineState.DONE.value)
+        self.assertTrue(controller._pending_order["drink_ready"])
+        self.assertIsNone(controller._active_run_mode)
+        stop_pre_order_poll.assert_called_once()
+        start_removal_poll.assert_called_once()
+
+    def test_no_glass_after_ready_sends_clean(self):
+        controller = hw.SerialController()
+        controller._pending_order = {
+            "db_order_id": 42,
+            "wire_order_id": "ORD-42",
+            "initialized": True,
+            "start_sent": True,
+            "drink_ready": True,
+        }
+        with hw._lock:
+            hw._state["machine_status"] = MachineState.DONE
+
+        with patch.object(controller, "send_clean") as send_clean:
+            controller._handle_ir_response({"command": "CHECK_IR", "upper": 1, "lower": 1})
+
+        send_clean.assert_called_once()
+
+    def test_cleaning_finished_releases_completed_order_to_idle(self):
+        controller = hw.SerialController()
+        controller._pending_order = {
+            "db_order_id": 42,
+            "wire_order_id": "ORD-42",
+            "initialized": True,
+            "start_sent": True,
+            "drink_ready": True,
+        }
+        controller._active_run_mode = "cleaning"
+        with hw._lock:
+            hw._state["machine_status"] = MachineState.WASHING
+
+        controller._handle_system_event({"type": "system", "event": "cleaning", "action": "finished"})
+
+        self.assertEqual(hw.get_state()["machine_status"], MachineState.IDLE.value)
+        self.assertIsNone(controller._pending_order)
+        self.assertIsNone(controller._active_run_mode)
 
     def test_start_error_log_moves_an_active_order_to_error(self):
         controller = hw.SerialController()

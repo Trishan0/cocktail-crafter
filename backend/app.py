@@ -135,9 +135,9 @@ def _on_status_change(state: dict):
     })
     order_id = state.get("current_order_id")
     if order_id:
-        if state["machine_status"] == "idle":
-            # Only mark done if the machine successfully reached idle
-            # and it wasn't already marked aborted/error.
+        if state["machine_status"] == "done":
+            # The target firmware's drink/ready event is the completed-order
+            # signal.  Cleaning is a separate post-customer hand-off phase.
             order = db.get_order_by_id(order_id)
             if order and order["status"] == "pending":
                 recipe_manager.complete_order(order_id, "done")

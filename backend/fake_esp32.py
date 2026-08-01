@@ -225,6 +225,9 @@ class FakeESP32:
         with self._lock:
             self._loaded_order = None
             self._busy = False
+        # Match CocktailCraft_Firmware.ino: valve/opened is mechanical
+        # progress, while drink/ready is the final customer-facing signal.
+        self._system("drink", "ready", order_id=order["order_id"])
 
     def _run_clean(self):
         self._system("cleaning", "started")

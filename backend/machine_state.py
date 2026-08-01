@@ -52,10 +52,10 @@ LEGAL_TRANSITIONS: dict[MachineState, set[MachineState]] = {
     # CLEAN is accepted by the firmware while an initialized order is loaded;
     # it preserves that order and returns the Pi to WAITING_GLASS afterwards.
     S.WAITING_GLASS: {S.WAITING_GLASS, S.DISPENSING, S.WASHING, S.ERROR, S.IDLE},
-    S.DISPENSING:    {S.DISPENSING, S.MIXING, S.ERROR, S.IDLE},
+    S.DISPENSING:    {S.DISPENSING, S.MIXING, S.POURING, S.DONE, S.ERROR, S.IDLE},
     S.MIXING:        {S.MIXING, S.POURING, S.IDLE, S.ERROR},
-    S.POURING:       {S.POURING, S.DONE, S.WASHING, S.IDLE, S.ERROR},
-    S.DONE:          {S.DONE, S.IDLE, S.ERROR},
+    S.POURING:       {S.DISPENSING, S.POURING, S.DONE, S.WASHING, S.IDLE, S.ERROR},
+    S.DONE:          {S.DONE, S.WASHING, S.IDLE, S.ERROR},
     S.REVERSING:     {S.REVERSING, S.IDLE, S.ERROR},
     S.WASHING:       {S.WASHING, S.MIXING, S.POURING, S.WAITING_GLASS, S.IDLE, S.ERROR},
     S.DRAINING:      {S.DRAINING, S.RESEALING, S.IDLE, S.ERROR},

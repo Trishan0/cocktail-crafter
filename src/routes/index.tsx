@@ -96,6 +96,43 @@ function KioskApp() {
   useEffect(() => {
     const evtSource = new EventSource(`http://${window.location.hostname}:5000/stream`);
 
+    const syncScreenWithMachine = (status: string, statusMessage = "", initial = false) => {
+      if (status === "waiting_glass") {
+        inCleanCycle.current = false;
+        setScreen("waiting_glass");
+      } else if (["initializing", "dispensing", "pouring"].includes(status)) {
+        setScreen("preparing");
+      } else if (status === "mixing") {
+        // Mixing is used both during drink-making and the firmware's CLEAN cycle.
+        const cleaning = inCleanCycle.current || statusMessage.toLowerCase().includes("clean");
+        inCleanCycle.current = cleaning;
+        setScreen(cleaning ? "cleaning" : "preparing");
+      } else if (status === "done") {
+        inCleanCycle.current = false;
+        setScreen("ready");
+      } else if (status === "error") {
+        setScreen("error");
+      } else if (["reversing", "washing", "draining", "resealing"].includes(status)) {
+        inCleanCycle.current = true;
+        setScreen("cleaning");
+      } else if (status === "idle") {
+        if (initial) {
+          // A newly connected kiosk should simply start at welcome when the
+          // controller is already idle; it did not observe this clean cycle.
+          inCleanCycle.current = false;
+          setScreen("welcome");
+        } else if (inCleanCycle.current) {
+          // Show a "cleaning done" confirmation before returning to welcome.
+          inCleanCycle.current = false;
+          setScreen("cleaning_done");
+        } else {
+          setScreen(prev =>
+            ["ready", "error", "preparing", "waiting_glass"].includes(prev) ? "welcome" : prev
+          );
+        }
+      }
+    };
+
     evtSource.addEventListener("init", (e) => {
       const data = JSON.parse(e.data);
       setMachineStatus(data.machine_status);
@@ -108,6 +145,7 @@ function KioskApp() {
       if ("upper_sensor" in data) setUpperSensor(data.upper_sensor ?? null);
       if ("required_glass" in data) setRequiredGlass(data.required_glass ?? null);
       if ("order_volume_ml" in data) setOrderVolumeMl(data.order_volume_ml ?? null);
+      syncScreenWithMachine(data.machine_status, data.message || "", true);
     });
 
     evtSource.addEventListener("status", (e) => {
@@ -120,33 +158,7 @@ function KioskApp() {
       setMessage(data.message || "");
       if ("required_glass" in data) setRequiredGlass(data.required_glass ?? null);
       if ("order_volume_ml" in data) setOrderVolumeMl(data.order_volume_ml ?? null);
-
-      if (status === "waiting_glass") {
-        inCleanCycle.current = false;
-        setScreen("waiting_glass");
-      } else if (["initializing", "dispensing", "pouring"].includes(status)) {
-        setScreen("preparing");
-      } else if (status === "mixing") {
-        // Mixing is used both during drink-making and the firmware's CLEAN cycle.
-        setScreen(inCleanCycle.current ? "cleaning" : "preparing");
-      } else if (status === "done") {
-        setScreen("ready");
-      } else if (status === "error") {
-        setScreen("error");
-      } else if (["reversing", "washing", "draining", "resealing"].includes(status)) {
-        inCleanCycle.current = true;
-        setScreen("cleaning");
-      } else if (status === "idle") {
-        if (inCleanCycle.current) {
-          // Show a "cleaning done" confirmation before returning to welcome
-          inCleanCycle.current = false;
-          setScreen("cleaning_done");
-        } else {
-          setScreen(prev =>
-            ["ready", "error", "preparing", "waiting_glass"].includes(prev) ? "welcome" : prev
-          );
-        }
-      }
+      syncScreenWithMachine(status, data.message || "");
     });
 
     evtSource.addEventListener("inventory", (e) => {
