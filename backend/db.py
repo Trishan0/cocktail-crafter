@@ -92,7 +92,10 @@ def init_db():
             -- Order history
             CREATE TABLE IF NOT EXISTS orders (
                 id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-                recipe_id            INTEGER REFERENCES recipes(id),
+                -- An order keeps its recipe name and ingredient snapshot, so
+                -- historical records remain meaningful after an Admin deletes
+                -- the editable recipe definition.
+                recipe_id            INTEGER REFERENCES recipes(id) ON DELETE SET NULL,
                 recipe_name          TEXT    NOT NULL,
                 status               TEXT    NOT NULL DEFAULT 'pending',
                 pump_commands        TEXT,               -- JSON snapshot sent to ESP32
@@ -554,9 +557,19 @@ def update_recipe(recipe_id: int, name: str = None, description: str = None,
                 )
 
 
-def delete_recipe(recipe_id: int):
+def delete_recipe(recipe_id: int) -> bool:
+    """Delete a recipe without deleting its immutable order history.
+
+    Existing deployed databases created before ``ON DELETE SET NULL`` was
+    added use SQLite's restrictive default foreign key.  Null the optional
+    ``orders.recipe_id`` explicitly first so both old and new database files
+    preserve historical order snapshots while allowing Admin to remove a
+    recipe.
+    """
     with get_connection() as conn:
-        conn.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,))
+        conn.execute("UPDATE orders SET recipe_id = NULL WHERE recipe_id = ?", (recipe_id,))
+        cursor = conn.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,))
+    return cursor.rowcount > 0
 
 
 # ─────────────────────────────────────────────

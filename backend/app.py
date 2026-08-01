@@ -737,8 +737,9 @@ def api_update_recipe(recipe_id):
 
 @app.route("/api/admin/recipes/<int:recipe_id>", methods=["DELETE"])
 def api_delete_recipe(recipe_id):
-    """Delete a recipe permanently."""
-    db.delete_recipe(recipe_id)
+    """Delete an editable recipe while retaining historical orders."""
+    if not db.delete_recipe(recipe_id):
+        return jsonify({"error": "Recipe not found."}), 404
     return jsonify({"success": True})
 
 
