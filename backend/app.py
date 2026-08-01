@@ -252,7 +252,12 @@ def api_menu():
     """Return visible recipes for the customer drink menu."""
     try:
         menu = recipe_manager.get_menu()
-        return jsonify({"drinks": menu})
+        # Prices are staff-managed display information. Keep them out of the
+        # customer response by default, not merely hidden with CSS.
+        show_prices = bool(db.get_setting("show_drink_prices", False))
+        if not show_prices:
+            menu = [{key: value for key, value in drink.items() if key != "price"} for drink in menu]
+        return jsonify({"drinks": menu, "show_prices": show_prices})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -654,6 +659,22 @@ def api_glass_capacity_config():
 
     db.set_setting("small_glass_max_ml", capacity)
     return jsonify({"success": True, "small_glass_max_ml": capacity})
+
+
+@app.route("/api/admin/display/price-visibility", methods=["GET", "PUT"])
+def api_price_visibility_config():
+    """Read or change whether prices appear on the customer kiosk."""
+    if request.method == "GET":
+        return jsonify({"show_prices": bool(db.get_setting("show_drink_prices", False))})
+
+    data = request.get_json(silent=True) or {}
+    show_prices = data.get("show_prices")
+    if not isinstance(show_prices, bool):
+        return jsonify({"error": "show_prices must be true or false."}), 400
+
+    db.set_setting("show_drink_prices", show_prices)
+    _push_event("display_settings", {"show_prices": show_prices})
+    return jsonify({"success": True, "show_prices": show_prices})
 
 
 # ─────────────────────────────────────────────

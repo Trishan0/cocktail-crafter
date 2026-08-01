@@ -71,6 +71,7 @@ function KioskApp() {
   const [requiredGlass, setRequiredGlass] = useState<string | null>(null);
   const [orderVolumeMl, setOrderVolumeMl] = useState<number | null>(null);
   const [reserveMarginMl, setReserveMarginMl] = useState(15);
+  const [showPrices, setShowPrices] = useState(false);
   // Tracks the firmware's explicit CLEAN sequence.
   const inCleanCycle = useRef(false);
 
@@ -78,7 +79,10 @@ function KioskApp() {
   // Reloading this data on every screen transition used to overwrite a mix
   // while the customer moved from Compose to Review.
   useEffect(() => {
-    getMenu().then(data => setDrinks(data.drinks)).catch(console.error);
+    getMenu().then(data => {
+      setDrinks(data.drinks);
+      setShowPrices(Boolean(data.show_prices));
+    }).catch(console.error);
     getPumps().then(data => {
       const active = data.pumps.filter((p: any) => p.ingredient_id !== null && Boolean(p.is_active));
       setAvailablePumps(active);
@@ -167,6 +171,15 @@ function KioskApp() {
         setAvailablePumps(data.pumps.filter((pump: any) => pump.ingredient_id !== null && Boolean(pump.is_active)));
       }
       if (Number.isFinite(data.reserve_margin_ml)) setReserveMarginMl(data.reserve_margin_ml);
+      getMenu().then(menu => {
+        setDrinks(menu.drinks);
+        setShowPrices(Boolean(menu.show_prices));
+      }).catch(console.error);
+    });
+
+    evtSource.addEventListener("display_settings", (e) => {
+      const data = JSON.parse(e.data);
+      setShowPrices(Boolean(data.show_prices));
       getMenu().then(menu => setDrinks(menu.drinks)).catch(console.error);
     });
 
@@ -241,7 +254,7 @@ function KioskApp() {
     selected, setSelectedId, mode, setMode, drinks, availablePumps,
     customIngredients, setCustomIngredients, wantsIce, setWantsIce,
     machineStatus, progress, message, glassState, lowerSensor, upperSensor, poweredOn,
-    connected, stationReady, totalMl, requiredGlass, orderVolumeMl, reserveMarginMl,
+    connected, stationReady, totalMl, requiredGlass, orderVolumeMl, reserveMarginMl, showPrices,
     now, go, handleOrder, isSubmitting, orderError, setOrderError
   };
 
@@ -434,7 +447,7 @@ function drinkImageUrl(imageUrl?: string) {
   return imageUrl ? `http://localhost:5000${imageUrl}` : undefined;
 }
 
-function Catalog({ now, go, setSelectedId, drinks }: any) {
+function Catalog({ now, go, setSelectedId, drinks, showPrices }: any) {
   const [activeCategory, setActiveCategory] = useState("all");
   const [page, setPage] = useState(0);
   const categories = useMemo(
@@ -485,7 +498,7 @@ function Catalog({ now, go, setSelectedId, drinks }: any) {
             <div className="cc-drink-card__content">
               <h2>{drink.name}</h2>
               <p>{drink.description || categoryLabel(drink.category || "classic")}</p>
-              <div><strong>€{Number(drink.price || 0).toFixed(2)}</strong><span>View <ChevronRight size={18} /></span></div>
+              <div>{showPrices && <strong>€{Number(drink.price || 0).toFixed(2)}</strong>}<span>View <ChevronRight size={18} /></span></div>
               {!drink.available && <small>{drink.availability_reason || "Ingredients unavailable"}</small>}
             </div>
           </button>
@@ -501,7 +514,7 @@ function Catalog({ now, go, setSelectedId, drinks }: any) {
   );
 }
 
-function Detail({ selected, now, go, wantsIce, setWantsIce }: any) {
+function Detail({ selected, now, go, wantsIce, setWantsIce, showPrices }: any) {
   if (!selected) return null;
   return (
     <div className="cc-screen cc-detail">
@@ -516,7 +529,7 @@ function Detail({ selected, now, go, wantsIce, setWantsIce }: any) {
         <p className="cc-eyebrow">House classic</p>
         <h1>{selected.name}</h1>
         <p className="cc-detail__description">{selected.description || "A carefully balanced house favourite."}</p>
-        <p className="cc-price">€{Number(selected.price || 0).toFixed(2)}</p>
+        {showPrices && <p className="cc-price">€{Number(selected.price || 0).toFixed(2)}</p>}
         <div className="cc-ingredient-section">
           <p>Ingredients</p>
           <div className="cc-ingredient-grid">
@@ -631,7 +644,7 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
   );
 }
 
-function Review({ selected, mode, customIngredients, wantsIce, now, go, handleOrder, isSubmitting, machineStatus, poweredOn }: any) {
+function Review({ selected, mode, customIngredients, wantsIce, now, go, handleOrder, isSubmitting, machineStatus, poweredOn, showPrices }: any) {
   const isCustom = mode === "custom";
   const title = isCustom ? "Custom Mix" : selected?.name;
 
@@ -662,7 +675,7 @@ function Review({ selected, mode, customIngredients, wantsIce, now, go, handleOr
             )}
           </div>
           <div className="cc-review__ice"><Snowflake size={22} /><span>Ice</span><strong>{wantsIce ? "Add Ice" : "No Ice"}</strong></div>
-          <div className="cc-review__total"><span>Total</span><strong>{isCustom ? "—" : `€${Number(selected?.price || 0).toFixed(2)}`}</strong></div>
+          {showPrices && <div className="cc-review__total"><span>Total</span><strong>{isCustom ? "—" : `€${Number(selected?.price || 0).toFixed(2)}`}</strong></div>}
           <GoldButton big onClick={handleOrder} disabled={!poweredOn || isSubmitting || machineStatus !== "idle"}>
             <Check size={26} /> {isSubmitting ? "Processing…" : "Confirm Order"}
           </GoldButton>

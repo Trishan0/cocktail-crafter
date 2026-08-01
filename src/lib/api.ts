@@ -62,6 +62,12 @@ export const setGlassCapacityConfig = (smallGlassMaxMl: number) =>
     method: "PUT",
     body: JSON.stringify({ small_glass_max_ml: smallGlassMaxMl }),
   });
+export const getPriceVisibility = () => fetchApi("/admin/display/price-visibility");
+export const setPriceVisibility = (showPrices: boolean) =>
+  fetchApi("/admin/display/price-visibility", {
+    method: "PUT",
+    body: JSON.stringify({ show_prices: showPrices }),
+  });
 // Admin - Recipes
 export const getAdminRecipes = () => fetchApi("/admin/recipes");
 export const createRecipe = (recipe: any) => fetchApi("/admin/recipes", { method: "POST", body: JSON.stringify(recipe) });
