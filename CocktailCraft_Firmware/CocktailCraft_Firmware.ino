@@ -575,6 +575,16 @@ bool orderLoaded = false;
 bool orderIceEnabled = false;
 String loadedOrderId;
 
+// Complete-order synchronization.
+// The drink-ready event is emitted only after:
+//   1. the main drink path has finished (valve opened, plus pump 6 if requested),
+//   2. the parallel ice cycle has finished, when ice was requested.
+bool orderCompletionPending = false;
+bool orderMainSequenceFinished = false;
+bool orderIceSequenceFinished = true;
+
+void tryFinalizeCompletedOrder();
+
 // ---------------- Parallel ice-dispenser implementation ----------------
 
 const char* icePositionName(IcePosition position)
@@ -642,6 +652,20 @@ void handleIceEvents()
             case IceEvent::FINISHED:
                 Serial.println("LOG:ICE DISPENSER VIBRATION FINISHED");
                 Serial.println("LOG:ICE CYCLE FINISHED");
+
+                // A standalone ICE command does not complete a drink order.
+                // For an ice-enabled order, this is one half of the completion
+                // barrier. The ready JSON is sent now only if the main drink
+                // path has already finished.
+                if (
+                    orderCompletionPending &&
+                    currentRunMode == RunMode::ORDER &&
+                    orderIceEnabled)
+                {
+                    orderIceSequenceFinished = true;
+                    Serial.println("LOG:ORDER: ICE SEQUENCE FINISHED");
+                    tryFinalizeCompletedOrder();
+                }
                 break;
 
             case IceEvent::STOPPED:
@@ -1807,6 +1831,34 @@ void updateValveOpenDelay()
         beginValveOpening();
 }
 
+void tryFinalizeCompletedOrder()
+{
+    if (
+        !orderCompletionPending ||
+        currentRunMode != RunMode::ORDER ||
+        !orderMainSequenceFinished ||
+        !orderIceSequenceFinished)
+    {
+        return;
+    }
+
+    // Prevent duplicate ready events before publishing the final message.
+    orderCompletionPending = false;
+
+    // loadedOrderId is still available here, so the Pi can match the event.
+    sendDrinkReadyData();
+
+    orderLoaded = false;
+    orderIceEnabled = false;
+    loadedOrderId = "";
+    currentRunMode = RunMode::NONE;
+
+    orderMainSequenceFinished = false;
+    orderIceSequenceFinished = true;
+
+    Serial.println("LOG:ORDER: COMPLETE PROCESS FINISHED");
+}
+
 void finishActiveRun()
 {
     if (currentRunMode == RunMode::CLEANING)
@@ -1818,13 +1870,15 @@ void finishActiveRun()
     }
     else if (currentRunMode == RunMode::ORDER)
     {
-        // The complete drink sequence has finished. Send this before clearing
-        // loadedOrderId so the Raspberry Pi can match the ready event.
-        sendDrinkReadyData();
-
-        orderLoaded = false;
-        loadedOrderId = "";
-        currentRunMode = RunMode::NONE;
+        // The main drink path is finished:
+        // - without pump 6: valve opening is complete;
+        // - with pump 6: pump 6 has stopped.
+        //
+        // Do not publish drink-ready until the parallel ice cycle has also
+        // finished when ice was requested.
+        orderMainSequenceFinished = true;
+        Serial.println("LOG:ORDER: MAIN SEQUENCE FINISHED");
+        tryFinalizeCompletedOrder();
     }
 }
 
@@ -1860,8 +1914,10 @@ void continueAfterValveOpened()
         return;
     }
 
+    // The main mechanism is now idle. If ice was requested, the final ready
+    // event waits until the ice task also reports FINISHED.
+    enterIdle("VALVE OPEN - MAIN SEQUENCE FINISHED");
     finishActiveRun();
-    enterIdle("VALVE OPEN - READY");
 }
 
 void beginPump6AutoPrimingForOrder()
@@ -1921,8 +1977,11 @@ void updatePump6OrderDispensing()
     sendCmd("M6S");
     Serial.println("LOG:PUMP 6 SYRUP DISPENSING FINISHED");
 
+    // Pump 6 is the final main-path action. Return the main state to IDLE,
+    // then complete the order immediately if ice is already finished, or wait
+    // for the ice FINISHED event if it is still running.
+    enterIdle("ORDER MAIN SEQUENCE COMPLETE - PUMP 6 FINISHED");
     finishActiveRun();
-    enterIdle("ORDER COMPLETE - PUMP 6 FINISHED");
 }
 
 void updatePump6ManualPriming()
@@ -2131,6 +2190,13 @@ void processSerialCommand(String command, Stream& replyPort)
                 return;
 
             currentRunMode = RunMode::ORDER;
+
+            // Initialize the complete-order barrier. Without ice, the ice side
+            // is already considered complete. With ice, IceEvent::FINISHED
+            // will mark it complete.
+            orderCompletionPending = true;
+            orderMainSequenceFinished = false;
+            orderIceSequenceFinished = !orderIceEnabled;
 
             if (!fluidLinesPrimed)
             {
