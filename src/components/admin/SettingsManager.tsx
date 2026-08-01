@@ -3,15 +3,21 @@ import { Lock, Server, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { changePin, getStatus } from "@/lib/api";
+import { Switch } from "@/components/ui/switch";
+import { changePin, getPriceVisibility, getStatus, setPriceVisibility } from "@/lib/api";
 
 export function SettingsManager() {
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [isConnected, setIsConnected] = useState(false);
+  const [showDrinkPrices, setShowDrinkPrices] = useState(false);
+  const [isUpdatingPriceVisibility, setIsUpdatingPriceVisibility] = useState(false);
 
   useEffect(() => {
     getStatus().then(s => setIsConnected(s.connected)).catch(() => setIsConnected(false));
+    getPriceVisibility()
+      .then(data => setShowDrinkPrices(Boolean(data.show_prices)))
+      .catch(() => setShowDrinkPrices(false));
   }, []);
 
   const handlePinChange = async () => {
@@ -21,6 +27,18 @@ export function SettingsManager() {
       setCurrentPin(""); setNewPin("");
     } catch (e: any) {
       alert(e.message);
+    }
+  };
+
+  const handlePriceVisibilityChange = async (showPrices: boolean) => {
+    setIsUpdatingPriceVisibility(true);
+    try {
+      const data = await setPriceVisibility(showPrices);
+      setShowDrinkPrices(Boolean(data.show_prices));
+    } catch (e: any) {
+      alert(e.message || "Could not update price visibility.");
+    } finally {
+      setIsUpdatingPriceVisibility(false);
     }
   };
   return (
@@ -96,6 +114,19 @@ export function SettingsManager() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             <div className="space-y-6">
+              <div className="flex items-center justify-between gap-5 rounded-xl border border-white/10 bg-white/5 p-4">
+                <div>
+                  <Label htmlFor="show-drink-prices" className="text-sm font-medium">Show drink prices on the customer kiosk</Label>
+                  <p className="mt-1 text-xs text-muted-foreground">Hidden by default. Admin recipe prices remain available here.</p>
+                </div>
+                <Switch
+                  id="show-drink-prices"
+                  checked={showDrinkPrices}
+                  disabled={isUpdatingPriceVisibility}
+                  onCheckedChange={handlePriceVisibilityChange}
+                  aria-label="Show drink prices on the customer kiosk"
+                />
+              </div>
               <div className="grid gap-2">
                 <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Screensaver Timeout (Seconds)</Label>
                 <Input type="number" defaultValue="120" className="h-12 bg-white/5 border-white/10" />

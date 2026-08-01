@@ -31,12 +31,20 @@ SECRET_KEY  = "Cocktail-Craft_bartender_secret_2025"
 
 # ─── Pump Hardware ────────────────────────────────────
 NUM_PUMPS             = 6
-DEFAULT_FLOW_RATE     = 1.5    # ml per second — default for new pumps
+DEFAULT_FLOW_RATE     = 2.5    # ml per second — default for new pumps
 
 # ─── Recipe / Volume Limits ───────────────────────────
 MAX_ML_PER_INGREDIENT = 100   # max ml of any single ingredient per drink
 MIN_ML_PER_INGREDIENT = 5     # below this, snap to 0 (ignore trace amounts)
 MAX_ML_TOTAL          = 300   # max total volume per drink
+
+# An order may use a bottle only when the tracked volume can supply the recipe
+# and still leave this reserve. The reserve is not deducted from inventory.
+LIQUID_RESERVE_MARGIN_ML = 15
+
+# Default used only when the database has not yet been initialised. Admin
+# Hardware settings persist the actual small-glass capacity for this machine.
+DEFAULT_SMALL_GLASS_MAX_ML = 170
 
 # ─── Admin ────────────────────────────────────────────
 ADMIN_PIN = "1234"             # default PIN, changeable via API

@@ -17,14 +17,9 @@ function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   return (
-    <div className="admin-ui min-h-screen bg-page text-page-foreground flex items-center justify-center overflow-hidden">
-      {/* Ambient page glow */}
-      <div
-        className="pointer-events-none fixed inset-0 opacity-60"
-        style={{ background: "radial-gradient(60% 50% at 50% 40%, oklch(0.83 0.09 85 / 8%), transparent 70%)" }}
-      />
-
-      <div className="w-full h-full z-10 relative">
+    <div className="admin-ui admin-kiosk-shell">
+      <div className="admin-kiosk-shell__glow" aria-hidden="true" />
+      <div className={`admin-kiosk-shell__content ${isAuthenticated ? "" : "admin-kiosk-shell__content--login"}`}>
         {isAuthenticated ? (
           <AdminDashboard onLogout={() => setIsAuthenticated(false)} />
         ) : (

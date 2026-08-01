@@ -1,5 +1,4 @@
-const API_BASE = "http://localhost:5000/api";
-
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 export async function fetchApi(endpoint: string, options?: RequestInit) {
   const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
@@ -57,11 +56,25 @@ export const setLiquidLevelConfig = (aboveValue: 0 | 1) =>
     method: "PUT",
     body: JSON.stringify({ above_value: aboveValue }),
   });
+export const getGlassCapacityConfig = () => fetchApi("/admin/hardware/glass-capacity");
+export const setGlassCapacityConfig = (smallGlassMaxMl: number) =>
+  fetchApi("/admin/hardware/glass-capacity", {
+    method: "PUT",
+    body: JSON.stringify({ small_glass_max_ml: smallGlassMaxMl }),
+  });
+export const getPriceVisibility = () => fetchApi("/admin/display/price-visibility");
+export const setPriceVisibility = (showPrices: boolean) =>
+  fetchApi("/admin/display/price-visibility", {
+    method: "PUT",
+    body: JSON.stringify({ show_prices: showPrices }),
+  });
 // Admin - Recipes
 export const getAdminRecipes = () => fetchApi("/admin/recipes");
 export const createRecipe = (recipe: any) => fetchApi("/admin/recipes", { method: "POST", body: JSON.stringify(recipe) });
 export const updateRecipe = (id: number, recipe: any) => fetchApi(`/admin/recipes/${id}`, { method: "PUT", body: JSON.stringify(recipe) });
 export const deleteRecipe = (id: number) => fetchApi(`/admin/recipes/${id}`, { method: "DELETE" });
+export const setRecipeDisplayOrder = (recipeIds: number[]) =>
+  fetchApi("/admin/recipes/order", { method: "PUT", body: JSON.stringify({ recipe_ids: recipeIds }) });
 export const uploadRecipeImage = async (id: number, file: File) => {
   const formData = new FormData();
   formData.append("file", file);

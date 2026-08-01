@@ -2,6 +2,14 @@
 
 > Scope: only commands sent from the Raspberry Pi to the ESP32-S3 and messages sent from the ESP32-S3 back to the Raspberry Pi.
 
+> **Deployed completion profile:** the Pi backend now targets
+> `CocktailCraft_Firmware/CocktailCraft_Firmware.ino`.  Its common `ORDER`,
+> `START`, sensor-query and `CLEAN` grammar is the same as this handoff, but
+> it additionally emits the final `drink/ready` event documented below.  The
+> older `arduino-code/CocktailCraft_ESP32S3_Complete_Firmware.ino` stops at
+> `valve/opened` and must not be flashed with this Pi release unless a legacy
+> completion handler is restored.
+
 ---
 
 ## 1. Serial connection
@@ -358,6 +366,25 @@ Values are raw electrical states:
 0 = LOW
 ```
 
+### Raspberry Pi bottle-inventory policy
+
+This is application logic on the Pi; it does not add anything to the ESP32
+wire protocol. Admin staff enter the starting/current volume for each installed
+bottle in **Admin → Pumps**. Before sending `ORDER`, the Pi checks only the
+pumps used by that recipe and requires both:
+
+1. the corresponding raw `CHECK_LEVELS` value must match the configured
+   “above the fixed sensor line” polarity; and
+2. the tracked bottle volume must be at least the recipe amount plus a 15 ml
+   safety reserve.
+
+For example, a 50 ml pump request needs at least 65 ml tracked. If either check
+fails, the Pi returns an ingredient-specific error to the customer UI and sends
+no `ORDER`. If both pass, the Pi atomically deducts only the requested 50 ml,
+leaving the reserve untouched. The deduction is restored if the Pi cannot save
+or send the order. Updated bottle estimates are pushed to open Admin and kiosk
+screens over SSE.
+
 ---
 
 ## 13. CHECK_IR
@@ -380,6 +407,32 @@ Values are raw electrical states:
 1 = HIGH
 0 = LOW
 ```
+
+### Raspberry Pi glass-capacity policy
+
+The ESP32 protocol remains unchanged: it reports only these two raw sensor
+values and receives the normal `ORDER` JSON followed by `START`. The Raspberry
+Pi application classifies the installed sensor pattern and makes the capacity
+decision before it sends `START`:
+
+- `upper=1, lower=1`: no glass
+- `upper=1, lower=0`: small glass
+- `upper=0, lower=0`: large glass
+- `upper=0, lower=1`: inconsistent reading / sensor error
+
+For each order, the Pi calculates the total liquid volume from the recipe. It
+compares that volume with the Admin Hardware setting `small_glass_max_ml`
+(initial default: 170 ml). If a small glass is detected for an order above that
+safe capacity, the Pi stays in `waiting_glass`, prompts the user to replace the
+glass, and does **not** send `START`. A large glass or a sufficiently small
+order may proceed. `total_volume_ml` is Pi-side order metadata; it is not an
+`ORDER` JSON field in this firmware protocol.
+
+The same raw reading has a second, separate use **after** the drink completes.
+After receiving the matching `drink/ready` event, the Pi shows the customer
+the ready screen and polls `CHECK_IR` every 0.75 seconds. It does not send
+`CLEAN` while a small or large glass is still detected. When it receives
+`upper=1, lower=1` (no glass), it sends `CLEAN` and changes the UI to cleaning.
 
 ---
 
@@ -529,9 +582,23 @@ When valve opening completes:
 DATA:{"type":"system","event":"valve","action":"opened"}
 ```
 
-This is currently the closest practical end-of-order event.
+This is a progress event, not the customer completion signal. In the deployed
+firmware, a Pump-6 dispense and/or the parallel ice task can still be pending
+after the valve opens.
 
-There is no dedicated order-completed JSON event.
+### Final drink-ready event
+
+Only after the full order has completed, the firmware sends the order-correlated
+event:
+
+```text
+DATA:{"type":"system","event":"drink","action":"ready","order_id":"ORD-1042"}
+```
+
+The Pi verifies the `order_id` against the loaded order, marks that order done,
+shows **Your drink is ready**, and begins the post-drink `CHECK_IR` polling
+described in section 13. It is this event—not `valve/opened`—that confirms the
+drink is complete.
 
 ---
 
@@ -678,9 +745,13 @@ DATA:{"type":"system","event":"pump","pump":3,"action":"stop"}
 DATA:{"type":"system","event":"mixing","action":"started"}
 DATA:{"type":"system","event":"mixing","action":"stopped"}
 DATA:{"type":"system","event":"valve","action":"opened"}
+DATA:{"type":"system","event":"drink","action":"ready","order_id":"ORD-1042"}
 ```
 
-Additional `LOG:` messages and optional line-priming events may appear between these events.
+Additional `LOG:` messages, optional line-priming events, and Pump-6/ice work
+may appear before the final `drink/ready` event. After it, the Pi repeatedly
+sends `CHECK_IR`; when the response is `upper=1,lower=1`, it sends `CLEAN`.
+The `cleaning/finished` event then returns the kiosk to its welcome screen.
 
 ---
 
@@ -818,8 +889,10 @@ def process_esp32_line(line: str) -> None:
 
 ## 33. Important limitations
 
-- There is no dedicated `order finished` JSON event.
-- `valve opened` is currently the closest final normal-order event.
+- `drink/ready` is the deployed firmware's dedicated final order event and
+  includes an `order_id`; earlier pump, mixing and valve events do not.
+- The Pi, rather than the ESP32, owns the customer hand-off: it must observe
+  a no-glass `CHECK_IR` response before it sends `CLEAN`.
 - `order_id` is not included in later pump, mixing, or valve events.
 - Ice progress is sent through `LOG:` lines, not `DATA:` JSON.
 - There is no complete main-system status query.
@@ -831,10 +904,12 @@ def process_esp32_line(line: str) -> None:
 
 ## 34. Source identity
 
-This document was created from the current integrated firmware.
+This handoff originated from the integrated base firmware. The deployed
+post-drink-completion profile is verified against
+`CocktailCraft_Firmware/CocktailCraft_Firmware.ino`.
 
 Firmware SHA-256:
 
 ```text
-71deff84dacc78671f0efd0f219029cd9b1707fd5dc5e297a45de6930de08472
+9c4f7d80fb26143c24de83d59380ae1b69435928eee8517e0f894a90da90e2f7
 ```

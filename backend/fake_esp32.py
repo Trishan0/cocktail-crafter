@@ -40,12 +40,17 @@ class FakeESP32:
         self._loaded_order: dict | None = None
         self._busy = False
         self._lines_primed = False
+        self._ice_busy = False
+        self._ice_position = "CLOSED"
 
     def ready(self):
         self._data({"type": "system", "event": "ready"})
 
     def on_line(self, line: str):
         log(f"<- {line}")
+        if len(line) > 512:
+            self._log("ERROR:COMMAND_TOO_LONG")
+            return
         if line.startswith("{"):
             try:
                 payload = json.loads(line)
@@ -59,9 +64,17 @@ class FakeESP32:
         if command in {"S", "START"}:
             self._start()
         elif command in {"X", "STOP"}:
-            self._log("STOP REQUESTED (limited to mixer/ice in real firmware)")
+            self._stop()
         elif command == "CLEAN":
             self._start_clean()
+        elif command == "ICE":
+            self._start_ice()
+        elif command == "ICE_STATUS":
+            self._log(f"ICE_POSITION:{self._ice_position},STATE:{'BUSY' if self._ice_busy else 'IDLE'},BUSY:{'YES' if self._ice_busy else 'NO'}")
+        elif command == "ICE_SET_OPEN":
+            self._set_ice_position("OPEN")
+        elif command == "ICE_SET_CLOSED":
+            self._set_ice_position("CLOSED")
         elif command == "REVERSE_PUMPS":
             self._start_reverse()
         elif command == "CHECK_IR":
@@ -80,7 +93,7 @@ class FakeESP32:
 
     def _handle_order(self, payload: dict):
         with self._lock:
-            if self._busy:
+            if self._busy or self._loaded_order is not None:
                 self._order_response("rejected", "busy")
                 return
             if payload.get("command") != "ORDER":
@@ -144,6 +157,44 @@ class FakeESP32:
         self._log("ACK:CLEAN")
         threading.Thread(target=self._run_clean, daemon=True).start()
 
+    def _stop(self):
+        with self._lock:
+            if not self._busy and not self._ice_busy:
+                self._log("NOTHING_STOPPABLE_RUNNING")
+                return
+            self._ice_busy = False
+        self._log("ACK:STOP")
+
+    def _start_ice(self):
+        with self._lock:
+            if self._busy:
+                self._log("BUSY")
+                return
+            if self._ice_busy:
+                self._log("ICE_BUSY")
+                return
+            if self._ice_position != "CLOSED":
+                self._log("ICE_POSITION_NOT_CLOSED")
+                return
+            self._busy = True
+            self._ice_busy = True
+        self._log("ACK:ICE")
+        threading.Thread(target=self._run_standalone_ice, daemon=True).start()
+
+    def _set_ice_position(self, position: str):
+        with self._lock:
+            if self._busy or self._ice_busy:
+                self._log("BUSY")
+                return
+            self._ice_position = position
+        self._log("WARNING: ICE POSITION CHANGED WITHOUT MOVEMENT")
+
+    def _run_standalone_ice(self):
+        self._run_ice_cycle()
+        with self._lock:
+            self._ice_busy = False
+            self._busy = False
+
     def _start_reverse(self):
         with self._lock:
             if self._busy:
@@ -154,6 +205,8 @@ class FakeESP32:
         threading.Thread(target=self._run_reverse, daemon=True).start()
 
     def _run_order(self, order: dict):
+        if order["ice"]:
+            self._run_ice_cycle()
         if not self._lines_primed:
             self._system("line_priming", "started")
             self._sleep(0.35)
@@ -169,10 +222,12 @@ class FakeESP32:
         self._system("mixing", "stopped")
         self._sleep(0.12)
         self._system("valve", "opened")
-        self._system("drink", "ready", order_id=order["order_id"])
         with self._lock:
             self._loaded_order = None
             self._busy = False
+        # Match CocktailCraft_Firmware.ino: valve/opened is mechanical
+        # progress, while drink/ready is the final customer-facing signal.
+        self._system("drink", "ready", order_id=order["order_id"])
 
     def _run_clean(self):
         self._system("cleaning", "started")
@@ -188,6 +243,29 @@ class FakeESP32:
         self._system("cleaning", "finished")
         with self._lock:
             self._busy = False
+
+    def _run_ice_cycle(self):
+        with self._lock:
+            self._ice_busy = True
+        self._log("ICE CYCLE STARTED")
+        self._log("ICE DISPENSER OPENING CW FOR 26000ms")
+        self._sleep(0.08)
+        with self._lock:
+            self._ice_position = "OPEN"
+        self._log("ICE SAVED POSITION: OPEN")
+        self._log("ICE DISPENSER FULLY OPEN")
+        self._log("ICE DISPENSER CLOSING CCW FOR 26000ms")
+        self._sleep(0.08)
+        with self._lock:
+            self._ice_position = "CLOSED"
+        self._log("ICE SAVED POSITION: CLOSED")
+        self._log("ICE DISPENSER FULLY CLOSED")
+        self._log("ICE DISPENSER VIBRATION STARTED")
+        self._sleep(0.08)
+        self._log("ICE DISPENSER VIBRATION FINISHED")
+        self._log("ICE CYCLE FINISHED")
+        with self._lock:
+            self._ice_busy = False
 
     def _run_reverse(self):
         self._system("reverse_pumps", "started")

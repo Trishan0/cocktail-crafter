@@ -54,36 +54,37 @@ export function PinPad({ onSuccess, pinLength = 4, correctPin = "1234" }: PinPad
   }, [pin, error, pinLength, correctPin]);
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 glass-panel rounded-3xl max-w-sm w-full mx-auto border border-white/10 bg-black/40 backdrop-blur-md shadow-2xl">
-      <div className="mb-6 flex flex-col items-center">
-        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 border border-white/10">
-          <Lock className="w-8 h-8 text-primary/80" />
+    <div className="admin-login">
+      <div className="admin-login__intro">
+        <div className="admin-login__lock">
+          <Lock size={29} aria-hidden="true" />
         </div>
-        <h2 className="text-2xl font-light text-white font-serif tracking-widest uppercase">Admin Access</h2>
-        <p className="text-white/50 text-sm mt-2">Enter PIN to configure machine</p>
+        <p>Staff access</p>
+        <h2>Admin Console</h2>
+        <span>Enter your PIN to configure the machine.</span>
       </div>
 
-      <div className="flex gap-4 mb-8">
+      <div className="admin-login__dots" aria-label={`${pin.length} of ${pinLength} PIN digits entered`}>
         {Array.from({ length: pinLength }).map((_, i) => (
           <div
             key={i}
-            className={`w-4 h-4 rounded-full border transition-all duration-300 ${
+            className={`admin-login__dot ${
               pin.length > i
                 ? error
-                  ? "bg-red-500 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"
-                  : "bg-primary border-primary shadow-[0_0_10px_rgba(255,255,255,0.3)]"
-                : "bg-transparent border-white/20"
+                  ? "is-error"
+                  : "is-filled"
+                : ""
             }`}
           />
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-4 w-full">
+      <div className="admin-login__keypad">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
           <Button
             key={num}
             variant="outline"
-            className="h-16 text-2xl font-light rounded-full border-white/10 bg-white/5 hover:bg-white/15 hover:text-white transition-all text-white/80"
+            className="admin-login__key"
             onClick={() => handlePress(num.toString())}
           >
             {num}
@@ -91,21 +92,21 @@ export function PinPad({ onSuccess, pinLength = 4, correctPin = "1234" }: PinPad
         ))}
         <Button
           variant="outline"
-          className="h-16 text-lg font-light rounded-full border-white/10 bg-white/5 hover:bg-white/15 hover:text-white transition-all text-white/50 uppercase"
+          className="admin-login__key admin-login__key--muted"
           onClick={handleClear}
         >
           Clear
         </Button>
         <Button
           variant="outline"
-          className="h-16 text-2xl font-light rounded-full border-white/10 bg-white/5 hover:bg-white/15 hover:text-white transition-all text-white/80"
+          className="admin-login__key"
           onClick={() => handlePress("0")}
         >
           0
         </Button>
         <Button
           variant="outline"
-          className="h-16 text-lg font-light rounded-full border-white/10 bg-white/5 hover:bg-white/15 hover:text-white transition-all text-white/50"
+          className="admin-login__key admin-login__key--muted"
           onClick={handleBackspace}
         >
           <X className="w-6 h-6" />
@@ -113,7 +114,7 @@ export function PinPad({ onSuccess, pinLength = 4, correctPin = "1234" }: PinPad
       </div>
       
       {error && (
-        <div className="absolute bottom-[-40px] text-red-400 text-sm animate-pulse font-medium">
+        <div className="admin-login__error">
           Incorrect PIN. Try again.
         </div>
       )}

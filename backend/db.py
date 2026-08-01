@@ -12,6 +12,7 @@ New normalized schema:
 
 import sqlite3
 import json
+import math
 import os
 from datetime import datetime
 import config
@@ -23,9 +24,19 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "Cocktail-Craft.db")
 #  CONNECTION
 # ─────────────────────────────────────────────
 
+class _ClosingConnection(sqlite3.Connection):
+    """Commit/rollback and close when used by the module's ``with`` blocks."""
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 def get_connection():
     """Return a SQLite connection with row_factory for dict-like access."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, factory=_ClosingConnection)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
@@ -53,7 +64,7 @@ def init_db():
                 id                  INTEGER PRIMARY KEY AUTOINCREMENT,
                 pump_number         INTEGER NOT NULL UNIQUE,  -- 1 to 6
                 ingredient_id       INTEGER REFERENCES ingredients(id) ON DELETE SET NULL,
-                flow_rate_ml_per_s  REAL    NOT NULL DEFAULT 1.5,
+                flow_rate_ml_per_s  REAL    NOT NULL DEFAULT 5,
                 current_volume_ml  REAL    NOT NULL DEFAULT 0,
                 is_active           INTEGER NOT NULL DEFAULT 1
             );
@@ -66,6 +77,7 @@ def init_db():
                 category    TEXT    NOT NULL DEFAULT 'classic',
                 price       REAL    DEFAULT 0.0,
                 is_visible  INTEGER NOT NULL DEFAULT 1,
+                display_order INTEGER NOT NULL DEFAULT 0,
                 created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -81,7 +93,10 @@ def init_db():
             -- Order history
             CREATE TABLE IF NOT EXISTS orders (
                 id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-                recipe_id            INTEGER REFERENCES recipes(id),
+                -- An order keeps its recipe name and ingredient snapshot, so
+                -- historical records remain meaningful after an Admin deletes
+                -- the editable recipe definition.
+                recipe_id            INTEGER REFERENCES recipes(id) ON DELETE SET NULL,
                 recipe_name          TEXT    NOT NULL,
                 status               TEXT    NOT NULL DEFAULT 'pending',
                 pump_commands        TEXT,               -- JSON snapshot sent to ESP32
@@ -111,6 +126,13 @@ def init_db():
             conn.execute("ALTER TABLE recipes ADD COLUMN image_url TEXT;")
         except sqlite3.OperationalError:
             pass
+        try:
+            conn.execute("ALTER TABLE recipes ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0;")
+        except sqlite3.OperationalError:
+            pass
+        # Existing recipes receive a stable initial menu order. New recipes
+        # are appended and Admin can subsequently move any recipe up/down.
+        conn.execute("UPDATE recipes SET display_order = id WHERE display_order <= 0")
 
         # Add order columns if they do not exist
         try:
@@ -224,11 +246,11 @@ def _seed_defaults():
         # Seed recipes
         recipe_count = conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0]
         if recipe_count == 0:
-            for r in DEFAULT_RECIPES:
+            for position, r in enumerate(DEFAULT_RECIPES, start=1):
                 cursor = conn.execute(
-                    """INSERT INTO recipes (name, description, category, price)
-                       VALUES (?, ?, ?, ?)""",
-                    (r["name"], r["description"], r["category"], r["price"])
+                    """INSERT INTO recipes (name, description, category, price, display_order)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (r["name"], r["description"], r["category"], r["price"], position)
                 )
                 recipe_id = cursor.lastrowid
                 for ing_name, amount_ml in r["ingredients"].items():
@@ -354,13 +376,79 @@ def update_pump_inventory(pump_number: int, current_volume_ml: float):
         )
 
 
-def deduct_pump_inventory(pump_commands: list):
-    """Deduct successfully dispensed recipe volumes from Pi-side estimates."""
+def reserve_pump_inventory(pump_commands: list, reserve_margin_ml: float) -> list[dict]:
+    """Atomically check and deduct one order from tracked bottle volumes.
+
+    Only the ordered amount is deducted. ``reserve_margin_ml`` must remain in
+    every used bottle after the deduction. A non-empty return value describes
+    shortages; in that case no bottle is changed.
+    """
+    margin = float(reserve_margin_ml)
+    if not math.isfinite(margin) or margin < 0:
+        raise ValueError("reserve_margin_ml must be a non-negative finite number.")
+
+    requested_by_pump: dict[int, float] = {}
+    for command in pump_commands:
+        pump_number = int(command["pump"])
+        amount_ml = float(command["amount_ml"])
+        if not math.isfinite(amount_ml) or amount_ml <= 0:
+            raise ValueError(f"Pump {pump_number} needs a positive finite order amount.")
+        requested_by_pump[pump_number] = requested_by_pump.get(pump_number, 0.0) + amount_ml
+
+    with get_connection() as conn:
+        # Prevent two simultaneous HTTP requests from both spending the same
+        # tracked volume between the check and the update.
+        conn.execute("BEGIN IMMEDIATE")
+        shortages = []
+        for pump_number, amount_ml in sorted(requested_by_pump.items()):
+            row = conn.execute(
+                """SELECT p.current_volume_ml, i.name AS ingredient_name
+                   FROM pumps p
+                   LEFT JOIN ingredients i ON p.ingredient_id = i.id
+                   WHERE p.pump_number = ?""",
+                (pump_number,),
+            ).fetchone()
+            if not row:
+                shortages.append({
+                    "pump": pump_number,
+                    "ingredient": f"Pump {pump_number}",
+                    "current_ml": 0.0,
+                    "required_ml": amount_ml,
+                    "minimum_ml": amount_ml + margin,
+                })
+                continue
+
+            current_ml = float(row["current_volume_ml"] or 0)
+            minimum_ml = amount_ml + margin
+            if current_ml < minimum_ml:
+                shortages.append({
+                    "pump": pump_number,
+                    "ingredient": row["ingredient_name"] or f"Pump {pump_number}",
+                    "current_ml": current_ml,
+                    "required_ml": amount_ml,
+                    "minimum_ml": minimum_ml,
+                })
+
+        if shortages:
+            return shortages
+
+        for pump_number, amount_ml in requested_by_pump.items():
+            conn.execute(
+                """UPDATE pumps
+                   SET current_volume_ml = current_volume_ml - ?
+                   WHERE pump_number = ?""",
+                (amount_ml, pump_number),
+            )
+    return []
+
+
+def restore_pump_inventory(pump_commands: list):
+    """Undo a reservation when an order could not be sent to the ESP32."""
     with get_connection() as conn:
         for command in pump_commands:
             conn.execute(
                 """UPDATE pumps
-                   SET current_volume_ml = MAX(0, current_volume_ml - ?)
+                   SET current_volume_ml = current_volume_ml + ?
                    WHERE pump_number = ?""",
                 (float(command["amount_ml"]), int(command["pump"])),
             )
@@ -368,16 +456,19 @@ def deduct_pump_inventory(pump_commands: list):
 
 def get_pump_assignments():
     """
-    Return a dict: ingredient_id → {pump_number, flow_rate_ml_per_s}
+    Return active assignments keyed by ingredient_id.
     Used by recipe_manager to resolve ingredients to pumps.
     """
     pumps = get_all_pumps()
     mapping = {}
     for p in pumps:
-        if p["ingredient_id"] is not None:
+        if p["ingredient_id"] is not None and bool(p["is_active"]):
             mapping[p["ingredient_id"]] = {
                 "pump_number":       p["pump_number"],
                 "flow_rate_ml_per_s": p["flow_rate_ml_per_s"],
+                "current_volume_ml": p["current_volume_ml"],
+                "ingredient_name": p["ingredient_name"],
+                "is_active": p["is_active"],
             }
     return mapping
 
@@ -390,11 +481,11 @@ def get_all_recipes(visible_only=True):
     with get_connection() as conn:
         if visible_only:
             rows = conn.execute(
-                "SELECT * FROM recipes WHERE is_visible = 1 ORDER BY category, name"
+                "SELECT * FROM recipes WHERE is_visible = 1 ORDER BY display_order, id"
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM recipes ORDER BY category, name"
+                "SELECT * FROM recipes ORDER BY display_order, id"
             ).fetchall()
 
         result = []
@@ -436,9 +527,13 @@ def create_recipe(name: str, description: str, category: str, price: float, ingr
     Returns new recipe_id.
     """
     with get_connection() as conn:
+        next_display_order = conn.execute(
+            "SELECT COALESCE(MAX(display_order), 0) + 1 FROM recipes"
+        ).fetchone()[0]
         cursor = conn.execute(
-            "INSERT INTO recipes (name, description, category, price, image_url) VALUES (?, ?, ?, ?, ?)",
-            (name.strip(), description, category, price, image_url)
+            """INSERT INTO recipes (name, description, category, price, image_url, display_order)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (name.strip(), description, category, price, image_url, next_display_order)
         )
         recipe_id = cursor.lastrowid
         for ing in ingredients:
@@ -474,9 +569,39 @@ def update_recipe(recipe_id: int, name: str = None, description: str = None,
                 )
 
 
-def delete_recipe(recipe_id: int):
+def delete_recipe(recipe_id: int) -> bool:
+    """Delete a recipe without deleting its immutable order history.
+
+    Existing deployed databases created before ``ON DELETE SET NULL`` was
+    added use SQLite's restrictive default foreign key.  Null the optional
+    ``orders.recipe_id`` explicitly first so both old and new database files
+    preserve historical order snapshots while allowing Admin to remove a
+    recipe.
+    """
     with get_connection() as conn:
-        conn.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,))
+        conn.execute("UPDATE orders SET recipe_id = NULL WHERE recipe_id = ?", (recipe_id,))
+        cursor = conn.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,))
+    return cursor.rowcount > 0
+
+
+def set_recipe_display_order(recipe_ids: list[int]):
+    """Persist a complete, explicit admin-selected recipe menu order."""
+    normalised_ids = [int(recipe_id) for recipe_id in recipe_ids]
+    if len(normalised_ids) != len(set(normalised_ids)):
+        raise ValueError("Recipe order cannot contain duplicate recipes.")
+
+    with get_connection() as conn:
+        existing_ids = {
+            int(row["id"])
+            for row in conn.execute("SELECT id FROM recipes").fetchall()
+        }
+        if set(normalised_ids) != existing_ids:
+            raise ValueError("Recipe order must include every current recipe exactly once.")
+        for position, recipe_id in enumerate(normalised_ids, start=1):
+            conn.execute(
+                "UPDATE recipes SET display_order = ? WHERE id = ?",
+                (position, recipe_id),
+            )
 
 
 # ─────────────────────────────────────────────

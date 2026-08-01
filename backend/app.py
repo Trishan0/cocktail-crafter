@@ -43,6 +43,13 @@ def _is_powered_on() -> bool:
 def _power_state_payload() -> dict:
     return {"powered_on": _is_powered_on()}
 
+
+def _connection_error(state: dict) -> str | None:
+    """Return the connection prerequisite that currently prevents an ORDER."""
+    if not state.get("connected"):
+        return "ESP32 is not connected. Please contact staff."
+    return None
+
 def _swap_controller(simulator: bool):
     """
     Stop the current controller, switch mode, and start a new one.
@@ -90,6 +97,29 @@ def _push_event(event_type: str, data: dict):
             _sse_clients.remove(q)
 
 
+def _pump_inventory_payload() -> dict:
+    pumps = db.get_all_pumps()
+    margin = float(config.LIQUID_RESERVE_MARGIN_ML)
+    enriched = [
+        {
+            **pump,
+            "orderable_volume_ml": max(0.0, float(pump.get("current_volume_ml") or 0) - margin),
+        }
+        for pump in pumps
+    ]
+    return {"pumps": enriched, "reserve_margin_ml": margin}
+
+
+def _push_inventory_event():
+    """Keep the kiosk and an open Admin panel in sync after any volume change."""
+    try:
+        _push_event("inventory", _pump_inventory_payload())
+    except Exception as exc:
+        # A UI refresh failure must never turn an already-submitted order into
+        # an HTTP error or alter its inventory reservation.
+        print(f"[APP] Could not publish inventory update: {exc}")
+
+
 def _on_status_change(state: dict):
     """Called by hardware_controller when the machine sends a STATUS update."""
     _push_event("status", {
@@ -97,13 +127,17 @@ def _on_status_change(state: dict):
         "progress":       state["progress"],
         "message":        state["message"],
         "order_id":       state["current_order_id"],
+        "connected":      state.get("connected", False),
+        "firmware_ready": state.get("firmware_ready", False),
+        "required_glass": state.get("required_glass"),
+        "order_volume_ml": state.get("order_volume_ml"),
         "powered_on":     _is_powered_on(),
     })
     order_id = state.get("current_order_id")
     if order_id:
-        if state["machine_status"] == "idle":
-            # Only mark done if the machine successfully reached idle
-            # and it wasn't already marked aborted/error.
+        if state["machine_status"] == "done":
+            # The target firmware's drink/ready event is the completed-order
+            # signal.  Cleaning is a separate post-customer hand-off phase.
             order = db.get_order_by_id(order_id)
             if order and order["status"] == "pending":
                 recipe_manager.complete_order(order_id, "done")
@@ -149,6 +183,8 @@ def stream():
             "fluid_lines_primed": state.get("fluid_lines_primed"),
             "connected":      state["connected"],
             "firmware_ready": state.get("firmware_ready", False),
+            "required_glass": state.get("required_glass"),
+            "order_volume_ml": state.get("order_volume_ml"),
             "powered_on":     _is_powered_on(),
         })
         yield f"event: init\ndata: {init_data}\n\n"
@@ -216,7 +252,12 @@ def api_menu():
     """Return visible recipes for the customer drink menu."""
     try:
         menu = recipe_manager.get_menu()
-        return jsonify({"drinks": menu})
+        # Prices are staff-managed display information. Keep them out of the
+        # customer response by default, not merely hidden with CSS.
+        show_prices = bool(db.get_setting("show_drink_prices", False))
+        if not show_prices:
+            menu = [{key: value for key, value in drink.items() if key != "price"} for drink in menu]
+        return jsonify({"drinks": menu, "show_prices": show_prices})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -230,9 +271,9 @@ def api_place_order():
     Flow:
       1. Resolve recipe → pump commands (with duration_ms)
       2. Check machine is idle
-      3. Check only the recipe's required pump levels and volume estimates
-      4. Save order to DB
-      5. Send ORDER command to ESP32 via controller
+      3. Check each required raw level sensor and tracked volume + 15 ml reserve
+      4. Atomically deduct the recipe amounts and save the order
+      5. Send ORDER to ESP32; restore the deduction if the send fails
       6. Poll the verified IR sensors after the initialized response; send
          START automatically only when a valid glass is detected.
     """
@@ -248,6 +289,9 @@ def api_place_order():
 
     # Check machine is free — only accept orders from idle (or post-error/abort)
     state = _controller.get_state()
+    connection_error = _connection_error(state)
+    if connection_error:
+        return jsonify({"error": connection_error}), 503
     if not ms.can_accept_order(state["machine_status"]):
         return jsonify({
             "error": f"Machine is busy ({state['machine_status']}). Please wait."
@@ -261,20 +305,29 @@ def api_place_order():
     if error:
         return jsonify({"error": error}), status_code
 
-    order = recipe_manager.persist_prepared_order(prepared_order)
+    inventory_error = recipe_manager.reserve_liquid_inventory(prepared_order["pump_commands"])
+    if inventory_error:
+        return jsonify({"error": inventory_error}), 409
 
-    # The firmware owns its persistent feed-line priming state. Do not add
-    # extra per-pump time on the Pi side.
+    order = None
     try:
+        order = recipe_manager.persist_prepared_order(prepared_order)
+        # The firmware owns its persistent feed-line priming state. Do not add
+        # extra per-pump time on the Pi side.
         _controller.send_order(
             order_id=order["order_id"],
             recipe_name=order["recipe_name"],
             pump_commands=order["pump_commands"],
             ice=ice,
+            total_volume_ml=order["total_volume_ml"],
         )
     except Exception as exc:
-        recipe_manager.complete_order(order["order_id"], "error")
+        recipe_manager.restore_liquid_inventory(prepared_order["pump_commands"])
+        if order:
+            recipe_manager.complete_order(order["order_id"], "error")
+        _push_inventory_event()
         return jsonify({"error": f"Could not initialize order: {exc}"}), 503
+    _push_inventory_event()
     # Notify all UI clients immediately
     _push_event("order_placed", {
         "order_id":    order["order_id"],
@@ -308,6 +361,9 @@ def api_place_custom_order():
 
     # Check machine is free
     state = _controller.get_state()
+    connection_error = _connection_error(state)
+    if connection_error:
+        return jsonify({"error": connection_error}), 503
     if not ms.can_accept_order(state["machine_status"]):
         return jsonify({
             "error": f"Machine is busy ({state['machine_status']}). Please wait."
@@ -321,18 +377,27 @@ def api_place_custom_order():
     if error:
         return jsonify({"error": error}), status_code
 
-    order = recipe_manager.persist_prepared_order(prepared_order)
+    inventory_error = recipe_manager.reserve_liquid_inventory(prepared_order["pump_commands"])
+    if inventory_error:
+        return jsonify({"error": inventory_error}), 409
 
+    order = None
     try:
+        order = recipe_manager.persist_prepared_order(prepared_order)
         _controller.send_order(
             order_id=order["order_id"],
             recipe_name=order["recipe_name"],
             pump_commands=order["pump_commands"],
             ice=ice,
+            total_volume_ml=order["total_volume_ml"],
         )
     except Exception as exc:
-        recipe_manager.complete_order(order["order_id"], "error")
+        recipe_manager.restore_liquid_inventory(prepared_order["pump_commands"])
+        if order:
+            recipe_manager.complete_order(order["order_id"], "error")
+        _push_inventory_event()
         return jsonify({"error": f"Could not initialize order: {exc}"}), 503
+    _push_inventory_event()
     _push_event("order_placed", {
         "order_id":    order["order_id"],
         "recipe_name": order["recipe_name"],
@@ -379,6 +444,8 @@ def api_status():
         "upper_sensor":   state.get("upper_sensor", False),
         "liquid_levels":  state.get("liquid_levels", {}),
         "fluid_lines_primed": state.get("fluid_lines_primed"),
+        "required_glass": state.get("required_glass"),
+        "order_volume_ml": state.get("order_volume_ml"),
         "last_seen":      state["last_seen"],
         "firmware_ready": state.get("firmware_ready", False),
         "powered_on":     _is_powered_on(),
@@ -475,10 +542,15 @@ def api_delete_ingredient(ingredient_id):
 #  ADMIN API — Pumps
 # ─────────────────────────────────────────────
 
+def _pump_configuration_busy_error():
+    if _controller is not None and _controller.get_state()["machine_status"] != "idle":
+        return jsonify({"error": "Pump and bottle settings cannot be changed while an order or maintenance operation is active."}), 409
+    return None
+
 @app.route("/api/admin/pumps", methods=["GET"])
 def api_get_pumps():
     """Return all 6 pump slots with their current assignment."""
-    return jsonify({"pumps": db.get_all_pumps()})
+    return jsonify(_pump_inventory_payload())
 
 
 @app.route("/api/admin/pumps/<int:pump_number>/assign", methods=["POST"])
@@ -487,6 +559,9 @@ def api_assign_pump(pump_number):
     Assign an ingredient to a pump.
     Body: {"ingredient_id": 3}   (or null to unassign)
     """
+    busy_error = _pump_configuration_busy_error()
+    if busy_error:
+        return busy_error
     data          = request.get_json() or {}
     ingredient_id = data.get("ingredient_id")   # None = unassign
     try:
@@ -502,6 +577,9 @@ def api_update_flowrate(pump_number):
     Update a pump's calibrated flow rate.
     Body: {"flow_rate_ml_per_s": 1.8}
     """
+    busy_error = _pump_configuration_busy_error()
+    if busy_error:
+        return busy_error
     data      = request.get_json() or {}
     flow_rate = data.get("flow_rate_ml_per_s")
     if flow_rate is None or float(flow_rate) <= 0:
@@ -515,6 +593,9 @@ def api_update_pump_inventory(pump_number):
     """Set a pump's manually measured current bottle volume."""
     if not 1 <= pump_number <= config.NUM_PUMPS:
         return jsonify({"error": f"pump_number must be between 1 and {config.NUM_PUMPS}."}), 400
+    busy_error = _pump_configuration_busy_error()
+    if busy_error:
+        return busy_error
 
     data = request.get_json() or {}
     try:
@@ -526,7 +607,14 @@ def api_update_pump_inventory(pump_number):
         return jsonify({"error": "Current volume must be a non-negative finite number."}), 400
 
     db.update_pump_inventory(pump_number, current_volume_ml)
-    return jsonify({"success": True})
+    _push_inventory_event()
+    return jsonify({
+        "success": True,
+        "pump_number": pump_number,
+        "current_volume_ml": current_volume_ml,
+        "orderable_volume_ml": max(0.0, current_volume_ml - config.LIQUID_RESERVE_MARGIN_ML),
+        "reserve_margin_ml": config.LIQUID_RESERVE_MARGIN_ML,
+    })
 
 
 @app.route("/api/admin/hardware/liquid-level-config", methods=["GET", "PUT"])
@@ -548,6 +636,47 @@ def api_liquid_level_config():
     return jsonify({"success": True, "above_value": above_value})
 
 
+@app.route("/api/admin/hardware/glass-capacity", methods=["GET", "PUT"])
+def api_glass_capacity_config():
+    """Read or set the safe liquid capacity of the physically small glass."""
+    if request.method == "GET":
+        raw_capacity = db.get_setting("small_glass_max_ml", config.DEFAULT_SMALL_GLASS_MAX_ML)
+        try:
+            capacity = float(raw_capacity)
+        except (TypeError, ValueError):
+            capacity = float(config.DEFAULT_SMALL_GLASS_MAX_ML)
+        return jsonify({"small_glass_max_ml": capacity})
+
+    data = request.get_json() or {}
+    try:
+        capacity = float(data["small_glass_max_ml"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "small_glass_max_ml is required."}), 400
+    if not math.isfinite(capacity) or not 0 < capacity <= config.MAX_ML_TOTAL:
+        return jsonify({
+            "error": f"small_glass_max_ml must be greater than 0 and no more than {config.MAX_ML_TOTAL} ml."
+        }), 400
+
+    db.set_setting("small_glass_max_ml", capacity)
+    return jsonify({"success": True, "small_glass_max_ml": capacity})
+
+
+@app.route("/api/admin/display/price-visibility", methods=["GET", "PUT"])
+def api_price_visibility_config():
+    """Read or change whether prices appear on the customer kiosk."""
+    if request.method == "GET":
+        return jsonify({"show_prices": bool(db.get_setting("show_drink_prices", False))})
+
+    data = request.get_json(silent=True) or {}
+    show_prices = data.get("show_prices")
+    if not isinstance(show_prices, bool):
+        return jsonify({"error": "show_prices must be true or false."}), 400
+
+    db.set_setting("show_drink_prices", show_prices)
+    _push_event("display_settings", {"show_prices": show_prices})
+    return jsonify({"success": True, "show_prices": show_prices})
+
+
 # ─────────────────────────────────────────────
 #  ADMIN API — Recipes
 # ─────────────────────────────────────────────
@@ -556,6 +685,21 @@ def api_liquid_level_config():
 def api_admin_get_recipes():
     """Return ALL recipes (visible and hidden) for the admin panel."""
     return jsonify({"recipes": db.get_all_recipes(visible_only=False)})
+
+
+@app.route("/api/admin/recipes/order", methods=["PUT"])
+def api_set_recipe_order():
+    """Persist the complete customer-menu ordering chosen in Admin."""
+    data = request.get_json(silent=True) or {}
+    recipe_ids = data.get("recipe_ids")
+    if not isinstance(recipe_ids, list):
+        return jsonify({"error": "recipe_ids must be an array."}), 400
+    try:
+        db.set_recipe_display_order(recipe_ids)
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    _push_event("menu_updated", {"reason": "recipe_order"})
+    return jsonify({"success": True, "recipe_ids": recipe_ids})
 
 
 @app.route("/api/admin/recipes", methods=["POST"])
@@ -629,8 +773,9 @@ def api_update_recipe(recipe_id):
 
 @app.route("/api/admin/recipes/<int:recipe_id>", methods=["DELETE"])
 def api_delete_recipe(recipe_id):
-    """Delete a recipe permanently."""
-    db.delete_recipe(recipe_id)
+    """Delete an editable recipe while retaining historical orders."""
+    if not db.delete_recipe(recipe_id):
+        return jsonify({"error": "Recipe not found."}), 404
     return jsonify({"success": True})
 
 
@@ -810,6 +955,8 @@ def create_app():
     # Seed simulator_mode from config if not already in DB
     if db.get_setting("simulator_mode") is None:
         db.set_setting("simulator_mode", "1" if config.SIMULATOR_MODE else "0")
+    if db.get_setting("small_glass_max_ml") is None:
+        db.set_setting("small_glass_max_ml", config.DEFAULT_SMALL_GLASS_MAX_ML)
 
     # Instantiate the correct controller based on config.SIMULATOR_MODE
     _controller = hardware_controller.create_controller()

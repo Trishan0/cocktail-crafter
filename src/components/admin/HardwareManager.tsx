@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Activity, ShieldAlert, Droplet, Cpu, Radio, Power, RefreshCw, Terminal } from "lucide-react";
+import { Activity, ShieldAlert, Droplet, Cpu, Radio, Power, RefreshCw, Terminal, GlassWater } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cleanSystem, abortOrder, getAdminEvents, getLiquidLevelConfig, getPowerState, getStatus, queryHardware, sendHardwareDebugCommand, setLiquidLevelConfig, setPowerState } from "@/lib/api";
+import { cleanSystem, abortOrder, getAdminEvents, getGlassCapacityConfig, getLiquidLevelConfig, getPowerState, getStatus, queryHardware, sendHardwareDebugCommand, setGlassCapacityConfig, setLiquidLevelConfig, setPowerState } from "@/lib/api";
 
 interface HardwareManagerProps {
   machineStatus: string;
@@ -30,6 +31,9 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
   const [levelError, setLevelError] = useState<string | null>(null);
   const [levelAboveValue, setLevelAboveValue] = useState<number | null>(null);
   const [savingLevelPolarity, setSavingLevelPolarity] = useState(false);
+  const [smallGlassCapacity, setSmallGlassCapacity] = useState("");
+  const [savingGlassCapacity, setSavingGlassCapacity] = useState(false);
+  const [glassCapacityError, setGlassCapacityError] = useState<string | null>(null);
   const [debugCommand, setDebugCommand] = useState<string | null>(null);
   const [pendingDebugCommand, setPendingDebugCommand] = useState<string | null>(null);
   const [debugOutput, setDebugOutput] = useState<string[]>([]);
@@ -52,6 +56,9 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
       .then(d => {
         setLevelAboveValue(d.above_value === 0 || d.above_value === 1 ? d.above_value : null);
       })
+      .catch(console.error);
+    getGlassCapacityConfig()
+      .then(d => setSmallGlassCapacity(String(d.small_glass_max_ml ?? "")))
       .catch(console.error);
   }, []);
 
@@ -160,6 +167,24 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
       setLevelError(e.message || "Could not save the shared sensor calibration.");
     } finally {
       setSavingLevelPolarity(false);
+    }
+  };
+
+  const handleSaveGlassCapacity = async () => {
+    const capacity = Number(smallGlassCapacity);
+    if (!Number.isFinite(capacity) || capacity <= 0 || capacity > 300) {
+      setGlassCapacityError("Enter a capacity between 1 and 300 ml.");
+      return;
+    }
+    setSavingGlassCapacity(true);
+    setGlassCapacityError(null);
+    try {
+      const data = await setGlassCapacityConfig(capacity);
+      setSmallGlassCapacity(String(data.small_glass_max_ml));
+    } catch (e: any) {
+      setGlassCapacityError(e.message || "Could not save the small-glass capacity.");
+    } finally {
+      setSavingGlassCapacity(false);
     }
   };
 
@@ -411,9 +436,47 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Fill a bottle above the fixed line, press Check Levels, then save the matching value once. Every order uses this shared calibration plus the current bottle amount saved in Pump Configuration.
+            Fill a bottle above the fixed line, press Check Levels, then save the matching value once. Before ORDER, the Pi requires both this physical reading and enough tracked bottle volume for the recipe plus the 15 ml reserve configured by the backend.
           </p>
           {levelError && <p className="mt-3 text-sm text-red-400">{levelError}</p>}
+        </div>
+
+        {/* The Pi compares each recipe total with this admin-calibrated value before START. */}
+        <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md">
+          <div className="flex gap-4 md:gap-6 items-center">
+            <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-violet-500/20 text-violet-300 border-2 border-violet-500/30 flex items-center justify-center">
+              <GlassWater className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+            <div>
+              <h3 className="text-xl md:text-2xl font-display font-light mb-1">Small Glass Capacity</h3>
+              <p className="text-xs md:text-sm text-muted-foreground max-w-xl">
+                Drinks above this liquid volume require the large-glass IR pattern. The Raspberry Pi checks this before it sends START.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-col sm:flex-row sm:items-end gap-3 max-w-md">
+            <label className="flex-1 text-xs text-muted-foreground">
+              Safe liquid capacity (ml)
+              <Input
+                className="mt-2"
+                type="number"
+                min="1"
+                max="300"
+                step="1"
+                value={smallGlassCapacity}
+                onChange={(event) => setSmallGlassCapacity(event.target.value)}
+                disabled={savingGlassCapacity}
+              />
+            </label>
+            <Button
+              onClick={handleSaveGlassCapacity}
+              disabled={savingGlassCapacity}
+              className="rounded-full"
+            >
+              {savingGlassCapacity ? "Saving..." : "Save Capacity"}
+            </Button>
+          </div>
+          {glassCapacityError && <p className="mt-3 text-sm text-red-400">{glassCapacityError}</p>}
         </div>
 
         {/* Maintenance / Cleaning */}

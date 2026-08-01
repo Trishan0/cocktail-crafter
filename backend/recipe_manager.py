@@ -7,7 +7,6 @@ from the pump's calibrated flow rate), validates availability, and
 manages order lifecycle.
 """
 
-import json
 import math
 
 import db
@@ -99,6 +98,12 @@ def prepare_order(recipe_id: int):
     if not recipe:
         return None, "Recipe not found."
 
+    # Saved recipes need the same physical-volume validation as custom ones.
+    # The total is later used for the glass-capacity interlock.
+    error = validate_recipe_ingredients(recipe["ingredients"])
+    if error:
+        return None, error
+
     commands, error = resolve_pump_commands(recipe["ingredients"])
     if error:
         return None, error
@@ -107,6 +112,7 @@ def prepare_order(recipe_id: int):
         "recipe_id": recipe_id,
         "recipe_name": recipe["name"],
         "pump_commands": commands,
+        "total_volume_ml": sum(float(ingredient["amount_ml"]) for ingredient in recipe["ingredients"]),
         "price": recipe.get("price", 0.0),
         "ingredients_snapshot": recipe.get("ingredients", []),
     }, None
@@ -130,6 +136,7 @@ def prepare_custom_order(ingredients: list):
         "recipe_id": None,
         "recipe_name": "Custom Drink",
         "pump_commands": commands,
+        "total_volume_ml": sum(float(ingredient["amount_ml"]) for ingredient in canonical_ingredients),
         "price": 0.0,
         "ingredients_snapshot": canonical_ingredients,
     }, None
@@ -153,8 +160,8 @@ def validate_liquid_availability(pump_commands: list, liquid_levels: dict):
     ``CHECK_LEVELS`` always returns six raw values, but unrelated pumps are
     intentionally ignored. A pump must (1) physically read above the one fixed
     sensor line shared by all bottles and (2) have enough admin-tracked volume
-    for this drink. The physical line is not an additional amount that must
-    remain after dispensing.
+    for this drink plus the fixed reserve margin. The raw sensor and tracked
+    estimate are independent checks; both must pass before an ORDER is sent.
     """
     pump_configs = {int(p["pump_number"]): p for p in db.get_all_pumps()}
     above_value = db.get_setting("liquid_level_above_value")
@@ -170,6 +177,7 @@ def validate_liquid_availability(pump_commands: list, liquid_levels: dict):
 
         ingredient = pump.get("ingredient_name") or f"Pump {pump_number}"
         current_ml = float(pump.get("current_volume_ml") or 0)
+        minimum_ml = required_ml + config.LIQUID_RESERVE_MARGIN_ML
         raw_level = liquid_levels.get(f"ls{pump_number}")
 
         if above_value not in (0, 1):
@@ -179,13 +187,42 @@ def validate_liquid_availability(pump_commands: list, liquid_levels: dict):
         elif raw_level != above_value:
             errors.append(f"{ingredient} (pump {pump_number}) is below its fixed liquid-level sensor line.")
 
-        if current_ml < required_ml:
+        if current_ml < minimum_ml:
             errors.append(
-                f"{ingredient} (pump {pump_number}) has an estimated {current_ml:g} ml, "
-                f"but this drink needs {required_ml:g} ml."
+                f"{ingredient} (pump {pump_number}) has {current_ml:g} ml tracked, but this "
+                f"drink needs {required_ml:g} ml plus the {config.LIQUID_RESERVE_MARGIN_ML:g} ml "
+                f"safety reserve ({minimum_ml:g} ml total). Refill the bottle or update its "
+                "volume in Admin → Pumps."
             )
 
     return "; ".join(errors) if errors else None
+
+
+def reserve_liquid_inventory(pump_commands: list):
+    """Atomically deduct a placed order while preserving the safety margin."""
+    shortages = db.reserve_pump_inventory(
+        pump_commands,
+        config.LIQUID_RESERVE_MARGIN_ML,
+    )
+    if not shortages:
+        return None
+
+    errors = []
+    for shortage in shortages:
+        errors.append(
+            f"{shortage['ingredient']} (pump {shortage['pump']}) has "
+            f"{shortage['current_ml']:g} ml tracked, but this drink needs "
+            f"{shortage['required_ml']:g} ml plus the "
+            f"{config.LIQUID_RESERVE_MARGIN_ML:g} ml safety reserve "
+            f"({shortage['minimum_ml']:g} ml total). Refill the bottle or update its "
+            "volume in Admin → Pumps."
+        )
+    return "; ".join(errors)
+
+
+def restore_liquid_inventory(pump_commands: list):
+    """Restore a reservation when the Pi could not send the order."""
+    db.restore_pump_inventory(pump_commands)
 
 
 def place_order(recipe_id: int):
@@ -212,15 +249,11 @@ def place_custom_order(ingredients: list):
 # ─────────────────────────────────────────────
 
 def complete_order(order_id: int, status: str = "done"):
-    """Mark an order as done, aborted, or error."""
-    if status == "done":
-        order = db.get_order_by_id(order_id)
-        if order and order["status"] == "pending":
-            try:
-                db.deduct_pump_inventory(json.loads(order["pump_commands"] or "[]"))
-            except (TypeError, ValueError):
-                # Status completion must not fail if an old order has an invalid snapshot.
-                pass
+    """Mark an order as done, aborted, or error.
+
+    Inventory is reserved when the order is placed, before physical movement,
+    so completion must never deduct it a second time.
+    """
     db.update_order_status(order_id, status)
 
 
@@ -239,19 +272,34 @@ def get_menu():
     """
     recipes = db.get_all_recipes(visible_only=True)
 
-    # Enrich with pump-availability check
+    # Enrich with assignment and Pi-tracked volume availability. The physical
+    # fixed-level sensor is still checked synchronously when Confirm is pressed.
     pump_map = db.get_pump_assignments()
-    assigned_ingredient_ids = set(pump_map.keys())
 
     enriched = []
     for r in recipes:
-        # Check if ALL ingredients in this recipe have a pump assigned
-        all_available = all(
-            ing["id"] in assigned_ingredient_ids
-            for ing in r["ingredients"]
-            if ing["amount_ml"] > 0
-        )
-        enriched.append({**r, "available": all_available})
+        availability_errors = []
+        for ingredient in r["ingredients"]:
+            amount_ml = float(ingredient["amount_ml"])
+            if amount_ml <= 0:
+                continue
+            pump = pump_map.get(ingredient["id"])
+            if not pump or not bool(pump.get("is_active")):
+                availability_errors.append(f"{ingredient['name']} is not assigned to an active pump.")
+                continue
+            current_ml = float(pump.get("current_volume_ml") or 0)
+            minimum_ml = amount_ml + config.LIQUID_RESERVE_MARGIN_ML
+            if current_ml < minimum_ml:
+                availability_errors.append(
+                    f"{ingredient['name']} needs {minimum_ml:g} ml available "
+                    f"({amount_ml:g} ml + {config.LIQUID_RESERVE_MARGIN_ML:g} ml reserve); "
+                    f"{current_ml:g} ml is tracked."
+                )
+        enriched.append({
+            **r,
+            "available": not availability_errors,
+            "availability_reason": " ".join(availability_errors) or None,
+        })
 
     return enriched
 
