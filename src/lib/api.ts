@@ -56,6 +56,12 @@ export const setLiquidLevelConfig = (aboveValue: 0 | 1) =>
     method: "PUT",
     body: JSON.stringify({ above_value: aboveValue }),
   });
+export const getGlassCapacityConfig = () => fetchApi("/admin/hardware/glass-capacity");
+export const setGlassCapacityConfig = (smallGlassMaxMl: number) =>
+  fetchApi("/admin/hardware/glass-capacity", {
+    method: "PUT",
+    body: JSON.stringify({ small_glass_max_ml: smallGlassMaxMl }),
+  });
 // Admin - Recipes
 export const getAdminRecipes = () => fetchApi("/admin/recipes");
 export const createRecipe = (recipe: any) => fetchApi("/admin/recipes", { method: "POST", body: JSON.stringify(recipe) });

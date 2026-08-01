@@ -381,6 +381,26 @@ Values are raw electrical states:
 0 = LOW
 ```
 
+### Raspberry Pi glass-capacity policy
+
+The ESP32 protocol remains unchanged: it reports only these two raw sensor
+values and receives the normal `ORDER` JSON followed by `START`. The Raspberry
+Pi application classifies the installed sensor pattern and makes the capacity
+decision before it sends `START`:
+
+- `upper=1, lower=1`: no glass
+- `upper=1, lower=0`: small glass
+- `upper=0, lower=0`: large glass
+- `upper=0, lower=1`: inconsistent reading / sensor error
+
+For each order, the Pi calculates the total liquid volume from the recipe. It
+compares that volume with the Admin Hardware setting `small_glass_max_ml`
+(initial default: 170 ml). If a small glass is detected for an order above that
+safe capacity, the Pi stays in `waiting_glass`, prompts the user to replace the
+glass, and does **not** send `START`. A large glass or a sufficiently small
+order may proceed. `total_volume_ml` is Pi-side order metadata; it is not an
+`ORDER` JSON field in this firmware protocol.
+
 ---
 
 ## 14. CHECK_LINE_STATE

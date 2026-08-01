@@ -106,6 +106,8 @@ def _on_status_change(state: dict):
         "order_id":       state["current_order_id"],
         "connected":      state.get("connected", False),
         "firmware_ready": state.get("firmware_ready", False),
+        "required_glass": state.get("required_glass"),
+        "order_volume_ml": state.get("order_volume_ml"),
         "powered_on":     _is_powered_on(),
     })
     order_id = state.get("current_order_id")
@@ -158,6 +160,8 @@ def stream():
             "fluid_lines_primed": state.get("fluid_lines_primed"),
             "connected":      state["connected"],
             "firmware_ready": state.get("firmware_ready", False),
+            "required_glass": state.get("required_glass"),
+            "order_volume_ml": state.get("order_volume_ml"),
             "powered_on":     _is_powered_on(),
         })
         yield f"event: init\ndata: {init_data}\n\n"
@@ -283,6 +287,7 @@ def api_place_order():
             recipe_name=order["recipe_name"],
             pump_commands=order["pump_commands"],
             ice=ice,
+            total_volume_ml=order["total_volume_ml"],
         )
     except Exception as exc:
         recipe_manager.complete_order(order["order_id"], "error")
@@ -344,6 +349,7 @@ def api_place_custom_order():
             recipe_name=order["recipe_name"],
             pump_commands=order["pump_commands"],
             ice=ice,
+            total_volume_ml=order["total_volume_ml"],
         )
     except Exception as exc:
         recipe_manager.complete_order(order["order_id"], "error")
@@ -394,6 +400,8 @@ def api_status():
         "upper_sensor":   state.get("upper_sensor", False),
         "liquid_levels":  state.get("liquid_levels", {}),
         "fluid_lines_primed": state.get("fluid_lines_primed"),
+        "required_glass": state.get("required_glass"),
+        "order_volume_ml": state.get("order_volume_ml"),
         "last_seen":      state["last_seen"],
         "firmware_ready": state.get("firmware_ready", False),
         "powered_on":     _is_powered_on(),
@@ -561,6 +569,31 @@ def api_liquid_level_config():
         return jsonify({"error": "above_value must be 0 (LOW) or 1 (HIGH)."}), 400
     db.set_setting("liquid_level_above_value", above_value)
     return jsonify({"success": True, "above_value": above_value})
+
+
+@app.route("/api/admin/hardware/glass-capacity", methods=["GET", "PUT"])
+def api_glass_capacity_config():
+    """Read or set the safe liquid capacity of the physically small glass."""
+    if request.method == "GET":
+        raw_capacity = db.get_setting("small_glass_max_ml", config.DEFAULT_SMALL_GLASS_MAX_ML)
+        try:
+            capacity = float(raw_capacity)
+        except (TypeError, ValueError):
+            capacity = float(config.DEFAULT_SMALL_GLASS_MAX_ML)
+        return jsonify({"small_glass_max_ml": capacity})
+
+    data = request.get_json() or {}
+    try:
+        capacity = float(data["small_glass_max_ml"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"error": "small_glass_max_ml is required."}), 400
+    if not math.isfinite(capacity) or not 0 < capacity <= config.MAX_ML_TOTAL:
+        return jsonify({
+            "error": f"small_glass_max_ml must be greater than 0 and no more than {config.MAX_ML_TOTAL} ml."
+        }), 400
+
+    db.set_setting("small_glass_max_ml", capacity)
+    return jsonify({"success": True, "small_glass_max_ml": capacity})
 
 
 # ─────────────────────────────────────────────
@@ -825,6 +858,8 @@ def create_app():
     # Seed simulator_mode from config if not already in DB
     if db.get_setting("simulator_mode") is None:
         db.set_setting("simulator_mode", "1" if config.SIMULATOR_MODE else "0")
+    if db.get_setting("small_glass_max_ml") is None:
+        db.set_setting("small_glass_max_ml", config.DEFAULT_SMALL_GLASS_MAX_ML)
 
     # Instantiate the correct controller based on config.SIMULATOR_MODE
     _controller = hardware_controller.create_controller()

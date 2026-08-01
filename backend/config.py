@@ -38,5 +38,9 @@ MAX_ML_PER_INGREDIENT = 100   # max ml of any single ingredient per drink
 MIN_ML_PER_INGREDIENT = 5     # below this, snap to 0 (ignore trace amounts)
 MAX_ML_TOTAL          = 300   # max total volume per drink
 
+# Default used only when the database has not yet been initialised. Admin
+# Hardware settings persist the actual small-glass capacity for this machine.
+DEFAULT_SMALL_GLASS_MAX_ML = 170
+
 # ─── Admin ────────────────────────────────────────────
 ADMIN_PIN = "1234"             # default PIN, changeable via API

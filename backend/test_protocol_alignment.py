@@ -27,9 +27,15 @@ class SerialProtocolAlignmentTests(unittest.TestCase):
             hw._state["firmware_ready"] = False
 
         with patch.object(controller, "_send_json") as send_json, patch.object(controller, "_start_order_timeout"):
-            controller.send_order(42, "Protocol test", [{"pump": 1, "duration_ms": 1000}])
+            controller.send_order(
+                42,
+                "Protocol test",
+                [{"pump": 1, "duration_ms": 1000}],
+                total_volume_ml=50,
+            )
 
         send_json.assert_called_once()
+        self.assertNotIn("total_volume_ml", send_json.call_args.args[0])
 
     def test_wire_lines_are_bounded_and_single_line(self):
         controller = hw.SerialController()

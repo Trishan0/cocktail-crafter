@@ -68,6 +68,8 @@ function KioskApp() {
   const [connected, setConnected] = useState(false);
   const [lowerSensor, setLowerSensor] = useState<number | null>(null);
   const [upperSensor, setUpperSensor] = useState<number | null>(null);
+  const [requiredGlass, setRequiredGlass] = useState<string | null>(null);
+  const [orderVolumeMl, setOrderVolumeMl] = useState<number | null>(null);
   // Tracks the firmware's explicit CLEAN sequence.
   const inCleanCycle = useRef(false);
 
@@ -102,6 +104,8 @@ function KioskApp() {
       setGlassState(data.glass_state);
       if ("lower_sensor" in data) setLowerSensor(data.lower_sensor ?? null);
       if ("upper_sensor" in data) setUpperSensor(data.upper_sensor ?? null);
+      if ("required_glass" in data) setRequiredGlass(data.required_glass ?? null);
+      if ("order_volume_ml" in data) setOrderVolumeMl(data.order_volume_ml ?? null);
     });
 
     evtSource.addEventListener("status", (e) => {
@@ -112,6 +116,8 @@ function KioskApp() {
       if (typeof data.connected === "boolean") setConnected(data.connected);
       setProgress(data.progress || 0);
       setMessage(data.message || "");
+      if ("required_glass" in data) setRequiredGlass(data.required_glass ?? null);
+      if ("order_volume_ml" in data) setOrderVolumeMl(data.order_volume_ml ?? null);
 
       if (status === "waiting_glass") {
         inCleanCycle.current = false;
@@ -212,7 +218,7 @@ function KioskApp() {
     selected, setSelectedId, mode, setMode, drinks, availablePumps,
     customIngredients, setCustomIngredients, wantsIce, setWantsIce,
     machineStatus, progress, message, glassState, lowerSensor, upperSensor, poweredOn,
-    connected, stationReady, totalMl,
+    connected, stationReady, totalMl, requiredGlass, orderVolumeMl,
     now, go, handleOrder, isSubmitting, orderError, setOrderError
   };
 
@@ -622,17 +628,24 @@ function Review({ selected, mode, customIngredients, wantsIce, now, go, handleOr
   );
 }
 
-function WaitingGlass({ now, glassState, lowerSensor, upperSensor, totalMl }: any) {
-  const requiresLarge = totalMl > 200;
+function WaitingGlass({ now, glassState, lowerSensor, upperSensor, totalMl, requiredGlass, orderVolumeMl, message }: any) {
+  const drinkVolumeMl = Number.isFinite(orderVolumeMl) ? orderVolumeMl : totalMl;
+  const requiresLarge = requiredGlass === "large";
   const raw = (value: number | null) => value === null ? "not read" : String(value);
   let title = `Please place a ${requiresLarge ? "LARGE " : ""}glass`;
   let subtitle = "under the dispenser nozzle";
   let ringClass = "is-waiting";
 
   if (glassState === "small_glass") {
-    title = "Small Glass Detected";
-    subtitle = "Starting order...";
-    ringClass = "is-detected";
+    if (requiresLarge) {
+      title = "Large Glass Required";
+      subtitle = message || `This ${drinkVolumeMl} ml drink requires the large glass. Please replace it.`;
+      ringClass = "is-sensor-error";
+    } else {
+      title = "Small Glass Detected";
+      subtitle = "Starting order...";
+      ringClass = "is-detected";
+    }
   } else if (glassState === "large_glass") {
     title = "Large Glass Detected";
     subtitle = "Starting order...";

@@ -99,6 +99,12 @@ def prepare_order(recipe_id: int):
     if not recipe:
         return None, "Recipe not found."
 
+    # Saved recipes need the same physical-volume validation as custom ones.
+    # The total is later used for the glass-capacity interlock.
+    error = validate_recipe_ingredients(recipe["ingredients"])
+    if error:
+        return None, error
+
     commands, error = resolve_pump_commands(recipe["ingredients"])
     if error:
         return None, error
@@ -107,6 +113,7 @@ def prepare_order(recipe_id: int):
         "recipe_id": recipe_id,
         "recipe_name": recipe["name"],
         "pump_commands": commands,
+        "total_volume_ml": sum(float(ingredient["amount_ml"]) for ingredient in recipe["ingredients"]),
         "price": recipe.get("price", 0.0),
         "ingredients_snapshot": recipe.get("ingredients", []),
     }, None
@@ -130,6 +137,7 @@ def prepare_custom_order(ingredients: list):
         "recipe_id": None,
         "recipe_name": "Custom Drink",
         "pump_commands": commands,
+        "total_volume_ml": sum(float(ingredient["amount_ml"]) for ingredient in canonical_ingredients),
         "price": 0.0,
         "ingredients_snapshot": canonical_ingredients,
     }, None
