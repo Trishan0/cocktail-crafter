@@ -563,7 +563,7 @@ function Detail({ selected, now, go, wantsIce, setWantsIce, showPrices }: any) {
   );
 }
 
-function Compose({ now, go, availablePumps, customIngredients, setCustomIngredients, reserveMarginMl }: any) {
+function Compose({ now, go, availablePumps, customIngredients, setCustomIngredients, reserveMarginMl, wantsIce, setWantsIce }: any) {
   const totalMl = customIngredients.reduce((sum: number, i: any) => sum + i.amount_ml, 0);
   const MAX_TOTAL = 300;
   const MAX_PER_ING = 100;
@@ -642,6 +642,11 @@ function Compose({ now, go, availablePumps, customIngredients, setCustomIngredie
       </section>
       <aside className="cc-compose__summary">
         <div><FlaskConical size={78} aria-hidden="true" /><p>Custom Mix</p><span>{customIngredients.length} ingredient{customIngredients.length === 1 ? "" : "s"} selected</span></div>
+        <fieldset className="cc-ice-choice">
+          <legend>Ice</legend>
+          <button type="button" className={!wantsIce ? "is-selected" : ""} onClick={() => setWantsIce(false)}><Snowflake size={24} /> No Ice</button>
+          <button type="button" className={wantsIce ? "is-selected" : ""} onClick={() => setWantsIce(true)}><Snowflake size={24} /> Add Ice</button>
+        </fieldset>
         {isOverLimit && <small>Total exceeds {MAX_TOTAL} ml</small>}
         {isZero && <small>Choose at least one ingredient</small>}
         {inventoryErrors.length > 0 && <small>One or more bottles no longer have enough tracked volume plus the {reserveMarginMl} ml reserve.</small>}
