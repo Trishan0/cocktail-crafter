@@ -33,6 +33,4 @@ dist-ssr
 
 .vercel/
 __pycache__/
-
-docs/reference/Internal_Mechanism_Handoff_and_Data/CocktailCraft_Internal_Mechanism_Complete_Handoff.md
-/docs/reference/Internal_Mechanism_Handoff_and_Data/CocktailCraft_Pi_ESP32_Communication_Protocol.md
+.lovable/
