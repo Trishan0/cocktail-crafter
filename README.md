@@ -17,7 +17,7 @@ CocktailCraft is divided into four coordinated layers:
 | Customer and staff interface | React, TypeScript, Vite, Tailwind CSS | Touchscreen ordering, custom drink composition, preparation status, drink-ready feedback, and administration |
 | Raspberry Pi application | Python, Flask, REST API, Server-Sent Events | Recipe processing, validation, inventory, order history, hardware orchestration, and real-time UI updates |
 | Main real-time controller | ESP32-S3, Arduino, FreeRTOS | Valve, indexer, mixer, sensors, line priming, cleaning, ice sequencing, persistent hardware state, and protocol events |
-| Pump controller | NodeMCU NodeMCU-32S | Direct control of the six ingredient pumps from compact UART commands |
+| Pump controller | NodeMCU-32S (ESP32) | Direct control of the six ingredient pumps from compact UART commands |
 
 ```text
 ┌───────────────────────────────────────────────────────────────────────┐
@@ -72,7 +72,7 @@ CocktailCraft is divided into four coordinated layers:
 ![C++](https://img.shields.io/badge/C++-Firmware-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)
 ![Arduino](https://img.shields.io/badge/Arduino-Framework-00878F?style=for-the-badge&logo=arduino&logoColor=white)
 ![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Main_Controller-E7352C?style=for-the-badge&logo=espressif&logoColor=white)
-![NodeMCU-32S](https://img.shields.io/badge/NodeMCU-32S-Pump_Controller-E7352C?style=for-the-badge&logo=espressif&logoColor=white)
+![NodeMCU-32S](https://img.shields.io/badge/NodeMCU--32S-Pump_Controller-E7352C?style=for-the-badge&logo=espressif&logoColor=white)
 ![FreeRTOS](https://img.shields.io/badge/FreeRTOS-Parallel_Ice_Task-7A1FA2?style=for-the-badge)
 
 ### Hardware and Communication
@@ -428,7 +428,7 @@ The ice mechanism has its own FreeRTOS task and command/event queues. This allow
 
 ## Pump Controller
 
-The NodeMCU NodeMCU-32S receives compact UART commands from the ESP32-S3.
+The NodeMCU-32S, based on the ESP32 platform, receives compact UART commands from the ESP32-S3.
 
 ```text
 M1F  → Pump 1 forward
@@ -594,8 +594,7 @@ The active production-oriented firmware is under `firmware/`. Files under `legac
 - Python 3.12 or later
 - `uv` or another Python environment manager
 - Arduino IDE or PlatformIO
-- ESP32-S3 Arduino board support
-- NodeMCU-32S Arduino board support
+- Espressif ESP32 Arduino board support for both the ESP32-S3 and NodeMCU-32S
 - Required Arduino libraries listed by the firmware includes
 
 ### Frontend
