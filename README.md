@@ -1,4 +1,4 @@
-# CocktailCraft - Automated Cocktail Machine
+# CocktailCraft — Automated Cocktail Machine
 
 CocktailCraft is a fully integrated automated cocktail-making system designed for social gatherings and private events. A customer selects a signature recipe or creates a custom drink from a touchscreen, and the machine handles ingredient validation, glass detection, timed liquid dispensing, mixing, optional ice, final pouring, syrup topping, completion feedback, and cleaning.
 
@@ -48,6 +48,40 @@ CocktailCraft is divided into four coordinated layers:
 ```
 
 ---
+
+## Tech Stack
+
+### Frontend
+
+![React](https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![TanStack](https://img.shields.io/badge/TanStack-Router_%26_Query-FF4154?style=for-the-badge&logo=reactquery&logoColor=white)
+
+### Backend and Data
+
+![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-REST_API-000000?style=for-the-badge&logo=flask&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![Server-Sent Events](https://img.shields.io/badge/Server--Sent_Events-Realtime-5A29E4?style=for-the-badge)
+![Raspberry Pi](https://img.shields.io/badge/Raspberry_Pi-Controller-A22846?style=for-the-badge&logo=raspberrypi&logoColor=white)
+
+### Embedded Systems
+
+![C++](https://img.shields.io/badge/C++-Firmware-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)
+![Arduino](https://img.shields.io/badge/Arduino-Framework-00878F?style=for-the-badge&logo=arduino&logoColor=white)
+![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Main_Controller-E7352C?style=for-the-badge&logo=espressif&logoColor=white)
+![ESP8266](https://img.shields.io/badge/ESP8266-Pump_Controller-E7352C?style=for-the-badge&logo=espressif&logoColor=white)
+![FreeRTOS](https://img.shields.io/badge/FreeRTOS-Parallel_Ice_Task-7A1FA2?style=for-the-badge)
+
+### Hardware and Communication
+
+![UART](https://img.shields.io/badge/UART-Pi_%E2%86%94_ESP32_%E2%86%94_NodeMCU-4B5563?style=for-the-badge)
+![I²C](https://img.shields.io/badge/I%C2%B2C-Sensors_%26_IO_Expansion-4B5563?style=for-the-badge)
+![JSON](https://img.shields.io/badge/JSON-Command_Protocol-000000?style=for-the-badge&logo=json&logoColor=white)
+![Stepper Motors](https://img.shields.io/badge/Stepper_Motors-Indexer_%C2%B7_Mixer_%C2%B7_Ice-374151?style=for-the-badge)
+![Custom Hardware](https://img.shields.io/badge/Custom_Hardware-Electronics_%26_Mechanics-374151?style=for-the-badge)
 
 ## What the System Can Do
 
