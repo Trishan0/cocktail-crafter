@@ -1,4 +1,4 @@
-# CocktailCraft — Automated Cocktail Machine
+# CocktailCraft - Automated Cocktail Machine
 
 CocktailCraft is a fully integrated automated cocktail-making system designed for social gatherings and private events. A customer selects a signature recipe or creates a custom drink from a touchscreen, and the machine handles ingredient validation, glass detection, timed liquid dispensing, mixing, optional ice, final pouring, syrup topping, completion feedback, and cleaning.
 
