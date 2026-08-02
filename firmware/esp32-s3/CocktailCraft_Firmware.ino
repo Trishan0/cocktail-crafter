@@ -90,13 +90,13 @@ constexpr uint8_t DIRECT_SYRUP_PUMP = 6;
 constexpr unsigned long MAX_PUMP_TIME_MS = 60000;
 unsigned long indexWaitTimes[PUMP_COUNT] = {0, 0, 0, 0, 0, 0};
 constexpr unsigned long IDX_POST_STOP_DELAY_MS = 3000;
-constexpr unsigned long CLEAN_PUMP_TIME_MS = 5000;
+constexpr unsigned long CLEAN_PUMP_TIME_MS = 10000;
 
 // Main feed-line priming applies only to indexed pumps 1-5.
 constexpr unsigned long LINE_PRIME_PUMP_TIME_MS = 1400;
 
 // Direct syrup line (pump 6) behavior.
-constexpr unsigned long PUMP6_POST_VALVE_DELAY_MS = 2000;
+constexpr unsigned long PUMP6_POST_VALVE_DELAY_MS = 5000;
 constexpr unsigned long PUMP6_PRIME_TIME_MS = 2300;
 
 // Fault blink
