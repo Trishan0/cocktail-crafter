@@ -33,3 +33,4 @@ dist-ssr
 
 .vercel/
 __pycache__/
+.lovable/
