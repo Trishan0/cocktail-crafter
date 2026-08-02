@@ -72,7 +72,7 @@ CocktailCraft is divided into four coordinated layers:
 ![C++](https://img.shields.io/badge/C++-Firmware-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)
 ![Arduino](https://img.shields.io/badge/Arduino-Framework-00878F?style=for-the-badge&logo=arduino&logoColor=white)
 ![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Main_Controller-E7352C?style=for-the-badge&logo=espressif&logoColor=white)
-![ESP8266](https://img.shields.io/badge/ESP8266-Pump_Controller-E7352C?style=for-the-badge&logo=espressif&logoColor=white)
+![NodeMCU-32S](https://img.shields.io/badge/ESP8266-Pump_Controller-E7352C?style=for-the-badge&logo=espressif&logoColor=white)
 ![FreeRTOS](https://img.shields.io/badge/FreeRTOS-Parallel_Ice_Task-7A1FA2?style=for-the-badge)
 
 ### Hardware and Communication
