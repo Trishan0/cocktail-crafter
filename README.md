@@ -1,159 +1,690 @@
-# Automated Cocktail Machine
+# CocktailCraft — Automated Cocktail Machine
 
-A fully automated cocktail-mixing machine. Orders are placed on a touchscreen,
-routed through a small network of microcontrollers, and the machine measures,
-pumps, mixes, and dispenses the drink — including ice on request — with no
-manual intervention.
+CocktailCraft is a fully integrated automated cocktail-making system designed for social gatherings and private events. A customer selects a signature recipe or creates a custom drink from a touchscreen, and the machine handles ingredient validation, glass detection, timed liquid dispensing, mixing, optional ice, final pouring, syrup topping, completion feedback, and cleaning.
 
-## Overview
+The project combines a touch-first web application, a Raspberry Pi backend, persistent recipe and inventory management, an ESP32-S3 real-time controller, a dedicated NodeMCU pump controller, custom electronics, and purpose-built mechanical systems.
 
-The system is split across four coordinated devices, each responsible for one
-part of the pipeline:
+> CocktailCraft focuses on making drink preparation accessible and repeatable. Supply the configured ingredients, power on the station, place a suitable glass, and select a drink from the touchscreen.
 
-| Device | Role |
-|---|---|
-| Raspberry Pi + 7" touchscreen | Order-taking UI, sends the selected recipe downstream |
-| ESP32 | Central controller — receives orders, decides pump timing, drives the oscillator/mixer, detects the cup, triggers ice |
-| NodeMCU (ESP8266) | Pump controller — receives dispense commands from the ESP32 and switches the correct pumps on/off for the correct duration |
-| Oscillator (stepper + hall-sensor homing) | Physically agitates/mixes the drink after the liquids are dispensed |
+---
 
-## Order Flow
+## System Overview
 
-1. **Order placed** — The customer selects a cocktail recipe on the Raspberry
-   Pi's touchscreen UI.
-2. **Order sent to ESP32** — The Pi transmits the recipe (ingredient list and
-   quantities) to the ESP32.
-3. **Cup check** — The ESP32 confirms a cup is present using IR sensors before
-   dispensing anything.
-4. **Pump commands** — The ESP32 calculates the required run-time for each
-   ingredient and sends dispense commands to the NodeMCU.
-5. **Dispensing** — The NodeMCU switches on the correct pumps for the
-   calculated durations, dispensing each ingredient by time (volume ≈ pump
-   flow rate × time).
-6. **Mixing** — Once all ingredients are dispensed, the ESP32 runs the
-   oscillator to mix the drink.
-7. **Ice (optional)** — If the order requested ice, the ice-dispensing
-   mechanism is triggered.
-8. **Completion** — The finished drink is ready in the cup; the machine
-   returns to idle and waits for the next order.
+CocktailCraft is divided into four coordinated layers:
 
-```
- ┌────────────┐      order      ┌───────────┐   dispense cmds   ┌──────────┐
- │ Raspberry  │ ───────────────▶│   ESP32   │ ──────────────────▶│ NodeMCU  │
- │ Pi + Touch │                 │ (Main     │                    │ (Pump    │
- │ Display    │                 │ Controller)│◀────────────────── │ Driver)  │
- └────────────┘                 └─────┬─────┘     status/ack     └────┬─────┘
-                                       │                                │
-                                       │ mix                            │ pump
-                                       ▼                                ▼
-                                 ┌───────────┐                    ┌───────────┐
-                                 │ Oscillator │                    │  Pumps    │
-                                 │  (Mixer)   │                    │ (per      │
-                                 └───────────┘                     │ ingredient)│
-                                       │                            └───────────┘
-                                       ▼
-                                 ┌───────────┐        ┌────────────┐
-                                 │ IR Cup     │        │ Ice        │
-                                 │ Detection  │        │ Dispenser  │
-                                 └───────────┘        └────────────┘
+| Layer | Technology | Responsibility |
+|---|---|---|
+| Customer and staff interface | React, TypeScript, Vite, Tailwind CSS | Touchscreen ordering, custom drink composition, preparation status, drink-ready feedback, and administration |
+| Raspberry Pi application | Python, Flask, REST API, Server-Sent Events | Recipe processing, validation, inventory, order history, hardware orchestration, and real-time UI updates |
+| Main real-time controller | ESP32-S3, Arduino, FreeRTOS | Valve, indexer, mixer, sensors, line priming, cleaning, ice sequencing, persistent hardware state, and protocol events |
+| Pump controller | NodeMCU ESP8266 | Direct control of the six ingredient pumps from compact UART commands |
+
+```text
+┌───────────────────────────────────────────────────────────────────────┐
+│                         7" Touchscreen UI                             │
+│             React customer kiosk + staff administration              │
+└──────────────────────────────┬────────────────────────────────────────┘
+                               │ REST API + Server-Sent Events
+                               ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                         Raspberry Pi                                 │
+│ Flask backend · SQLite database · recipe engine · inventory tracking │
+│ order orchestration · serial controller · simulator · event stream   │
+└──────────────────────────────┬────────────────────────────────────────┘
+                               │ JSON and commands over USB serial
+                               ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                           ESP32-S3                                   │
+│ valve · indexer · mixer · ice · Hall sensors · IR · level sensors    │
+│ persistent states · cleaning · priming · completion coordination      │
+└───────────────┬───────────────────────────────┬───────────────────────┘
+                │ UART pump commands            │ STEP/DIR, I²C, GPIO
+                ▼                               ▼
+┌──────────────────────────┐       ┌────────────────────────────────────┐
+│ NodeMCU pump controller  │       │ Custom electromechanical system    │
+│ pumps 1–6                │       │ indexer · oscillator · pinch valve │
+└──────────────────────────┘       │ ice dispenser · sensors · lighting │
+                                   └────────────────────────────────────┘
 ```
 
-## Hardware Components
+---
 
-### Order UI
-- Raspberry Pi (model TBD)
-- 7-inch touchscreen display
+## What the System Can Do
 
-### Main Controller — ESP32
-- Coordinates the whole pipeline: receives orders, talks to the NodeMCU,
-  runs the oscillator, reads the IR cup sensors, and triggers ice dispensing.
+### Customer experience
 
-### Pump Controller — NodeMCU
-- Dedicated to driving the ingredient pumps. Takes simple "pump X for Y ms"
-  commands from the ESP32 and switches the corresponding relay/MOSFET
-  channel.
+- Browse administrator-configured signature drinks.
+- Build a custom drink from currently assigned and available ingredients.
+- Add optional ice.
+- Review the selected ingredients and total volume before ordering.
+- Receive clear prompts for the required glass.
+- Follow live machine progress without refreshing the page.
+- See explicit preparation, ready, error, and cleaning states.
+- Prevent ordering when the station is powered off, disconnected, busy, or lacks sufficient ingredients.
 
-### Oscillator (Mixer)
-- ESP32-S3 based stepper subsystem, used to physically agitate the drink
-  after dispensing.
-- TMC2208 stepper driver — STEP = GPIO12, DIR = GPIO13, EN = GPIO16
-- Homing reference: hall-effect sensor read through an MCP23017 I/O
-  expander (SDA = GPIO8, SCL = GPIO9, I2C address `0x20`, sensor on port A,
-  active LOW)
-- NeoPixel status LED on GPIO48, used to indicate a homing fault
+### Staff administration
 
-### Cup Detection
-- IR sensor pair confirms a cup is present and correctly positioned before
-  any liquid is dispensed.
+The secured staff console provides dedicated sections for:
 
-### Ice Dispenser
-- Triggered on request as part of the order; mechanism details TBD.
+- Orders and historical order records
+- Drink creation, editing, visibility, pricing, images, and menu ordering
+- Ingredient management
+- Pump assignment and calibration
+- Tracked bottle volumes and orderable inventory
+- Hardware status and manual maintenance controls
+- Machine settings, including price visibility and glass capacity
+- Live machine activity through the same real-time event stream used by the kiosk
 
-## Communication
+### Embedded and mechanical operation
 
-| Link | Transport |
+- Six independently controlled ingredient pumps
+- Pumps 1–5 dispensed through a six-position indexed mechanism
+- Pump 6 used as a direct-to-cup syrup line after the main pour
+- Automatic line priming with persistent state
+- Current-controlled motorized pinch valve
+- Stepper-driven mixing oscillator with Hall-sensor homing and recovery
+- Optional ice dispensing in parallel on the ESP32-S3's second core
+- Glass detection using two IR sensors
+- Six liquid-level inputs
+- Persistent valve, line-priming, syrup-line, and ice endpoint states
+- Non-blocking NeoPixel machine-status indication
+- Cleaning, pump reversal, diagnostics, and manual service commands
+
+---
+
+## Complete Drink Flow
+
+### 1. Menu and recipe selection
+
+The touchscreen retrieves the current menu and pump availability from the Flask backend. The customer can choose:
+
+- a saved signature recipe; or
+- a custom combination of available ingredients.
+
+Ice can be enabled per order.
+
+### 2. Backend validation
+
+Before an order reaches the hardware, the Raspberry Pi backend:
+
+1. Confirms that the station is powered on and connected.
+2. Verifies that the machine is in a state that can accept an order.
+3. Resolves recipe quantities into pump numbers and calibrated run times.
+4. Enforces per-ingredient and total-volume limits.
+5. Checks raw liquid-level inputs.
+6. Checks tracked bottle volume while preserving a safety reserve.
+7. Validates the required glass capacity.
+8. Atomically reserves inventory.
+9. Stores an order snapshot in the database.
+
+The saved snapshot preserves the recipe name, ingredient amounts, price, and exact pump commands used for that order.
+
+### 3. Order initialization
+
+The Pi sends an `ORDER` JSON message to the ESP32-S3:
+
+```json
+{
+  "command": "ORDER",
+  "order_id": "ORD-1042",
+  "pumps": [
+    { "pump": 1, "time_ms": 3200 },
+    { "pump": 3, "time_ms": 4800 },
+    { "pump": 6, "time_ms": 1400 }
+  ],
+  "ice": {
+    "enabled": true
+  }
+}
+```
+
+The firmware validates the message and replies with a structured initialization response. Loading an order does not immediately start the mechanisms.
+
+### 4. Glass verification and start
+
+After successful initialization, the backend polls the ESP32 IR sensors. It sends `START` only after detecting a valid glass configuration for the requested drink volume.
+
+This separates order creation from physical execution and prevents the machine from dispensing before a glass is ready.
+
+### 5. Automatic preparation
+
+When `START` is accepted:
+
+1. The optional ice task is queued on ESP32-S3 core 0.
+2. Main ingredient lines are primed when their saved state is empty.
+3. The pinch valve closes.
+4. The indexer locates position 1.
+5. Pumps 1–5 are processed at their Hall-referenced positions.
+6. Unused indexed pumps are skipped.
+7. The indexer returns to position 1.
+8. The oscillator mixes the drink.
+9. The oscillator returns home, with a recovery sweep if required.
+10. The pinch valve opens and pours the mixed drink into the cup.
+
+### 6. Direct syrup topping
+
+Pump 6 is physically located above the cup and is not connected to the indexer or mixing container.
+
+When an order includes pump 6:
+
+1. The main mixed drink is poured first.
+2. The firmware waits for the configured post-valve delay.
+3. Pump 6 runs directly into the cup for the requested order time.
+4. Pump 6 stops.
+
+The syrup line has its own persistent primed state and is never included in the normal indexed-line reversal process.
+
+### 7. Ice and final completion
+
+The ice dispenser runs independently from the main sequence:
+
+```text
+Open for 26 seconds
+→ hold open
+→ close for 26 seconds
+→ vibrate
+→ finish
+```
+
+The ESP32 uses a completion barrier so the final ready event is not sent too early:
+
+- without pump 6, the main path completes after valve opening;
+- with pump 6, the main path completes after pump 6 stops;
+- when ice was requested, both the main path and ice task must finish.
+
+Only then does the ESP32 send:
+
+```text
+DATA:{"type":"system","event":"drink","action":"ready","order_id":"ORD-1042"}
+```
+
+The backend records the successful completion and broadcasts it through Server-Sent Events. The customer UI then displays the drink-ready screen.
+
+### 8. Glass removal and cleaning
+
+After the finished drink is collected, the system can proceed through its cleaning lifecycle. The current firmware cleaning sequence:
+
+1. closes the pinch valve;
+2. locates index position 1;
+3. runs the configured water pump;
+4. stops the pump;
+5. mixes the cleaning water;
+6. homes the oscillator;
+7. opens the valve to drain;
+8. returns to idle.
+
+Cleaning is treated as a separate machine process rather than part of the customer-ready event.
+
+---
+
+## Frontend
+
+The frontend is a touch-oriented React application designed for the machine's 7-inch display.
+
+### Technology
+
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS
+- TanStack Router
+- TanStack Query
+- Radix UI primitives
+- Lucide icons
+- Zod validation
+
+### Customer kiosk screens
+
+The main kiosk flow includes:
+
+```text
+Welcome
+→ Experience selection
+→ Signature catalog or custom composition
+→ Drink details
+→ Review
+→ Waiting for glass
+→ Preparing
+→ Drink ready
+→ Cleaning
+→ Cleaning complete
+```
+
+The frontend does not continuously poll the backend for progress. It subscribes to the Flask `/stream` endpoint and reacts to Server-Sent Events for:
+
+- controller connection
+- machine power
+- glass state
+- inventory changes
+- preparation progress
+- menu updates
+- display settings
+- completion
+- cleaning
+- faults
+
+### Admin console
+
+The staff interface includes:
+
+```text
+Orders
+Drinks
+Ingredients
+Pumps
+Hardware
+Settings
+```
+
+It displays live machine state and progress while allowing authorized management of the data and hardware configuration that drive the customer experience.
+
+---
+
+## Backend
+
+The Raspberry Pi backend is the bridge between the user-facing application and the real-time embedded controller.
+
+### Responsibilities
+
+- Serve CORS-enabled REST APIs
+- Stream machine updates through SSE
+- Resolve recipes into pump commands
+- Convert millilitres into pump durations
+- Validate machine state, glass capacity, level sensors, and inventory
+- Reserve and restore liquid inventory safely
+- Store recipes, ingredients, pumps, settings, events, and orders
+- Preserve historical order snapshots
+- Manage serial communication and reconnection
+- Support physical hardware and software simulation
+- Broadcast live inventory and menu changes
+- Provide database backup tooling
+
+### Hardware abstraction
+
+The backend supports two controller implementations:
+
+| Controller | Purpose |
 |---|---|
-| Raspberry Pi → ESP32 | *(fill in: Wi-Fi/HTTP, MQTT, Serial/UART, etc.)* |
-| ESP32 → NodeMCU | *(fill in: Wi-Fi/HTTP, MQTT, Serial/UART, ESP-NOW, etc.)* |
-| NodeMCU → ESP32 (ack/status) | *(fill in)* |
+| `SerialController` | Communicates with the physical ESP32-S3 over USB serial |
+| `SimulatorController` | Reproduces the expected machine behavior without physical hardware |
 
-> Fill in the actual protocol/library used for each link once finalized —
-> this keeps the README accurate as the communication layer evolves.
+A separate fake-ESP32 utility can exercise the real serial implementation through a virtual serial pair or TCP loopback.
 
-## Features
+---
 
-- Fully automated, end-to-end drink preparation from a single touch order
-- Time-based ingredient dosing via independently controlled pumps
-- Automatic mixing via a homed, hall-sensor-referenced oscillator
-- Cup presence detection before dispensing (prevents spills / dry-pumping)
-- Optional ice dispensing per order
-- Fault recovery on the oscillator: if homing overshoots, a recovery sweep
-  re-locates the hall sensor; if that also fails, the machine reports the
-  fault (status LED) and returns to a ready state without needing a reboot
+## Database
+
+The current repository uses SQLite on the Raspberry Pi.
+
+The normalized schema contains:
+
+| Table | Purpose |
+|---|---|
+| `ingredients` | All known liquids available to recipes |
+| `pumps` | The six physical pump slots, assignments, flow rates, and tracked volume |
+| `recipes` | Drink definitions, visibility, category, price, image, and display order |
+| `recipe_ingredients` | Ingredient quantities used by each recipe |
+| `orders` | Historical orders and immutable order-time snapshots |
+| `settings` | Persistent machine and UI configuration |
+| `events` | Structured operational event history |
+
+SQLite is configured with foreign-key support and write-ahead logging. Order snapshots remain meaningful even if an editable recipe is later changed or deleted.
+
+---
+
+## ESP32-S3 Main Controller
+
+The ESP32-S3 firmware is a non-blocking state-machine implementation.
+
+### Controlled subsystems
+
+- Pinch-valve DC motor through TB6612
+- Valve current measurement through INA219
+- Six-position indexer stepper
+- Oscillator/mixer stepper
+- Ice lead-screw stepper
+- MCP23017 I/O expander
+- Index and home Hall sensors
+- Liquid-level sensors
+- Upper and lower IR sensors
+- WS2812 status LED
+- UART connection to the pump controller
+
+### Main states
+
+The primary state machine includes:
+
+```text
+IDLE
+VALVE_CLOSING
+INDEX_SEARCH
+INDEX_WAIT
+INDEX_POST_STOP
+OSCILLATING
+HOMING
+RECOVERY_NEGATIVE
+RECOVERY_POSITIVE
+VALVE_OPEN_DELAY
+VALVE_OPENING
+PRIME_PUMPS
+REVERSE_PUMPS
+PUMP6_AUTO_PRIMING
+PUMP6_POST_VALVE_DELAY
+PUMP6_ORDER_DISPENSING
+PUMP6_MANUAL_PRIMING
+PUMP6_MANUAL_RUNNING
+```
+
+### Persistent hardware state
+
+ESP32 Preferences/NVS stores selected states that must survive restart:
+
+- pinch-valve state;
+- indexed feed-line primed state;
+- pump-6 syrup-line primed state;
+- ice endpoint state (`OPEN` or `CLOSED`).
+
+The ice mechanism intentionally does not continuously write step position to flash.
+
+### Parallel ice task
+
+The ice mechanism has its own FreeRTOS task and command/event queues. This allows the main dispensing and mixing sequence to continue while ice is being prepared, while the final ready event still waits for both paths to finish.
+
+---
+
+## Pump Controller
+
+The NodeMCU ESP8266 receives compact UART commands from the ESP32-S3.
+
+```text
+M1F  → Pump 1 forward
+M1R  → Pump 1 reverse
+M1S  → Pump 1 stop
+...
+M6F  → Pump 6 forward
+M6R  → Pump 6 reverse
+M6S  → Pump 6 stop
+```
+
+The NodeMCU isolates pump switching from the larger ESP32 state machine and provides one dedicated control layer for all six pumps.
+
+---
+
+## Mechanical System
+
+Most physical functions are implemented through custom-designed mechanisms and printed or fabricated parts.
+
+### Indexed ingredient dispenser
+
+Pumps 1–5 feed an indexed dispensing system. A stepper motor moves the outlet assembly between six Hall-referenced positions. The controller searches for each physical position rather than relying only on accumulated step counts.
+
+### Oscillating mixer
+
+The drink is collected in a mixing container and mechanically agitated by a stepper-driven oscillator. A Hall sensor establishes the home position, while firmware recovery searches compensate for missed or overshot home detection.
+
+### Pinch valve
+
+A custom pinch valve opens and closes the silicone outlet tube. The valve motor is driven through a TB6612, and the INA219 current measurement is used to identify mechanical resistance at the endpoints.
+
+### Ice dispenser
+
+The ice subsystem uses a stepper-driven lead screw. It opens, holds, closes, and vibrates according to a timed sequence running independently from the main mechanism.
+
+### Direct syrup line
+
+Pump 6 bypasses the indexer and mixer. It dispenses directly over the cup after the mixed drink has been poured.
+
+### Enclosure and integration
+
+The machine uses a custom enclosure and internal mounting system designed around the touchscreen, bottle placement, liquid routing, motors, electronics, service access, and cup bay.
+
+---
+
+## Communication Protocols
+
+### Frontend ↔ Flask backend
+
+| Direction | Transport |
+|---|---|
+| Commands and data requests | REST/JSON |
+| Live status and inventory updates | Server-Sent Events |
+
+### Raspberry Pi ↔ ESP32-S3
+
+| Property | Value |
+|---|---|
+| Physical link | USB serial/UART |
+| Baud rate | 115200 |
+| Commands | Plain-text commands and `ORDER` JSON |
+| Diagnostics | Lines prefixed with `LOG:` |
+| Machine-readable events | JSON lines prefixed with `DATA:` |
+
+Common Pi-to-ESP32 commands include:
+
+```text
+START
+CLEAN
+STOP
+CHECK_LEVELS
+CHECK_IR
+CHECK_LINE_STATE
+REVERSE_PUMPS
+ICE
+ICE_STATUS
+```
+
+### ESP32-S3 ↔ NodeMCU
+
+| Property | Value |
+|---|---|
+| Physical link | UART |
+| Baud rate | 9600 |
+| Protocol | Compact pump command strings |
+
+---
+
+## Safety and Reliability Features
+
+- Orders are rejected while the machine is busy.
+- The backend verifies controller connectivity before accepting an order.
+- Glass presence and glass-size requirements are checked before `START`.
+- Tracked inventory includes a configurable reserve margin.
+- Raw liquid-level inputs are checked before dispensing.
+- Pump durations are validated against firmware limits.
+- Inventory is restored when order initialization fails.
+- Valve movement ignores startup-current spikes before evaluating endpoint current.
+- Mixer homing includes negative and positive recovery searches.
+- Feed-line state is stored persistently.
+- Pump 6 has independent persistent priming state.
+- The final ready event waits for every requested parallel path.
+- The status LED provides state and fault feedback.
+- The backend stores structured event history.
+- A simulator and fake serial device support testing without the physical machine.
+
+CocktailCraft is an engineering prototype. Motor power, liquid handling, mains wiring, food-contact materials, cleaning procedures, and emergency stopping must be reviewed before unsupervised or public operation.
+
+---
 
 ## Repository Structure
 
+```text
+cocktail-crafter/
+├── backend/
+│   ├── app.py                       # Flask API and SSE server
+│   ├── main.py                      # Backend entry point
+│   ├── config.py                    # Serial, server, recipe, and hardware limits
+│   ├── db.py                        # SQLite schema and data access
+│   ├── hardware_controller.py       # Serial and simulated hardware abstraction
+│   ├── machine_state.py             # Pi-side machine-state validation
+│   ├── recipe_manager.py            # Recipe, duration, inventory, and order logic
+│   ├── tools/                       # Fake ESP32 and backup utilities
+│   ├── scripts/                     # Operational scripts
+│   └── tests/                       # Backend test suite
+│
+├── frontend/
+│   ├── src/routes/                  # Customer kiosk and admin routes
+│   ├── src/components/              # UI and administration components
+│   ├── src/lib/                     # API and shared frontend utilities
+│   ├── src/assets/                  # Application visual assets
+│   └── package.json                 # Frontend scripts and dependencies
+│
+├── firmware/
+│   ├── esp32-s3/
+│   │   └── CocktailCraft_Firmware.ino
+│   ├── nodemcu/
+│   │   └── nodemcu_motor_controller.ino
+│   └── legacy/                      # Superseded firmware retained for reference
+│
+├── hardware/
+│   ├── calibration-and-testing/     # Isolated mechanism and sensor test sketches
+│   ├── component-tests/             # Component-level test firmware
+│   └── prototype-history/           # Major integrated firmware milestones
+│
+├── docs/
+│   ├── architecture/                # System-level architecture notes
+│   ├── project/                     # Project and work-distribution records
+│   └── reference/                   # Protocol and mechanism reference material
+│
+└── README.md
 ```
-/pi-ui/          Touchscreen ordering interface (Raspberry Pi)
-/esp32-main/     Main controller firmware (order handling, cup detection,
-                 oscillator control, ice trigger)
-/nodemcu-pumps/  Pump controller firmware
-/oscillator/     Standalone oscillator/homing firmware
-/docs/           Wiring diagrams, recipe format, protocol notes
+
+The active production-oriented firmware is under `firmware/`. Files under `legacy`, `calibration-and-testing`, and `prototype-history` document development and should not replace the active firmware without deliberate review.
+
+---
+
+## Development Setup
+
+### Prerequisites
+
+- Node.js and npm
+- Python 3.12 or later
+- `uv` or another Python environment manager
+- Arduino IDE or PlatformIO
+- ESP32-S3 Arduino board support
+- ESP8266 Arduino board support
+- Required Arduino libraries listed by the firmware includes
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-*(Adjust to match your actual folder layout.)*
+Production build:
 
-## Getting Started
+```bash
+npm run build
+```
 
-1. Flash `esp32-main` to the ESP32 and `nodemcu-pumps` to the NodeMCU.
-2. Wire the pumps to the NodeMCU's relay/MOSFET outputs per `/docs`.
-3. Wire the oscillator's stepper driver, MCP23017, hall sensor, and NeoPixel
-   to the ESP32-S3 as listed above.
-4. Set up the Raspberry Pi with the touchscreen and run the order UI.
-5. Configure the communication link(s) between all three devices (IP
-   addresses / topics / serial ports as applicable).
-6. Power on in this order: pump controller → oscillator/main controller →
-   Raspberry Pi UI, then place a test order.
+### Backend
 
-## Safety Notes
+Using `uv`:
 
-- Verify cup presence logic (IR sensors) is working before enabling
-  autonomous pumping — this prevents dispensing onto an empty platform.
-- Keep pump run-times calibrated per pump (flow rate can vary between
-  pumps/tubing) so time-based dosing stays accurate.
-- The oscillator's fault indicator (NeoPixel blinking red) means homing
-  failed twice in a row — inspect the hall sensor and mechanical range
-  before resuming.
+```bash
+cd backend
+uv sync
+uv run python main.py
+```
 
-## Roadmap / Future Improvements
+The Flask server listens on port `5000` by default.
 
-- [ ] Volume calibration routine per pump (rather than fixed time-per-ml)
-- [ ] Recipe editor in the touch UI
-- [ ] Remote monitoring / order history
-- [ ] Leak / overflow detection
-- [ ] Cleaning / flush cycle between different drink types
+Before using real hardware, review `backend/config.py`, especially:
 
-## License
+```python
+SIMULATOR_MODE = False
+SERIAL_PORT = "/dev/ttyACM0"
+SERIAL_BAUDRATE = 115200
+```
 
-*(Add your chosen license here.)*
+The SQLite database is initialized automatically when the backend starts.
+
+### Hardware-free integration testing
+
+The repository includes both a simulator controller and a fake ESP32 serial harness. See:
+
+```text
+backend/DEV_SETUP.md
+backend/tools/fake_esp32.py
+```
+
+These tools allow the React frontend, Flask backend, state machine, and serial parser to be tested without running the physical machine.
+
+### Firmware
+
+Flash the active sketches:
+
+```text
+firmware/esp32-s3/CocktailCraft_Firmware.ino
+firmware/nodemcu/nodemcu_motor_controller.ino
+```
+
+Verify all GPIO assignments, current limits, directions, travel timings, pump mappings, and sensor polarities against the physical machine before operation.
+
+---
+
+## Typical Startup
+
+1. Confirm that pumps, tubing, sensors, motors, and power rails are connected safely.
+2. Fill the configured ingredient bottles and update tracked volumes through the admin console.
+3. Power the pump controller and ESP32-S3.
+4. Connect the ESP32-S3 to the Raspberry Pi.
+5. Start the Flask backend.
+6. Start or deploy the frontend.
+7. Power on the station through the staff interface.
+8. Verify controller connectivity and sensor state.
+9. Place a test glass and run a low-volume supervised order.
+
+---
+
+## Maintenance Operations
+
+The current system supports:
+
+- full cleaning cycle;
+- indexed-line priming;
+- indexed-pump reversal;
+- liquid-level queries;
+- IR sensor queries;
+- line-state queries;
+- standalone ice testing;
+- manual ice endpoint correction;
+- pump-6 priming-state inspection and correction;
+- manual pump-6 forward, reverse, and stop;
+- simulated hardware operation;
+- database backup.
+
+Detailed low-level commands and mechanism notes are retained under `docs/reference/`.
+
+---
+
+## Current Limitations
+
+- Liquid quantities are based on calibrated pump flow rate and run time rather than closed-loop flow measurement.
+- The ice mechanism uses timed travel and persistent endpoint state without a physical position sensor.
+- Raw level-sensor polarity depends on the installed hardware and calibration.
+- The ESP32 firmware's software `STOP` behavior is not a substitute for a physical emergency-stop circuit.
+- Pump-controller commands are sent over UART without a full transactional acknowledgement protocol.
+- Mechanical timing and current thresholds are specific to the built prototype.
+- The system requires appropriate sanitation and food-safe handling procedures for real beverage use.
+
+---
+
+## Project Scope
+
+CocktailCraft was developed as a complete multidisciplinary system rather than an isolated software or electronics demonstration. The repository therefore includes:
+
+- customer experience and visual interface;
+- staff administration;
+- backend services and data persistence;
+- real-time embedded control;
+- inter-controller protocols;
+- custom electronics;
+- sensor integration;
+- mechanical design and fabrication;
+- calibration programs;
+- hardware simulators;
+- tests and development history.
+
+The value of the project comes from these layers operating as one coordinated machine.
