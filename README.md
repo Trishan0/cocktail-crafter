@@ -1,5 +1,7 @@
 # CocktailCraft : Automated Cocktail Machine
 
+![CocktailCraft internal mechanism and completed machine](docs/assets/cocktailcraft-readme-hero.png)
+
 CocktailCraft is a fully integrated automated cocktail-making system designed for social gatherings and private events. A customer selects a signature recipe or creates a custom drink from a touchscreen, and the machine handles ingredient validation, glass detection, timed liquid dispensing, mixing, optional ice, final pouring, syrup topping, completion feedback, and cleaning.
 
 The project combines a touch-first web application, a Raspberry Pi backend, persistent recipe and inventory management, an ESP32-S3 real-time controller, a dedicated NodeMCU pump controller, custom electronics, and purpose-built mechanical systems.
