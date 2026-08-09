@@ -1,9 +1,22 @@
-# CocktailCraft : Automated Cocktail Machine
+<p style="text-align:center;" align="center">
+  <img align="center" src="docs/assets/cocktailcraft-readme-hero.png" alt="CocktailCraft internal mechanism and completed machine" />
+</p>
+<h1 align="center">CocktailCraft : Automated Cocktail Machine</h1>
+<div align='center'>
 
-![CocktailCraft internal mechanism and completed machine](docs/assets/cocktailcraft-readme-hero.png)
+[![Arduino](https://img.shields.io/badge/Ardunio-C++-874fff?logo=arduino&style=flat)](https://www.arduino.cc/)
+[![{Python](https://img.shields.io/badge/Flask-Python-0088CC?logo=flask&style=flat)](https://flask.palletsprojects.com/en/stable/)
+![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Main_Controller-E7352C?style=flat=espressif&logoColor=white)
+![Raspberry Pi](https://img.shields.io/badge/Raspberry_Pi-Controller-A22846?style=flat=raspberrypi&logoColor=white)
 
-CocktailCraft is a fully integrated automated cocktail-making system designed for social gatherings and private events. A customer selects a signature recipe or creates a custom drink from a touchscreen, and the machine handles ingredient validation, glass detection, timed liquid dispensing, mixing, optional ice, final pouring, syrup topping, completion feedback, and cleaning.
+</div>
+<h4 align="center">✨ CocktailCraft is a fully integrated automated cocktail-making system designed for social gatherings and private events. 🚀</h4>
 
+<div align="center">
+A customer selects a signature recipe or creates a custom drink from a touchscreen, and the machine handles ingredient validation, glass detection, timed liquid dispensing, mixing, optional ice, final pouring, syrup topping, completion feedback, and cleaning.  <br/>
+</div>
+
+---
 The project combines a touch-first web application, a Raspberry Pi backend, persistent recipe and inventory management, an ESP32-S3 real-time controller, a dedicated NodeMCU pump controller, custom electronics, and purpose-built mechanical systems.
 
 > CocktailCraft focuses on making drink preparation accessible and repeatable. Supply the configured ingredients, power on the station, place a suitable glass, and select a drink from the touchscreen.
