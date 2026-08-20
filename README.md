@@ -17,6 +17,8 @@ A customer selects a signature recipe or creates a custom drink from a touchscre
 </div>
 
 ---
+<span align="center"> [Website](https://cocktail-crafter.netlify.app/)</span>
+
 The project combines a touch-first web application, a Raspberry Pi backend, persistent recipe and inventory management, an ESP32-S3 real-time controller, a dedicated NodeMCU pump controller, custom electronics, and purpose-built mechanical systems.
 
 > CocktailCraft focuses on making drink preparation accessible and repeatable. Supply the configured ingredients, power on the station, place a suitable glass, and select a drink from the touchscreen.
