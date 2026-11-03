@@ -1,6 +1,7 @@
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+// Resolved per call: this module is also evaluated during SSR, where `window` is undefined.
+const apiBase = () => `${window.location.protocol}//${window.location.hostname}:5000/api`;
 export async function fetchApi(endpoint: string, options?: RequestInit) {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(`${apiBase()}${endpoint}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -78,7 +79,7 @@ export const setRecipeDisplayOrder = (recipeIds: number[]) =>
 export const uploadRecipeImage = async (id: number, file: File) => {
   const formData = new FormData();
   formData.append("file", file);
-  const res = await fetch(`${API_BASE}/admin/recipes/${id}/image`, {
+  const res = await fetch(`${apiBase()}/admin/recipes/${id}/image`, {
     method: "POST",
     body: formData,
   });
