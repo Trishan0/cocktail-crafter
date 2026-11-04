@@ -19,6 +19,7 @@ import {
   DISPENSE_BAY_PHOTO,
   FALLBACK_COLLAGE,
   HOUSE_BACKDROP,
+  MACHINE_BACKDROP,
   MACHINE_PHOTO,
   drinkBackdrop,
   drinkImage,
@@ -46,6 +47,9 @@ const MAX_TOTAL_ML = 300;
 const MAX_PER_INGREDIENT_ML = 100;
 const AMOUNT_PRESETS = [15, 30, 60, 100];
 const DEFAULT_SMALL_GLASS_ML = 170;
+// Used in "Your … is ready" copy when the kiosk did not see the order placed
+// (e.g. it reloaded mid-order).
+const UNKNOWN_DRINK_NAME = "drink";
 
 // Browsing screens return to Welcome after this long without a touch, so a
 // walked-away guest never leaves the kiosk parked mid-order.
@@ -79,7 +83,7 @@ function KioskApp() {
   const [now, setNow] = useState(new Date());
   const [smallGlassMaxMl, setSmallGlassMaxMl] = useState(DEFAULT_SMALL_GLASS_ML);
   // What the guest actually ordered, kept apart from the browsing selection.
-  const [orderedName, setOrderedName] = useState("your drink");
+  const [orderedName, setOrderedName] = useState(UNKNOWN_DRINK_NAME);
   const [orderPumps, setOrderPumps] = useState<any[]>([]);
 
   // SSE State
@@ -594,12 +598,12 @@ function orderPhoto(mode: string, selected: any) {
 function MachineScreen({ now, children }: { now: Date; children: ReactNode }) {
   return (
     <div className="cc-screen cc-screen--photo">
-      <Backdrop src={HOUSE_BACKDROP} />
+      <Backdrop src={MACHINE_BACKDROP} />
       <div className="cc-pane">
         <Header now={now} />
         <section className="cc-pane__body cc-message">{children}</section>
       </div>
-      <SidePhoto src={MACHINE_PHOTO} tone="is-machine" />
+      <SidePhoto src={MACHINE_PHOTO} />
     </div>
   );
 }
@@ -1172,7 +1176,7 @@ function WaitingGlass({
 
   return (
     <div className="cc-screen cc-screen--photo">
-      <Backdrop src={HOUSE_BACKDROP} />
+      <Backdrop src={MACHINE_BACKDROP} />
       <div className="cc-pane">
         <Header now={now} />
         <section className="cc-pane__body">
@@ -1298,7 +1302,7 @@ function Preparing({
           </p>
         </section>
       </div>
-      <SidePhoto src={orderPhoto(mode, selected)} tone={mode === "signature" ? "" : "is-machine"} />
+      <SidePhoto src={orderPhoto(mode, selected)} />
     </div>
   );
 }
@@ -1320,7 +1324,7 @@ function Ready({ now, selected, mode, orderedName }: any) {
           <p>Lift your glass out and enjoy. The machine rinses itself for the next guest.</p>
         </section>
       </div>
-      <SidePhoto src={orderPhoto(mode, selected)} tone={mode === "signature" ? "" : "is-machine"} />
+      <SidePhoto src={orderPhoto(mode, selected)} />
     </div>
   );
 }
@@ -1336,7 +1340,10 @@ function ErrorScreen({ now, message, orderedName, startOver }: any) {
       <aside className="cc-staff" aria-label="Details for staff">
         <span className="cc-label">For staff</span>
         <p>{message || "The controller reported an error."}</p>
-        <small>Order: {orderedName}. Open Admin → Hardware for details.</small>
+        <small>
+          {orderedName !== UNKNOWN_DRINK_NAME && `Order: ${orderedName}. `}Open Admin → Hardware for
+          details.
+        </small>
       </aside>
       <PrimaryButton onClick={startOver}>Back to start</PrimaryButton>
     </MachineScreen>

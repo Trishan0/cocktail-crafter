@@ -9,6 +9,7 @@ import orangeSpritzerBg from "@/assets/drinks/orange-spritzer-bg.webp";
 import orangeRoseCoolerBg from "@/assets/drinks/orange-rose-cooler-bg.webp";
 import citrusRoseSpritzBg from "@/assets/drinks/citrus-rose-spritz-bg.webp";
 import machinePhoto from "@/assets/backdrops/machine.webp";
+import machineBackdrop from "@/assets/backdrops/machine-bg.webp";
 import dispenseBayPhoto from "@/assets/backdrops/bay.webp";
 
 // Photos bundled with the kiosk for the house recipes. An image uploaded in
@@ -25,6 +26,9 @@ const BUNDLED_IMAGES: Record<string, { photo: string; backdrop: string }> = {
 export const FALLBACK_COLLAGE = [orangeRoseCooler, orangeRoseFizz, roseLimeFizz];
 export const HOUSE_BACKDROP = orangeRoseCoolerBg;
 export const MACHINE_PHOTO = machinePhoto;
+// Softened machine shot for screens that show the machine, so no drink glass
+// sits behind text next to the charcoal hardware photo.
+export const MACHINE_BACKDROP = machineBackdrop;
 export const DISPENSE_BAY_PHOTO = dispenseBayPhoto;
 
 type DrinkLike = { name?: string; image_url?: string | null };

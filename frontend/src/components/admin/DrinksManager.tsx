@@ -133,20 +133,20 @@ export function DrinksManager() {
   const renderForm = () => (
     <div className="grid gap-6 py-4 max-h-[60vh] overflow-y-auto hide-scrollbar pr-2">
       <div className="grid gap-2">
-        <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Drink Name</Label>
+        <Label className="text-muted-foreground text-sm font-medium">Drink Name</Label>
         <Input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Margarita" className="h-12 bg-white/5 border-white/10" />
       </div>
       <div className="grid gap-2">
-        <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Description</Label>
+        <Label className="text-muted-foreground text-sm font-medium">Description</Label>
         <Textarea value={desc} onChange={e=>setDesc(e.target.value)} placeholder="Brief description..." className="bg-white/5 border-white/10 resize-none" rows={2} />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-2">
-          <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Price (€)</Label>
+          <Label className="text-muted-foreground text-sm font-medium">Price (€)</Label>
           <Input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="h-12 bg-white/5 border-white/10" />
         </div>
         <div className="grid gap-2">
-          <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Category</Label>
+          <Label className="text-muted-foreground text-sm font-medium">Category</Label>
           <Select value={category} onValueChange={setCategory}>
             <SelectTrigger className="h-12 bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -159,7 +159,7 @@ export function DrinksManager() {
       </div>
       
       <div className="grid gap-2">
-        <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Visibility</Label>
+        <Label className="text-muted-foreground text-sm font-medium">Visibility</Label>
         <Select value={isVisible ? "1" : "0"} onValueChange={v => setIsVisible(v === "1")}>
           <SelectTrigger className="h-12 bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -170,7 +170,7 @@ export function DrinksManager() {
       </div>
 
       <div className="grid gap-2">
-        <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Drink Image</Label>
+        <Label className="text-muted-foreground text-sm font-medium">Drink Image</Label>
         <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} className="h-12 bg-white/5 border-white/10 file:text-foreground file:bg-white/10 file:border-0 file:mr-4 file:px-4 file:h-full cursor-pointer hover:file:bg-white/20" />
         {currentRecipe?.image_url && !imageFile && (
           <div className="text-xs text-muted-foreground mt-1">Current image: {currentRecipe.image_url.split('/').pop()}</div>
@@ -179,7 +179,7 @@ export function DrinksManager() {
 
       <div className="grid gap-3">
         <div className="flex justify-between items-center">
-          <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Ingredients (ml)</Label>
+          <Label className="text-muted-foreground text-sm font-medium">Ingredients (ml)</Label>
           <Button variant="outline" size="sm" onClick={addIngredientRow} className="h-8 rounded-full border-white/20 text-xs">Add Ingredient</Button>
         </div>
         {ingredients.map((ing, idx) => (
@@ -206,7 +206,6 @@ export function DrinksManager() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-10 gap-4">
         <div>
-          <h2 className="text-3xl md:text-4xl font-serif font-light mb-1 md:mb-2">Recipe Management</h2>
           <p className="text-sm md:text-base text-muted-foreground">Add, edit, remove, or arrange the customer menu</p>
         </div>
         
@@ -234,11 +233,15 @@ export function DrinksManager() {
             <div>
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Menu position {index + 1}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Menu position {index + 1}</p>
                   <h3 className="text-xl md:text-2xl font-display font-light">{drink.name}</h3>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-accent font-medium mr-1">€{drink.price}</span>
+                  {Number(drink.price) > 0 ? (
+                    <span className="text-accent font-medium mr-1 whitespace-nowrap">€{Number(drink.price).toFixed(2)}</span>
+                  ) : (
+                    <span className="text-muted-foreground text-xs mr-1 whitespace-nowrap">No price</span>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -260,7 +263,7 @@ export function DrinksManager() {
               <p className="text-xs md:text-sm text-muted-foreground mb-4">{drink.description}</p>
               <div className="flex flex-wrap gap-1 mb-4">
                 {drink.ingredients.map((ing: any) => (
-                  <span key={ing.id} className="text-[10px] uppercase tracking-widest px-2 py-1 bg-white/5 rounded-md text-muted-foreground">
+                  <span key={ing.id} className="text-xs px-2 py-1 bg-white/5 rounded-md text-muted-foreground">
                     {ing.name} {ing.amount_ml}ml
                   </span>
                 ))}

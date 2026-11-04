@@ -97,7 +97,6 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-10 gap-4">
         <div>
-          <h2 className="text-3xl md:text-4xl font-serif font-light mb-1 md:mb-2">Bottle Inventory &amp; Pumps</h2>
           <p className="text-sm md:text-base text-muted-foreground">
             Set each installed bottle's starting/current volume. Orders require their recipe amount plus a {reserveMargin} ml reserve.
           </p>
@@ -118,24 +117,30 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
                   }`}>
                     {pump.pump_number}
                   </div>
-                  <div>
-                    <h3 className="text-xl md:text-2xl font-display font-light">Pump {pump.pump_number}</h3>
-                    <p className={`text-xs md:text-sm ${pump.ingredient_name ? "text-white" : "text-muted-foreground"}`}>
-                      {pump.ingredient_name ? pump.ingredient_name : "Unassigned"}
-                    </p>
+                  <div className="min-w-0">
+                    <h3 className={`text-xl md:text-2xl font-display ${pump.ingredient_name ? "" : "text-muted-foreground"}`}>
+                      {pump.ingredient_name || "Unassigned"}
+                    </h3>
+                    <p className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">Pump {pump.pump_number}</p>
                   </div>
                 </div>
                 
                 {pump.ingredient_name && (
                   <div className="text-left sm:text-right flex flex-col items-start sm:items-end gap-2">
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    Flow: {pump.flow_rate_ml_per_s} ml/s
+                  <div className="text-xs text-muted-foreground">
+                    Flow: <span className="whitespace-nowrap">{pump.flow_rate_ml_per_s} ml/s</span>
                   </div>
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    Tracked bottle volume: {pump.current_volume_ml ?? 0} ml
+                  <div className="text-xs text-muted-foreground">
+                    Tracked bottle volume:{" "}
+                    <span className="whitespace-nowrap">{pump.current_volume_ml ?? 0} ml</span>
                   </div>
-                  <div className="text-[10px] uppercase tracking-widest text-emerald-300/80">
-                    Available for orders: {pump.orderable_volume_ml ?? Math.max(0, Number(pump.current_volume_ml || 0) - reserveMargin)} ml
+                  <div className="text-xs text-emerald-300/80">
+                    Available for orders:{" "}
+                    <span className="whitespace-nowrap">
+                      {pump.orderable_volume_ml ??
+                        Math.max(0, Number(pump.current_volume_ml || 0) - reserveMargin)}{" "}
+                      ml
+                    </span>
                   </div>
                   </div>
                 )}
@@ -157,7 +162,7 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Assigned Liquid</Label>
+              <Label className="text-muted-foreground text-sm font-medium">Assigned Liquid</Label>
               <Select value={assignId} onValueChange={setAssignId}>
                 <SelectTrigger className="h-12 bg-white/5 border-white/10">
                   <SelectValue placeholder="Select liquid..." />
@@ -172,12 +177,12 @@ export function PumpsManager({ machineStatus }: PumpsManagerProps) {
             </div>
             
             <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Flow Rate (ml/s)</Label>
+              <Label className="text-muted-foreground text-sm font-medium">Flow Rate (ml/s)</Label>
               <Input type="number" step="0.1" min="0.1" value={flowRate} onChange={e => setFlowRate(e.target.value)} className="h-12 bg-white/5 border-white/10" />
             </div>
 
             <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Starting / Current Bottle Volume (ml)</Label>
+              <Label className="text-muted-foreground text-sm font-medium">Starting / Current Bottle Volume (ml)</Label>
               <Input type="number" step="1" min="0" value={currentVolume} onChange={e => setCurrentVolume(e.target.value)} className="h-12 bg-white/5 border-white/10" />
               <p className="text-xs leading-5 text-muted-foreground">
                 Enter the measured amount whenever this bottle is installed or refilled. A placed order deducts only its recipe amount; the final {reserveMargin} ml stays protected as a safety margin.

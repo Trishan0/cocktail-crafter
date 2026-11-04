@@ -6,149 +6,168 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { changePin, getPriceVisibility, getStatus, setPriceVisibility } from "@/lib/api";
 
+type Notice = { tone: "ok" | "error"; text: string } | null;
+
 export function SettingsManager() {
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
+  const [pinNotice, setPinNotice] = useState<Notice>(null);
+  const [isChangingPin, setIsChangingPin] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [showDrinkPrices, setShowDrinkPrices] = useState(false);
   const [isUpdatingPriceVisibility, setIsUpdatingPriceVisibility] = useState(false);
+  const [priceError, setPriceError] = useState<string | null>(null);
 
   useEffect(() => {
-    getStatus().then(s => setIsConnected(s.connected)).catch(() => setIsConnected(false));
+    getStatus()
+      .then((s) => setIsConnected(s.connected))
+      .catch(() => setIsConnected(false));
     getPriceVisibility()
-      .then(data => setShowDrinkPrices(Boolean(data.show_prices)))
+      .then((data) => setShowDrinkPrices(Boolean(data.show_prices)))
       .catch(() => setShowDrinkPrices(false));
   }, []);
 
   const handlePinChange = async () => {
+    setIsChangingPin(true);
+    setPinNotice(null);
     try {
       await changePin(currentPin, newPin);
-      alert("PIN changed successfully!");
-      setCurrentPin(""); setNewPin("");
+      setPinNotice({ tone: "ok", text: "PIN updated. Use the new PIN next time you sign in." });
+      setCurrentPin("");
+      setNewPin("");
     } catch (e: any) {
-      alert(e.message);
+      setPinNotice({ tone: "error", text: e.message || "Could not change the PIN." });
+    } finally {
+      setIsChangingPin(false);
     }
   };
 
   const handlePriceVisibilityChange = async (showPrices: boolean) => {
     setIsUpdatingPriceVisibility(true);
+    setPriceError(null);
     try {
       const data = await setPriceVisibility(showPrices);
       setShowDrinkPrices(Boolean(data.show_prices));
     } catch (e: any) {
-      alert(e.message || "Could not update price visibility.");
+      setPriceError(e.message || "Could not update price visibility.");
     } finally {
       setIsUpdatingPriceVisibility(false);
     }
   };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-10 gap-4">
-        <div>
-          <h2 className="text-3xl md:text-4xl font-serif font-light mb-1 md:mb-2">System Settings</h2>
-          <p className="text-sm md:text-base text-muted-foreground">Configure connectivity, security, and display preferences</p>
-        </div>
-        <Button size="lg" className="w-full md:w-auto rounded-full px-8 h-12 md:h-14 text-base md:text-lg bg-primary text-primary-foreground">
-          Save All Changes
-        </Button>
-      </div>
+      <p className="mb-8 text-sm md:text-base text-muted-foreground">
+        Security and what guests see on the kiosk.
+      </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 max-w-5xl">
         {/* Security / PIN */}
         <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md">
-          <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 border-b border-white/10 pb-4 md:pb-6">
-            <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full bg-white/5 flex items-center justify-center">
-              <Lock className="w-5 h-5 md:w-6 md:h-6 text-white" />
+          <div className="flex items-center gap-3 md:gap-4 mb-6 border-b border-white/10 pb-4 md:pb-6">
+            <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full bg-accent/15 text-accent flex items-center justify-center">
+              <Lock className="w-5 h-5 md:w-6 md:h-6" />
             </div>
-            <h3 className="text-xl md:text-2xl font-display font-light">Security</h3>
+            <h3 className="text-xl md:text-2xl font-display">Staff PIN</h3>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Current Admin PIN</Label>
-              <Input type="password" value={currentPin} onChange={e=>setCurrentPin(e.target.value)} placeholder="****" className="h-12 bg-white/5 border-white/10 font-mono text-xl tracking-widest" />
+              <Label htmlFor="current-pin" className="text-muted-foreground text-sm font-medium">
+                Current PIN
+              </Label>
+              <Input
+                id="current-pin"
+                type="password"
+                inputMode="numeric"
+                value={currentPin}
+                onChange={(e) => setCurrentPin(e.target.value)}
+                placeholder="••••"
+                className="h-12 text-xl tracking-widest"
+              />
             </div>
             <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">New Admin PIN</Label>
-              <Input type="password" value={newPin} onChange={e=>setNewPin(e.target.value)} placeholder="4 digits" maxLength={4} className="h-12 bg-white/5 border-white/10 font-mono text-xl tracking-widest" />
+              <Label htmlFor="new-pin" className="text-muted-foreground text-sm font-medium">
+                New PIN
+              </Label>
+              <Input
+                id="new-pin"
+                type="password"
+                inputMode="numeric"
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value)}
+                placeholder="4 digits"
+                maxLength={4}
+                className="h-12 text-xl tracking-widest"
+              />
             </div>
-            <Button onClick={handlePinChange} className="w-full rounded-full bg-primary text-primary-foreground h-12">Update PIN</Button>
+            <Button
+              onClick={handlePinChange}
+              disabled={isChangingPin || !currentPin || newPin.length !== 4}
+              className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90 h-12"
+            >
+              {isChangingPin ? "Updating…" : "Update PIN"}
+            </Button>
+            {pinNotice && (
+              <p
+                role="status"
+                className={`text-sm ${pinNotice.tone === "ok" ? "text-green-400" : "text-red-400"}`}
+              >
+                {pinNotice.text}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Connectivity */}
-        <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md">
-          <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 border-b border-white/10 pb-4 md:pb-6">
-            <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full bg-white/5 flex items-center justify-center">
-              <Server className="w-5 h-5 md:w-6 md:h-6 text-white" />
+        <div className="grid gap-6 md:gap-8 content-start">
+          {/* Controller connection */}
+          <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md">
+            <div className="flex items-center gap-3 md:gap-4 mb-5">
+              <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full bg-accent/15 text-accent flex items-center justify-center">
+                <Server className="w-5 h-5 md:w-6 md:h-6" />
+              </div>
+              <h3 className="text-xl md:text-2xl font-display">Controller</h3>
             </div>
-            <h3 className="text-xl md:text-2xl font-display font-light">Connectivity</h3>
-          </div>
-
-          <div className="space-y-6">
-            <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Serial Port (USB/UART)</Label>
-              <Input disabled value="/dev/ttyACM0 (115200 baud)" className="h-12 bg-white/5 border-white/10 font-mono text-muted-foreground" />
-            </div>
-            <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">API Backend</Label>
-              <Input disabled value="http://localhost:5000/api" className="h-12 bg-white/5 border-white/10 font-mono text-muted-foreground" />
-            </div>
-            <div className={`flex items-center justify-between p-4 rounded-xl border ${isConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
-              <span className={`font-medium text-sm ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
-                Hardware Status: {isConnected ? 'Connected' : 'Disconnected'}
+            <div
+              className={`flex items-center justify-between p-4 rounded-xl border ${isConnected ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"}`}
+            >
+              <span
+                className={`font-medium text-sm ${isConnected ? "text-green-400" : "text-red-400"}`}
+              >
+                {isConnected ? "Connected to the ESP32" : "Not connected to the ESP32"}
               </span>
-              <span className={`flex w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+              <span
+                className={`flex w-3 h-3 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`}
+              />
             </div>
           </div>
-        </div>
 
-        {/* Display */}
-        <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md lg:col-span-2">
-          <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 border-b border-white/10 pb-4 md:pb-6">
-            <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full bg-white/5 flex items-center justify-center">
-              <MonitorSmartphone className="w-5 h-5 md:w-6 md:h-6 text-white" />
+          {/* Kiosk display */}
+          <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md">
+            <div className="flex items-center gap-3 md:gap-4 mb-5">
+              <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full bg-accent/15 text-accent flex items-center justify-center">
+                <MonitorSmartphone className="w-5 h-5 md:w-6 md:h-6" />
+              </div>
+              <h3 className="text-xl md:text-2xl font-display">Kiosk display</h3>
             </div>
-            <h3 className="text-xl md:text-2xl font-display font-light">Display & Interface</h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between gap-5 rounded-xl border border-white/10 bg-white/5 p-4">
-                <div>
-                  <Label htmlFor="show-drink-prices" className="text-sm font-medium">Show drink prices on the customer kiosk</Label>
-                  <p className="mt-1 text-xs text-muted-foreground">Hidden by default. Admin recipe prices remain available here.</p>
-                </div>
-                <Switch
-                  id="show-drink-prices"
-                  checked={showDrinkPrices}
-                  disabled={isUpdatingPriceVisibility}
-                  onCheckedChange={handlePriceVisibilityChange}
-                  aria-label="Show drink prices on the customer kiosk"
-                />
+            <div className="flex items-center justify-between gap-5 rounded-xl border border-white/10 bg-white/5 p-4">
+              <div>
+                <Label htmlFor="show-drink-prices" className="text-sm font-medium">
+                  Show drink prices to guests
+                </Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Hidden by default. Prices stay editable in Drinks either way.
+                </p>
               </div>
-              <div className="grid gap-2">
-                <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Screensaver Timeout (Seconds)</Label>
-                <Input type="number" defaultValue="120" className="h-12 bg-white/5 border-white/10" />
-              </div>
-              <div className="grid gap-2">
-                <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Display Brightness (%)</Label>
-                <Input type="number" defaultValue="85" max="100" min="10" className="h-12 bg-white/5 border-white/10" />
-              </div>
+              <Switch
+                id="show-drink-prices"
+                checked={showDrinkPrices}
+                disabled={isUpdatingPriceVisibility}
+                onCheckedChange={handlePriceVisibilityChange}
+                aria-label="Show drink prices to guests"
+              />
             </div>
-            <div className="space-y-6">
-              <div className="grid gap-2">
-                <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Default Language</Label>
-                <select className="h-12 bg-white/5 border border-white/10 rounded-md px-3 text-white focus:outline-none focus:ring-2 focus:ring-primary">
-                  <option value="en" className="bg-background">English (EN)</option>
-                  <option value="fr" className="bg-background">French (FR)</option>
-                  <option value="jp" className="bg-background">Japanese (JP)</option>
-                </select>
-              </div>
-              <Button variant="outline" className="w-full h-12 rounded-xl bg-white/5 border-white/10 mt-6">
-                Preview Screensaver
-              </Button>
-            </div>
+            {priceError && <p className="mt-3 text-sm text-red-400">{priceError}</p>}
           </div>
         </div>
       </div>

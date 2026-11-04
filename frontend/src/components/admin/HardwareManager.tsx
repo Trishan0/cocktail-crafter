@@ -248,7 +248,6 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
       </AlertDialog>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-10 gap-4">
         <div>
-          <h2 className="text-3xl md:text-4xl font-serif font-light mb-1 md:mb-2">Hardware Controls</h2>
           <p className="text-sm md:text-base text-muted-foreground">Manage IoT settings, sensors, and manual overrides</p>
         </div>
       </div>
@@ -295,7 +294,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
           <div className="flex gap-4 md:gap-6 items-center">
             <div className={`w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors duration-500 ${
               isSimulator
-                ? "bg-purple-500/20 text-purple-400 border-purple-500/30"
+                ? "bg-accent/15 text-accent border-accent/30"
                 : "bg-green-500/20 text-green-400 border-green-500/30"
             }`}>
               {isSimulator ? <Cpu className="w-6 h-6 md:w-8 md:h-8" /> : <Radio className="w-6 h-6 md:w-8 md:h-8" />}
@@ -318,7 +317,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
                 disabled={switchingMode || isSimulator === null || machineStatus !== "idle"}
                 className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                   isSimulator === false
-                    ? "bg-green-500 text-white shadow-lg shadow-green-500/20"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-white hover:bg-white/5"
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
@@ -329,7 +328,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
                 disabled={switchingMode || isSimulator === null || machineStatus !== "idle"}
                 className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                   isSimulator === true
-                    ? "bg-purple-500 text-white shadow-lg shadow-purple-500/20"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-white hover:bg-white/5"
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
@@ -346,9 +345,9 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
         </div>
 
         {/* Documented ESP32 diagnostics. This is intentionally a fixed command list, not a serial terminal. */}
-        <div className="p-5 md:p-8 rounded-3xl border border-amber-500/20 bg-card/40 backdrop-blur-md">
+        <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md">
           <div className="flex gap-4 md:gap-6 items-center mb-5">
-            <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-amber-500/15 text-amber-300 border-2 border-amber-500/30 flex items-center justify-center">
+            <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-accent/15 text-accent border-2 border-accent/30 flex items-center justify-center">
               <Terminal className="w-6 h-6 md:w-8 md:h-8" />
             </div>
             <div>
@@ -371,7 +370,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
               </Button>
             ))}
           </div>
-          <div className="mt-5 rounded-xl border border-black/40 bg-black/40 p-3 min-h-20 font-mono text-xs text-amber-100/80 whitespace-pre-wrap">
+          <div className="mt-5 rounded-xl border border-black/40 bg-black/40 p-3 min-h-20 font-mono text-xs text-muted-foreground whitespace-pre-wrap">
             {debugOutput.length ? debugOutput.join("\n") : "No diagnostic command run in this session."}
           </div>
         </div>
@@ -380,7 +379,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
         <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 mb-6">
             <div className="flex gap-4 md:gap-6 items-center">
-              <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-cyan-500/20 text-cyan-300 border-2 border-cyan-500/30 flex items-center justify-center">
+              <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-accent/15 text-accent border-2 border-accent/30 flex items-center justify-center">
                 <Activity className="w-6 h-6 md:w-8 md:h-8" />
               </div>
               <div>
@@ -394,7 +393,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
               size="lg"
               onClick={handleCheckLevels}
               disabled={checkingLevels}
-              className="w-full sm:w-auto rounded-full h-12 px-6 text-sm md:text-base bg-cyan-600 hover:bg-cyan-500 text-white"
+              className="w-full sm:w-auto rounded-full h-12 px-6 text-sm md:text-base bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${checkingLevels ? "animate-spin" : ""}`} />
               {checkingLevels ? "Checking..." : "Check Levels"}
@@ -408,11 +407,11 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
               const valueClass = value === null
                 ? "border-white/10 bg-black/20 text-muted-foreground"
                 : value === 1
-                  ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
+                  ? "border-accent/30 bg-accent/10 text-foreground"
                   : "border-orange-500/30 bg-orange-500/10 text-orange-200";
               return (
                 <div key={key} className={`rounded-2xl border p-4 text-center ${valueClass}`}>
-                  <p className="text-xs uppercase tracking-[0.18em] opacity-70">{key}</p>
+                  <p className="text-xs opacity-70">{key}</p>
                   <p className="mt-2 text-sm font-semibold">{valueLabel}</p>
                 </div>
               );
@@ -444,7 +443,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
         {/* The Pi compares each recipe total with this admin-calibrated value before START. */}
         <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md">
           <div className="flex gap-4 md:gap-6 items-center">
-            <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-violet-500/20 text-violet-300 border-2 border-violet-500/30 flex items-center justify-center">
+            <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-accent/15 text-accent border-2 border-accent/30 flex items-center justify-center">
               <GlassWater className="w-6 h-6 md:w-8 md:h-8" />
             </div>
             <div>
@@ -482,7 +481,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
         {/* Maintenance / Cleaning */}
         <div className="p-5 md:p-8 rounded-3xl border border-white/10 bg-card/40 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex gap-4 md:gap-6 items-center">
-            <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-blue-500/20 text-blue-400 border-2 border-blue-500/30 flex items-center justify-center">
+            <div className="w-14 h-14 md:w-16 md:h-16 shrink-0 rounded-full bg-accent/15 text-accent border-2 border-accent/30 flex items-center justify-center">
               <Droplet className="w-6 h-6 md:w-8 md:h-8" />
             </div>
             <div>
@@ -497,9 +496,9 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
             onClick={handleClean} 
             disabled={cleaning || machineStatus !== "idle"}
             className={`w-full sm:w-auto rounded-full h-12 md:h-14 px-6 md:px-8 text-sm md:text-lg transition-all ${
-              cleaning ? "bg-blue-600 animate-pulse text-white" : 
+              cleaning ? "bg-primary/80 animate-pulse text-primary-foreground" : 
               machineStatus !== "idle" ? "bg-muted text-muted-foreground" :
-              "bg-blue-500 hover:bg-blue-400 text-white"
+              "bg-primary text-primary-foreground hover:bg-primary/90"
             }`}
           >
             {cleaning ? "Cleaning..." : "Start Cleaning Cycle"}
@@ -519,7 +518,7 @@ export function HardwareManager({ machineStatus }: HardwareManagerProps) {
               </p>
             </div>
           </div>
-          <Button onClick={handleAbort} className="w-full sm:w-auto rounded-full h-12 md:h-14 px-6 md:px-8 text-sm md:text-lg font-bold uppercase tracking-widest bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 transition-all">
+          <Button onClick={handleAbort} className="w-full sm:w-auto rounded-full h-12 md:h-14 px-6 md:px-8 text-sm md:text-lg font-semibold bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 transition-all">
             Request STOP
           </Button>
         </div>

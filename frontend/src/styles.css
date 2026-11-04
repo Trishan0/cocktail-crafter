@@ -26,6 +26,18 @@
   --color-accent-soft: var(--accent-soft);
   --color-page: var(--page);
   --color-page-foreground: var(--page-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --font-display: "Archivo Variable", system-ui, sans-serif;
   --font-sans: "Archivo Variable", system-ui, sans-serif;
   --font-mono: "Archivo Variable", system-ui, sans-serif;
@@ -34,25 +46,37 @@
 :root {
   --radius: 0.75rem;
 
-  /* Presentation board (outside the kiosks) */
-  --page: oklch(0.18 0.005 80);
-  --page-foreground: oklch(0.92 0.01 90);
+  /* Warm "golden hour bar" palette, shared with the kiosk (kiosk.css). */
+  --page: #0b0806;
+  --page-foreground: #f6eee4;
 
-  /* Inside the kiosk frames */
-  --background: oklch(0.13 0.003 90);
-  --foreground: oklch(0.96 0.008 90);
-  --surface: oklch(0.17 0.004 90);
-  --surface-2: oklch(0.21 0.005 90);
-  --surface-3: oklch(0.26 0.006 90);
-  --border: oklch(0.28 0.006 90 / 60%);
-  --border-strong: oklch(0.42 0.008 90 / 80%);
-  --muted: oklch(0.22 0.005 90);
-  --muted-foreground: oklch(0.68 0.01 90);
+  --background: #16110d;
+  --foreground: #f6eee4;
+  --surface: #1d1611;
+  --surface-2: #261d16;
+  --surface-3: #31261d;
+  --border: rgb(246 238 228 / 12%);
+  --border-strong: rgb(246 238 228 / 24%);
+  --muted: #2a2119;
+  --muted-foreground: #c9baa8;
 
-  /* Champagne gold accent */
-  --accent: oklch(0.83 0.09 85);
-  --accent-foreground: oklch(0.16 0.005 90);
-  --accent-soft: oklch(0.83 0.09 85 / 18%);
+  /* Apricot accent, taken from the house drinks. */
+  --accent: #f2a65e;
+  --accent-foreground: #241509;
+  --accent-soft: rgb(242 166 94 / 16%);
+
+  --primary: #f2a65e;
+  --primary-foreground: #241509;
+  --secondary: #2d231b;
+  --secondary-foreground: #f6eee4;
+  --card: #1d1611;
+  --card-foreground: #f6eee4;
+  --popover: #221a14;
+  --popover-foreground: #f6eee4;
+  --destructive: #e5684f;
+  --destructive-foreground: #fff7f1;
+  --input: rgb(246 238 228 / 18%);
+  --ring: #f2a65e;
 }
 
 @layer base {
@@ -138,8 +162,9 @@
 }
 
 /* --------------------------------------------------------------------------
-   Staff administration — reuses the kiosk's charcoal/cobalt system without
-   changing the admin API, live state subscriptions, or control behaviour.
+   Staff administration — same warm system as the kiosk: softened machine
+   photo behind everything, espresso surfaces, one apricot accent, Archivo
+   condensed caps for page titles. Behaviour and API calls are unchanged.
    -------------------------------------------------------------------------- */
 
 .admin-kiosk-shell,
@@ -151,16 +176,28 @@
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  color: #f4f7ff;
-  background: #06080d;
+  color: var(--foreground);
+  background: var(--background);
   font-family: var(--font-sans);
 }
 
-.admin-kiosk-shell__glow {
+.admin-backdrop {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(circle at 75% 5%, rgb(35 98 255 / 15%), transparent 30%), radial-gradient(circle at 15% 92%, rgb(35 98 255 / 8%), transparent 30%);
+  background-position: center;
+  background-size: cover;
+}
+
+.admin-backdrop::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, rgb(18 13 10 / 94%) 0%, rgb(18 13 10 / 90%) 60%, rgb(18 13 10 / 84%) 100%);
+}
+
+.admin-kiosk-shell--login .admin-backdrop::after {
+  background: linear-gradient(90deg, rgb(18 13 10 / 88%) 0%, rgb(18 13 10 / 72%) 100%);
 }
 
 .admin-kiosk-shell__content {
@@ -175,215 +212,205 @@
   place-items: center;
 }
 
+/* Page titles share the kiosk's display voice. */
+.admin-dashboard__header h1,
+.admin-login__intro h2,
+.admin-dashboard__brand strong {
+  font-stretch: 72%;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
 .admin-dashboard {
   min-height: 100vh;
   display: flex;
-  color: #f4f7ff;
 }
 
 .admin-dashboard__sidebar {
-  width: 258px;
-  padding: 26px 15px 17px;
+  width: 224px;
+  padding: 22px 14px 16px;
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
   justify-content: space-between;
-  border-right: 1px solid rgb(143 166 216 / 17%);
-  background: linear-gradient(180deg, rgb(14 19 30 / 94%), rgb(7 10 16 / 96%));
-  box-shadow: inset -1px 0 0 rgb(255 255 255 / 3%);
+  border-right: 1px solid var(--border);
+  background: rgb(22 17 13 / 72%);
 }
 
 .admin-dashboard__brand {
-  padding: 0 12px 29px;
+  padding: 0 10px 20px;
   display: flex;
   align-items: center;
-  gap: 11px;
-  border-bottom: 1px solid rgb(151 175 224 / 13%);
-}
-
-.admin-dashboard__brand > span {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgb(106 151 255 / 70%);
-  border-radius: 12px;
-  color: #deebff;
-  background: linear-gradient(145deg, rgb(41 102 255 / 34%), rgb(12 19 34 / 50%));
-  box-shadow: 0 0 18px rgb(27 91 255 / 21%);
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--accent);
 }
 
 .admin-dashboard__brand div {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .admin-dashboard__brand strong {
-  font-size: 16px;
-  letter-spacing: -.4px;
+  color: var(--foreground);
+  font-size: 18px;
+  letter-spacing: 0.06em;
 }
 
-.admin-dashboard__brand small,
-.admin-dashboard__nav-label {
-  color: #8d9bb2;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: .11em;
-  text-transform: uppercase;
-}
-
-.admin-dashboard__nav-label {
-  margin: 25px 12px 9px;
+.admin-dashboard__brand small {
+  color: var(--muted-foreground);
+  font-size: 13px;
 }
 
 .admin-dashboard__nav {
+  margin-top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .admin-dashboard__nav button,
 .admin-dashboard__logout {
-  min-height: 52px;
-  padding: 0 13px;
+  min-height: 50px;
+  padding: 0 14px;
   display: flex;
   align-items: center;
   gap: 12px;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 12px;
-  color: #9caac0;
+  color: var(--muted-foreground);
   background: transparent;
   font: inherit;
   font-size: 15px;
   font-weight: 600;
   text-align: left;
-  transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
+  transition:
+    color 160ms ease,
+    background 160ms ease;
 }
 
 .admin-dashboard__nav button:hover {
-  color: #e6edff;
-  background: rgb(255 255 255 / 4%);
+  color: var(--foreground);
+  background: rgb(246 238 228 / 5%);
 }
 
 .admin-dashboard__nav button.is-active {
-  border-color: rgb(83 136 255 / 48%);
-  color: #eaf1ff;
-  background: linear-gradient(135deg, rgb(44 101 242 / 28%), rgb(20 48 112 / 33%));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%), 0 0 20px rgb(22 79 229 / 11%);
+  color: var(--foreground);
+  background: var(--accent-soft);
 }
 
 .admin-dashboard__nav button.is-active svg {
-  color: #5c90ff;
+  color: var(--accent);
+}
+
+.admin-dashboard__sidebar-end {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .admin-dashboard__logout {
   width: 100%;
-  color: #ff949b;
+  color: #f0957b;
 }
 
 .admin-dashboard__logout:hover {
-  background: rgb(255 77 90 / 10%);
+  background: rgb(229 104 79 / 12%);
 }
 
 .admin-dashboard__main {
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
-  background: linear-gradient(135deg, rgb(7 10 16 / 86%), rgb(8 12 19 / 63%));
 }
 
 .admin-dashboard__header {
-  min-height: 103px;
-  padding: 25px 37px 20px;
+  min-height: 84px;
+  padding: 18px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgb(151 175 224 / 13%);
-  background: rgb(7 10 16 / 57%);
-}
-
-.admin-dashboard__header p {
-  margin: 0 0 4px;
-  color: #78a3ff;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: .14em;
-  text-transform: uppercase;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 .admin-dashboard__header h1 {
   margin: 0;
-  font-size: 29px;
+  font-size: 38px;
   line-height: 1;
-  letter-spacing: -1.2px;
 }
 
 .admin-dashboard__status {
-  min-height: 47px;
+  min-height: 44px;
   padding: 0 14px;
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid rgb(132 159 212 / 23%);
-  border-radius: 13px;
-  color: #cbd5e8;
-  background: rgb(255 255 255 / 3%);
-  font-size: 13px;
-  font-weight: 650;
-  text-transform: capitalize;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  color: var(--foreground);
+  background: rgb(22 17 13 / 60%);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .admin-dashboard__status i {
   width: 9px;
   height: 9px;
+  flex-shrink: 0;
   border-radius: 50%;
-  background: #4d82ff;
-  box-shadow: 0 0 12px currentColor;
+  background: var(--accent);
 }
 
-.admin-dashboard__status.is-idle i { color: #55d077; background: #55d077; }
-.admin-dashboard__status.is-error i { color: #ff6974; background: #ff6974; }
-.admin-dashboard__status.is-busy i { animation: cc-waiting-pulse 1.7s ease-in-out infinite; }
+.admin-dashboard__status.is-idle i {
+  background: #7fcf8a;
+}
+
+.admin-dashboard__status.is-error i {
+  background: #f0957b;
+}
+
+.admin-dashboard__status.is-busy i {
+  animation: admin-pulse 1.6s ease-in-out infinite;
+}
 
 .admin-dashboard__status small {
   padding-left: 9px;
-  border-left: 1px solid rgb(185 204 244 / 18%);
-  color: #8e9db5;
-  font-size: 12px;
+  border-left: 1px solid var(--border-strong);
+  color: var(--muted-foreground);
+  font-size: 13px;
 }
 
 .admin-dashboard__activity {
-  min-height: 66px;
-  margin: 17px 37px 0;
-  padding: 10px 14px;
+  min-height: 62px;
+  margin: 16px 32px 0;
+  padding: 10px 16px;
   display: grid;
-  grid-template-columns: minmax(160px, .9fr) minmax(160px, 2fr) 43px;
+  grid-template-columns: minmax(160px, 0.9fr) minmax(160px, 2fr) 48px;
   align-items: center;
-  gap: 17px;
-  border: 1px solid rgb(77 133 255 / 35%);
-  border-radius: 13px;
-  background: rgb(34 82 189 / 12%);
+  gap: 16px;
+  border: 1px solid rgb(242 166 94 / 35%);
+  border-radius: 14px;
+  background: var(--accent-soft);
 }
 
 .admin-dashboard__activity div:first-child {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .admin-dashboard__activity span {
-  color: #8e9fba;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .1em;
-  text-transform: uppercase;
+  color: var(--muted-foreground);
+  font-size: 13px;
 }
 
 .admin-dashboard__activity strong {
   overflow: hidden;
-  font-size: 14px;
+  font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -392,128 +419,109 @@
   height: 6px;
   overflow: hidden;
   border-radius: 3px;
-  background: rgb(194 214 255 / 13%);
+  background: rgb(246 238 228 / 12%);
 }
 
 .admin-dashboard__progress i {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #2868ff, #8bb0ff);
-  box-shadow: 0 0 13px #3e7dff;
+  background: var(--accent);
   transition: width 300ms linear;
 }
 
 .admin-dashboard__activity > b {
-  color: #82a9ff;
-  font-size: 14px;
+  color: var(--accent);
+  font-size: 15px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .admin-dashboard__content {
-  height: calc(100vh - 103px);
-  padding: 30px 37px 48px;
+  height: calc(100vh - 84px);
+  padding: 24px 32px 48px;
   overflow-y: auto;
 }
 
 .admin-dashboard__activity + .admin-dashboard__content {
-  height: calc(100vh - 186px);
+  height: calc(100vh - 162px);
 }
 
 .admin-dashboard__mobile-nav {
   display: none;
 }
 
-/* Existing manager markup is retained; these scoped surface rules turn each
-   view, table, dialog, input, and recipe card into the same admin system. */
+/* Manager markup keeps its Tailwind classes; the theme tokens in :root now
+   drive bg-primary, bg-card, border-input and friends. These rules only tune
+   what tokens cannot express. */
 .admin-ui .font-serif,
 .admin-ui .font-display {
   font-family: var(--font-sans);
-}
-
-.admin-ui .text-primary,
-.admin-ui .text-accent {
-  color: #6f9dff !important;
-}
-
-.admin-ui .bg-primary,
-.admin-ui button.bg-primary {
-  color: #fff !important;
-  background: linear-gradient(135deg, #2867ff, #1744d7) !important;
-  box-shadow: 0 8px 21px rgb(23 79 221 / 23%);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .admin-ui .surface-card,
 .admin-ui [class*="bg-card"] {
-  border-color: rgb(137 163 216 / 22%) !important;
-  background: linear-gradient(145deg, rgb(18 25 39 / 91%), rgb(10 14 22 / 94%)) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+  border-color: var(--border) !important;
 }
 
 .admin-ui [class*="border-white/"] {
-  border-color: rgb(143 167 218 / 19%) !important;
-}
-
-.admin-ui [class*="bg-white/"] {
-  background-color: rgb(255 255 255 / 4%) !important;
+  border-color: var(--border) !important;
 }
 
 .admin-ui [class*="hover:bg-white/"]:hover {
-  background-color: rgb(64 111 228 / 14%) !important;
+  background-color: rgb(242 166 94 / 10%) !important;
 }
 
 .admin-ui input,
 .admin-ui textarea,
 .admin-ui [role="combobox"],
 .admin-ui [data-slot="select-trigger"] {
-  border-color: rgb(138 164 217 / 28%) !important;
-  color: #edf3ff !important;
-  background: rgb(255 255 255 / 4%) !important;
+  border-color: var(--input) !important;
+  color: var(--foreground) !important;
+  background: rgb(22 17 13 / 55%) !important;
 }
 
 .admin-ui input:focus,
 .admin-ui textarea:focus,
 .admin-ui button:focus-visible,
 .admin-ui [role="combobox"]:focus-visible {
-  outline: 2px solid #83aaff;
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
 .admin-ui [role="dialog"],
+.admin-ui [role="alertdialog"],
 .admin-ui [data-radix-popper-content-wrapper] > * {
-  border-color: rgb(119 155 238 / 42%) !important;
-  color: #eef3ff !important;
-  background: #111827 !important;
-}
-
-.admin-ui .admin-dashboard__content h2 {
-  color: #f4f7ff;
-  font-weight: 700;
-  letter-spacing: -1.3px;
+  border-color: var(--border-strong) !important;
+  color: var(--foreground) !important;
+  background: var(--popover) !important;
 }
 
 .admin-ui .admin-dashboard__content p,
 .admin-ui .text-muted-foreground {
-  color: #9eabc0;
+  color: var(--muted-foreground);
 }
 
 .admin-ui .rounded-full {
   border-radius: 12px;
 }
 
+/* PIN screen ---------------------------------------------------------------- */
+
 .admin-login {
   position: relative;
-  width: min(100% - 32px, 398px);
+  width: min(100% - 32px, 380px);
   margin: 0 auto;
-  padding: 37px 35px 32px;
+  padding: 32px 30px 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  border: 1px solid rgb(111 153 245 / 41%);
-  border-radius: 23px;
-  color: #f5f8ff;
-  background: linear-gradient(145deg, rgb(18 27 45 / 96%), rgb(9 13 21 / 98%));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 9%), 0 21px 55px rgb(0 0 0 / 38%), 0 0 35px rgb(25 87 245 / 10%);
+  border: 1px solid var(--border-strong);
+  border-radius: 24px;
+  color: var(--foreground);
+  background: rgb(29 22 17 / 88%);
 }
 
 .admin-login__intro {
@@ -524,63 +532,52 @@
 }
 
 .admin-login__lock {
-  width: 65px;
-  height: 65px;
-  margin-bottom: 16px;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 14px;
   display: grid;
   place-items: center;
-  border: 1px solid #5b91ff;
   border-radius: 50%;
-  color: #8fb5ff;
-  background: rgb(35 95 241 / 18%);
-  box-shadow: 0 0 23px rgb(27 92 255 / 19%);
-}
-
-.admin-login__intro > p {
-  margin: 0;
-  color: #7ba4ff;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: .15em;
-  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--surface-3);
 }
 
 .admin-login__intro h2 {
-  margin: 6px 0 5px;
-  font-size: 29px;
-  letter-spacing: -1.1px;
+  margin: 0 0 6px;
+  font-size: 36px;
+  line-height: 1;
 }
 
 .admin-login__intro span {
-  color: #9daac0;
-  font-size: 14px;
+  color: var(--muted-foreground);
+  font-size: 15px;
 }
 
 .admin-login__dots {
-  margin: 25px 0;
+  margin: 22px 0;
   display: flex;
-  gap: 13px;
+  gap: 14px;
 }
 
 .admin-login__dot {
-  width: 13px;
-  height: 13px;
-  border: 1px solid rgb(158 181 231 / 35%);
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--border-strong);
   border-radius: 50%;
   background: transparent;
-  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
 }
 
 .admin-login__dot.is-filled {
-  border-color: #5f94ff;
-  background: #5f94ff;
-  box-shadow: 0 0 11px rgb(66 126 255 / 67%);
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
 .admin-login__dot.is-error {
-  border-color: #ff707a;
-  background: #ff707a;
-  box-shadow: 0 0 11px rgb(255 82 95 / 59%);
+  border-color: #f0957b;
+  background: #f0957b;
 }
 
 .admin-login__keypad {
@@ -591,48 +588,133 @@
 }
 
 .admin-login__key {
-  height: 59px;
-  border: 1px solid rgb(148 174 226 / 25%) !important;
-  border-radius: 13px !important;
-  color: #e9efff !important;
-  background: rgb(255 255 255 / 4%) !important;
-  font-size: 20px !important;
-  font-weight: 550 !important;
-  transition: background 160ms ease, border-color 160ms ease, transform 100ms ease !important;
+  height: 58px;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 14px !important;
+  color: var(--foreground) !important;
+  background: rgb(22 17 13 / 55%) !important;
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 100ms ease !important;
 }
 
 .admin-login__key:hover {
-  border-color: #6193ff !important;
-  background: rgb(51 105 235 / 19%) !important;
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
 }
 
-.admin-login__key:active { transform: scale(.97); }
+.admin-login__key:active {
+  transform: scale(0.97);
+}
+
+.admin-login__key:disabled {
+  opacity: 0.5;
+}
 
 .admin-login__key--muted {
-  color: #9ba9bf !important;
-  font-size: 12px !important;
-  text-transform: uppercase;
+  color: var(--muted-foreground) !important;
+  font-size: 14px !important;
 }
 
+/* Reserved line inside the card so the message never pushes layout or
+   falls off a 600 px screen. */
 .admin-login__error {
-  position: absolute;
-  bottom: -32px;
-  color: #ff8e96;
-  font-size: 13px;
-  font-weight: 650;
+  min-height: 20px;
+  margin: 14px 0 0;
+  color: #f0957b;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.admin-login__back {
+  margin-top: 8px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.admin-login__back:hover {
+  color: var(--foreground);
+}
+
+@keyframes admin-pulse {
+  50% {
+    opacity: 0.35;
+  }
 }
 
 @media (max-width: 780px) {
-  .admin-dashboard { padding-bottom: 73px; }
-  .admin-dashboard__sidebar { display: none; }
-  .admin-dashboard__header { min-height: 86px; padding: 17px 18px; }
-  .admin-dashboard__header h1 { font-size: 25px; }
-  .admin-dashboard__status { min-height: 42px; padding: 0 10px; font-size: 11px; }
-  .admin-dashboard__status small { display: none; }
-  .admin-dashboard__activity { margin: 12px 18px 0; grid-template-columns: minmax(0, 1fr) 1.2fr 38px; gap: 10px; }
-  .admin-dashboard__content { height: calc(100vh - 86px); padding: 23px 18px 25px; }
-  .admin-dashboard__activity + .admin-dashboard__content { height: calc(100vh - 159px); }
-  .admin-dashboard__mobile-nav { position: fixed; z-index: 50; right: 0; bottom: 0; left: 0; min-height: 73px; padding: 7px 4px; display: flex; justify-content: space-around; border-top: 1px solid rgb(144 169 219 / 22%); background: rgb(9 13 21 / 95%); backdrop-filter: blur(16px); }
-  .admin-dashboard__mobile-nav button { width: 56px; min-height: 56px; padding: 4px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; border-radius: 10px; color: #95a4bb; background: transparent; font: inherit; font-size: 9px; font-weight: 650; }
-  .admin-dashboard__mobile-nav button.is-active { color: #7fa8ff; background: rgb(47 99 225 / 17%); }
+  .admin-dashboard {
+    padding-bottom: 73px;
+  }
+  .admin-dashboard__sidebar {
+    display: none;
+  }
+  .admin-dashboard__header {
+    min-height: 76px;
+    padding: 14px 18px;
+  }
+  .admin-dashboard__header h1 {
+    font-size: 30px;
+  }
+  .admin-dashboard__status {
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  .admin-dashboard__status small {
+    display: none;
+  }
+  .admin-dashboard__activity {
+    margin: 12px 18px 0;
+    grid-template-columns: minmax(0, 1fr) 1.2fr 40px;
+    gap: 10px;
+  }
+  .admin-dashboard__content {
+    height: calc(100vh - 76px);
+    padding: 20px 18px 25px;
+  }
+  .admin-dashboard__activity + .admin-dashboard__content {
+    height: calc(100vh - 150px);
+  }
+  .admin-dashboard__mobile-nav {
+    position: fixed;
+    z-index: 50;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    min-height: 73px;
+    padding: 7px 4px;
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid var(--border);
+    background: rgb(22 17 13 / 95%);
+    backdrop-filter: blur(16px);
+  }
+  .admin-dashboard__mobile-nav button {
+    width: 56px;
+    min-height: 56px;
+    padding: 4px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: 0;
+    border-radius: 10px;
+    color: var(--muted-foreground);
+    background: transparent;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .admin-dashboard__mobile-nav button.is-active {
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
 }
