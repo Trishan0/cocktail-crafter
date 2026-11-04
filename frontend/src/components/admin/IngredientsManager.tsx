@@ -70,7 +70,6 @@ export function IngredientsManager() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-10 gap-4">
         <div>
-          <h2 className="text-3xl md:text-4xl font-serif font-light mb-1 md:mb-2">Ingredients Pool</h2>
           <p className="text-sm md:text-base text-muted-foreground">Manage all known liquids the machine can handle</p>
         </div>
         
@@ -87,11 +86,11 @@ export function IngredientsManager() {
             </DialogHeader>
             <div className="grid gap-6 py-4">
               <div className="grid gap-2">
-                <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Name</Label>
+                <Label className="text-muted-foreground text-sm font-medium">Name</Label>
                 <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Vodka" className="h-12 bg-white/5 border-white/10" />
               </div>
               <div className="grid gap-2">
-                <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Description</Label>
+                <Label className="text-muted-foreground text-sm font-medium">Description</Label>
                 <Textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional details..." className="bg-white/5 border-white/10 resize-none" rows={3} />
               </div>
             </div>
@@ -129,11 +128,11 @@ export function IngredientsManager() {
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Name</Label>
+              <Label className="text-muted-foreground text-sm font-medium">Name</Label>
               <Input value={name} onChange={e => setName(e.target.value)} className="h-12 bg-white/5 border-white/10" />
             </div>
             <div className="grid gap-2">
-              <Label className="text-muted-foreground uppercase tracking-widest text-[10px]">Description</Label>
+              <Label className="text-muted-foreground text-sm font-medium">Description</Label>
               <Textarea value={desc} onChange={e => setDesc(e.target.value)} className="bg-white/5 border-white/10 resize-none" rows={3} />
             </div>
           </div>

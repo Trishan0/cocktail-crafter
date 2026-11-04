@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { 
-  Wine, 
-  Droplet, 
-  Settings2, 
+import {
+  Wine,
+  Droplet,
+  Settings2,
   Activity,
   LogOut,
   FlaskConical,
-  ListOrdered
+  ListOrdered,
+  Martini,
 } from "lucide-react";
 import { DrinksManager } from "./DrinksManager";
 import { PumpsManager } from "./PumpsManager";
@@ -59,14 +60,13 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     { id: "orders", label: "Orders", icon: ListOrdered },
     { id: "drinks", label: "Drinks", icon: Wine },
     { id: "ingredients", label: "Ingredients", icon: FlaskConical },
-    { id: "pumps", label: "Pumps (6)", icon: Droplet },
+    { id: "pumps", label: "Pumps", icon: Droplet },
     { id: "hardware", label: "Hardware", icon: Activity },
     { id: "settings", label: "Settings", icon: Settings2 },
   ];
   const stationReady = hardwareConnected;
-  const stationState = !hardwareConnected
-    ? "controller offline"
-    : machineStatus.replace("_", " ");
+  const rawState = !hardwareConnected ? "controller offline" : machineStatus.replace("_", " ");
+  const stationState = rawState.charAt(0).toUpperCase() + rawState.slice(1);
   const stationClass = !stationReady
     ? "is-error"
     : machineStatus === "idle"
@@ -80,10 +80,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       <aside className="admin-dashboard__sidebar">
         <div>
           <div className="admin-dashboard__brand">
-            <span><Wine size={25} aria-hidden="true" /></span>
-            <div><strong>Cocktail Craft</strong><small>Staff console</small></div>
+            <Martini size={22} strokeWidth={1.8} aria-hidden="true" />
+            <div>
+              <strong>Cocktail Craft</strong>
+              <small>Staff console</small>
+            </div>
           </div>
-          <p className="admin-dashboard__nav-label">Management</p>
           <nav className="admin-dashboard__nav" aria-label="Admin sections">
             {navItems.map((item) => (
               <button
@@ -105,18 +107,25 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
       <main className="admin-dashboard__main">
         <header className="admin-dashboard__header">
-          <div><p>Staff administration</p><h1>{navItems.find(item => item.id === activeTab)?.label}</h1></div>
+          <h1>{navItems.find((item) => item.id === activeTab)?.label}</h1>
           <div className={`admin-dashboard__status ${stationClass}`}>
             <i aria-hidden="true" />
             <span>Station 01 · {stationState}</span>
-            {stationReady && currentOrderId && machineStatus !== "idle" && <small>Order #{currentOrderId}</small>}
+            {stationReady && currentOrderId && machineStatus !== "idle" && (
+              <small>Order #{currentOrderId}</small>
+            )}
           </div>
         </header>
 
         {machineStatus !== "idle" && (
           <div className="admin-dashboard__activity">
-            <div><span>Live machine activity</span><strong>{message || machineStatus.replace("_", " ")}</strong></div>
-            <div className="admin-dashboard__progress"><i style={{ width: `${progress}%` }} /></div>
+            <div>
+              <span>Live machine activity</span>
+              <strong>{message || machineStatus.replace("_", " ")}</strong>
+            </div>
+            <div className="admin-dashboard__progress">
+              <i style={{ width: `${progress}%` }} />
+            </div>
             <b>{progress}%</b>
           </div>
         )}
@@ -133,9 +142,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
       <nav className="admin-dashboard__mobile-nav" aria-label="Admin sections">
         {navItems.map((item) => (
-          <button type="button" key={item.id} onClick={() => setActiveTab(item.id)} className={activeTab === item.id ? "is-active" : ""}>
+          <button
+            type="button"
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={activeTab === item.id ? "is-active" : ""}
+          >
             <item.icon size={18} aria-hidden="true" />
-            <span>{item.id === "pumps" ? "Pumps" : item.label}</span>
+            <span>{item.label}</span>
           </button>
         ))}
       </nav>

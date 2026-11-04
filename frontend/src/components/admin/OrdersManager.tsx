@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { History, Receipt, ChevronDown, ChevronUp, Wifi, WifiOff } from "lucide-react";
+import { Receipt, ChevronDown, ChevronUp, Wifi, WifiOff } from "lucide-react";
 
 export function OrdersManager() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -74,7 +74,7 @@ export function OrdersManager() {
       case "done":    return "text-green-400 bg-green-500/10 border-green-500/20";
       case "error":   return "text-red-400 bg-red-500/10 border-red-500/20";
       case "aborted": return "text-orange-400 bg-orange-500/10 border-orange-500/20";
-      case "pending": return "text-blue-400 bg-blue-500/10 border-blue-500/20";
+      case "pending": return "text-accent bg-accent/10 border-accent/30";
       default:        return "text-gray-400 bg-gray-500/10 border-gray-500/20";
     }
   };
@@ -83,11 +83,7 @@ export function OrdersManager() {
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-serif tracking-widest text-primary uppercase flex items-center gap-3">
-            <History className="w-8 h-8" />
-            Order History
-          </h2>
-          <p className="text-muted-foreground mt-2">Recent drink orders and their statuses.</p>
+          <p className="text-muted-foreground">Recent drink orders and their statuses.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -128,7 +124,7 @@ export function OrdersManager() {
                 key={order.id}
                 className={`border rounded-2xl bg-card/40 backdrop-blur-md overflow-hidden transition-all duration-300 ${
                   isActive
-                    ? "border-blue-500/40 shadow-[0_0_16px_rgba(59,130,246,0.15)]"
+                    ? "border-accent/50"
                     : "border-white/10"
                 }`}
               >
@@ -156,11 +152,11 @@ export function OrdersManager() {
 
                   <div className="flex items-center justify-between md:justify-end gap-4 md:w-auto">
                     {isActive ? (
-                      <span className="px-3 py-1 rounded-full text-xs uppercase tracking-wider border text-blue-400 bg-blue-500/10 border-blue-500/20 animate-pulse">
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold border text-accent bg-accent/10 border-accent/30 animate-pulse">
                         In Progress…
                       </span>
                     ) : (
-                      <span className={`px-3 py-1 rounded-full text-xs uppercase tracking-wider border ${getStatusColor(order.status)}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize border ${getStatusColor(order.status)}`}>
                         {order.status}
                       </span>
                     )}
@@ -175,7 +171,7 @@ export function OrdersManager() {
                   <div className="p-4 md:p-6 border-t border-white/5 bg-black/20 flex flex-col md:flex-row gap-8 text-sm">
                     <div className="flex-1 space-y-4">
                       <div>
-                        <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Ingredients Snapshot</h4>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Ingredients Snapshot</h4>
                         {order.ingredients_snapshot ? (
                           <ul className="space-y-1">
                             {JSON.parse(order.ingredients_snapshot).map((ing: any, i: number) => (
@@ -192,7 +188,7 @@ export function OrdersManager() {
                     </div>
                     <div className="flex-1 space-y-4">
                       <div>
-                        <h4 className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Hardware Commands</h4>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Hardware Commands</h4>
                         {order.pump_commands ? (
                           <ul className="space-y-1">
                             {JSON.parse(order.pump_commands).map((cmd: any, i: number) => (
