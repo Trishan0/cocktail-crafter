@@ -1,37 +1,56 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  Box,
   Check,
-  ChevronRight,
-  Circle,
-  Droplets,
-  FlaskConical,
-  GlassWater,
+  Info,
   Martini,
-  Minus,
   Plus,
   PowerOff,
-  ShieldCheck,
-  Snowflake,
-  Sparkles,
+  RotateCcw,
+  X,
 } from "lucide-react";
-import readyHero from "@/assets/cocktail-ready.png";
-import customBuild from "@/assets/custom-drink.png";
-import defaultDrink from "@/assets/default-drink.png";
 
-
-import { getMenu, placeOrder, placeCustomOrder, getPumps } from "@/lib/api";
+import { getMenu, placeOrder, placeCustomOrder, getPumps, getGlassCapacityConfig } from "@/lib/api";
+import {
+  DISPENSE_BAY_PHOTO,
+  FALLBACK_COLLAGE,
+  HOUSE_BACKDROP,
+  MACHINE_PHOTO,
+  drinkBackdrop,
+  drinkImage,
+  flavourLine,
+  ingredientColor,
+} from "@/lib/drinks";
 
 export const Route = createFileRoute("/")({
   component: KioskApp,
 });
 
 type ScreenKey =
-  | "welcome" | "experience" | "catalog" | "detail"
-  | "compose" | "review" | "waiting_glass" | "preparing" | "ready" | "error" | "cleaning" | "cleaning_done";
+  | "welcome"
+  | "catalog"
+  | "detail"
+  | "compose"
+  | "waiting_glass"
+  | "preparing"
+  | "ready"
+  | "error"
+  | "cleaning"
+  | "cleaning_done";
+
+const MAX_TOTAL_ML = 300;
+const MAX_PER_INGREDIENT_ML = 100;
+const AMOUNT_PRESETS = [15, 30, 60, 100];
+const DEFAULT_SMALL_GLASS_ML = 170;
+
+// Browsing screens return to Welcome after this long without a touch, so a
+// walked-away guest never leaves the kiosk parked mid-order.
+const IDLE_TIMEOUT_MS = 60_000;
+const BROWSING_SCREENS: ScreenKey[] = ["catalog", "detail", "compose"];
 
 function useKioskScale() {
   const [scale, setScale] = useState(1);
@@ -58,6 +77,10 @@ function KioskApp() {
   const [customIngredients, setCustomIngredients] = useState<any[]>([]);
   const [wantsIce, setWantsIce] = useState(false);
   const [now, setNow] = useState(new Date());
+  const [smallGlassMaxMl, setSmallGlassMaxMl] = useState(DEFAULT_SMALL_GLASS_ML);
+  // What the guest actually ordered, kept apart from the browsing selection.
+  const [orderedName, setOrderedName] = useState("your drink");
+  const [orderPumps, setOrderPumps] = useState<any[]>([]);
 
   // SSE State
   const [machineStatus, setMachineStatus] = useState("idle");
@@ -66,8 +89,6 @@ function KioskApp() {
   const [glassState, setGlassState] = useState("unknown");
   const [poweredOn, setPoweredOn] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [lowerSensor, setLowerSensor] = useState<number | null>(null);
-  const [upperSensor, setUpperSensor] = useState<number | null>(null);
   const [requiredGlass, setRequiredGlass] = useState<string | null>(null);
   const [orderVolumeMl, setOrderVolumeMl] = useState<number | null>(null);
   const [reserveMarginMl, setReserveMarginMl] = useState(15);
@@ -77,17 +98,29 @@ function KioskApp() {
 
   // Load menu and the currently configured custom-drink ingredients once.
   // Reloading this data on every screen transition used to overwrite a mix
-  // while the customer moved from Compose to Review.
+  // while the customer was composing it.
   useEffect(() => {
-    getMenu().then(data => {
-      setDrinks(data.drinks);
-      setShowPrices(Boolean(data.show_prices));
-    }).catch(console.error);
-    getPumps().then(data => {
-      const active = data.pumps.filter((p: any) => p.ingredient_id !== null && Boolean(p.is_active));
-      setAvailablePumps(active);
-      setReserveMarginMl(Number(data.reserve_margin_ml ?? 15));
-    }).catch(console.error);
+    getMenu()
+      .then((data) => {
+        setDrinks(data.drinks);
+        setShowPrices(Boolean(data.show_prices));
+      })
+      .catch(console.error);
+    getPumps()
+      .then((data) => {
+        const active = data.pumps.filter(
+          (p: any) => p.ingredient_id !== null && Boolean(p.is_active),
+        );
+        setAvailablePumps(active);
+        setReserveMarginMl(Number(data.reserve_margin_ml ?? 15));
+      })
+      .catch(console.error);
+    getGlassCapacityConfig()
+      .then((data) => {
+        const capacity = Number(data.small_glass_max_ml);
+        if (Number.isFinite(capacity) && capacity > 0) setSmallGlassMaxMl(capacity);
+      })
+      .catch(console.error);
   }, []);
 
   // Clock
@@ -130,8 +163,8 @@ function KioskApp() {
           inCleanCycle.current = false;
           setScreen("cleaning_done");
         } else {
-          setScreen(prev =>
-            ["ready", "error", "preparing", "waiting_glass"].includes(prev) ? "welcome" : prev
+          setScreen((prev) =>
+            ["ready", "error", "preparing", "waiting_glass"].includes(prev) ? "welcome" : prev,
           );
         }
       }
@@ -145,8 +178,6 @@ function KioskApp() {
       setProgress(data.progress || 0);
       setMessage(data.message || "");
       setGlassState(data.glass_state);
-      if ("lower_sensor" in data) setLowerSensor(data.lower_sensor ?? null);
-      if ("upper_sensor" in data) setUpperSensor(data.upper_sensor ?? null);
       if ("required_glass" in data) setRequiredGlass(data.required_glass ?? null);
       if ("order_volume_ml" in data) setOrderVolumeMl(data.order_volume_ml ?? null);
       syncScreenWithMachine(data.machine_status, data.message || "", true);
@@ -168,28 +199,35 @@ function KioskApp() {
     evtSource.addEventListener("inventory", (e) => {
       const data = JSON.parse(e.data);
       if (Array.isArray(data.pumps)) {
-        setAvailablePumps(data.pumps.filter((pump: any) => pump.ingredient_id !== null && Boolean(pump.is_active)));
+        setAvailablePumps(
+          data.pumps.filter((pump: any) => pump.ingredient_id !== null && Boolean(pump.is_active)),
+        );
       }
       if (Number.isFinite(data.reserve_margin_ml)) setReserveMarginMl(data.reserve_margin_ml);
-      getMenu().then(menu => {
-        setDrinks(menu.drinks);
-        setShowPrices(Boolean(menu.show_prices));
-      }).catch(console.error);
+      getMenu()
+        .then((menu) => {
+          setDrinks(menu.drinks);
+          setShowPrices(Boolean(menu.show_prices));
+        })
+        .catch(console.error);
     });
 
     evtSource.addEventListener("display_settings", (e) => {
       const data = JSON.parse(e.data);
       setShowPrices(Boolean(data.show_prices));
-      getMenu().then(menu => setDrinks(menu.drinks)).catch(console.error);
+      getMenu()
+        .then((menu) => setDrinks(menu.drinks))
+        .catch(console.error);
     });
 
     evtSource.addEventListener("menu_updated", () => {
-      getMenu().then(menu => {
-        setDrinks(menu.drinks);
-        setShowPrices(Boolean(menu.show_prices));
-      }).catch(console.error);
+      getMenu()
+        .then((menu) => {
+          setDrinks(menu.drinks);
+          setShowPrices(Boolean(menu.show_prices));
+        })
+        .catch(console.error);
     });
-
 
     evtSource.addEventListener("power", (e) => {
       const data = JSON.parse(e.data);
@@ -201,8 +239,6 @@ function KioskApp() {
     evtSource.addEventListener("sensor", (e) => {
       const data = JSON.parse(e.data);
       setGlassState(data.glass_state);
-      if ("lower_sensor" in data) setLowerSensor(data.lower_sensor ?? null);
-      if ("upper_sensor" in data) setUpperSensor(data.upper_sensor ?? null);
     });
 
     evtSource.onerror = () => {
@@ -214,6 +250,15 @@ function KioskApp() {
 
   const stationReady = poweredOn && connected;
 
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const startOver = () => {
+    setScreen("welcome");
+    setCustomIngredients([]);
+    setWantsIce(false);
+  };
+
   // Auto-navigate from cleaning_done back to welcome after 4 seconds
   useEffect(() => {
     if (screen === "cleaning_done") {
@@ -222,29 +267,49 @@ function KioskApp() {
     }
   }, [screen]);
 
+  // Inactivity reset while browsing; any touch restarts the countdown.
+  useEffect(() => {
+    if (!BROWSING_SCREENS.includes(screen) || orderError || isSubmitting) return;
+    let timer = setTimeout(startOver, IDLE_TIMEOUT_MS);
+    const restart = () => {
+      clearTimeout(timer);
+      timer = setTimeout(startOver, IDLE_TIMEOUT_MS);
+    };
+    window.addEventListener("pointerdown", restart);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pointerdown", restart);
+    };
+  }, [screen, orderError, isSubmitting]);
+
   const selected = useMemo(
-    () => drinks.find(d => d.id === selectedId) || drinks[0],
-    [selectedId, drinks]
+    () => drinks.find((d) => d.id === selectedId) || drinks[0],
+    [selectedId, drinks],
   );
 
   const scale = useKioskScale();
   const go = (s: ScreenKey) => setScreen(s);
 
-  const [orderError, setOrderError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   const handleOrder = async () => {
     if (!stationReady || machineStatus !== "idle" || isSubmitting) return;
     setIsSubmitting(true);
     try {
+      let response;
       if (mode === "signature") {
         if (!selected) return;
-        await placeOrder(selected.id, wantsIce);
+        response = await placeOrder(selected.id, wantsIce);
+        setOrderedName(selected.name);
       } else {
         if (customIngredients.length === 0) return;
-        const payload = customIngredients.map(i => ({ id: i.ingredient_id, name: i.name, amount_ml: i.amount_ml }));
-        await placeCustomOrder(payload, wantsIce);
+        const payload = customIngredients.map((i) => ({
+          id: i.ingredient_id,
+          name: i.name,
+          amount_ml: i.amount_ml,
+        }));
+        response = await placeCustomOrder(payload, wantsIce);
+        setOrderedName("custom mix");
       }
+      setOrderPumps(Array.isArray(response?.pump_commands) ? response.pump_commands : []);
       // Screen will change via SSE when status becomes waiting_glass or dispensing
     } catch (e: any) {
       setOrderError(e.message || "An unknown error occurred.");
@@ -253,16 +318,39 @@ function KioskApp() {
     }
   };
 
-  const totalMl = mode === "custom" 
-    ? customIngredients.reduce((sum: number, i: any) => sum + i.amount_ml, 0)
-    : selected?.ingredients?.reduce((sum: number, i: any) => sum + i.amount_ml, 0) || 0;
+  const totalMl =
+    mode === "custom"
+      ? customIngredients.reduce((sum: number, i: any) => sum + i.amount_ml, 0)
+      : selected?.ingredients?.reduce((sum: number, i: any) => sum + i.amount_ml, 0) || 0;
 
   const ctx = {
-    selected, setSelectedId, mode, setMode, drinks, availablePumps,
-    customIngredients, setCustomIngredients, wantsIce, setWantsIce,
-    machineStatus, progress, message, glassState, lowerSensor, upperSensor, poweredOn,
-    connected, stationReady, totalMl, requiredGlass, orderVolumeMl, reserveMarginMl, showPrices,
-    now, go, handleOrder, isSubmitting, orderError, setOrderError
+    selected,
+    setSelectedId,
+    mode,
+    setMode,
+    drinks,
+    availablePumps,
+    customIngredients,
+    setCustomIngredients,
+    wantsIce,
+    setWantsIce,
+    machineStatus,
+    progress,
+    message,
+    glassState,
+    totalMl,
+    requiredGlass,
+    orderVolumeMl,
+    reserveMarginMl,
+    showPrices,
+    smallGlassMaxMl,
+    orderedName,
+    orderPumps,
+    now,
+    go,
+    startOver,
+    handleOrder,
+    isSubmitting,
   };
 
   return (
@@ -271,28 +359,45 @@ function KioskApp() {
         className="kiosk-frame cc-frame"
         style={{ transform: `scale(${scale})`, transformOrigin: "center center" }}
       >
-        {!stationReady && <PoweredOff now={now} poweredOn={poweredOn} connected={connected} />}
+        {!stationReady && <PoweredOff now={now} poweredOn={poweredOn} />}
         {stationReady && screen === "welcome" && <Welcome {...ctx} />}
-        {stationReady && screen === "experience" && <Experience {...ctx} />}
         {stationReady && screen === "catalog" && <Catalog {...ctx} />}
         {stationReady && screen === "detail" && <Detail {...ctx} />}
         {stationReady && screen === "compose" && <Compose {...ctx} />}
-        {stationReady && screen === "review" && <Review {...ctx} />}
         {stationReady && screen === "waiting_glass" && <WaitingGlass {...ctx} />}
         {stationReady && screen === "preparing" && <Preparing {...ctx} />}
         {stationReady && screen === "ready" && <Ready {...ctx} />}
-        {stationReady && screen === "error" && <ErrorScreen now={now} message={message} />}
-        {stationReady && screen === "cleaning" && <CleaningScreen now={now} progress={progress} message={message} />}
+        {stationReady && screen === "error" && (
+          <ErrorScreen
+            now={now}
+            message={message}
+            orderedName={orderedName}
+            startOver={startOver}
+          />
+        )}
+        {stationReady && screen === "cleaning" && <CleaningScreen now={now} progress={progress} />}
         {stationReady && screen === "cleaning_done" && <CleaningDone now={now} />}
 
-        {/* Error Modal Overlay */}
         {orderError && (
-          <div className="cc-dialog-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="order-error-title">
+          <div
+            className="cc-dialog-backdrop"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="order-error-title"
+          >
             <div className="cc-dialog">
-              <div className="cc-dialog__icon"><AlertTriangle aria-hidden="true" size={38} /></div>
-              <h3 id="order-error-title">Unable to place order</h3>
+              <span className="cc-dialog__icon">
+                <AlertTriangle aria-hidden="true" size={28} />
+              </span>
+              <h3 id="order-error-title">We couldn’t start that drink</h3>
               <p>{orderError}</p>
-              <GoldButton onClick={() => setOrderError(null)}>Dismiss</GoldButton>
+              <button
+                type="button"
+                className="cc-button cc-button--primary"
+                onClick={() => setOrderError(null)}
+              >
+                OK
+              </button>
             </div>
           </div>
         )}
@@ -305,505 +410,981 @@ function KioskApp() {
    Shared atoms
    ============================================================ */
 
-function StatusBar({ title, now, online = true }: { title: string; now: Date; online?: boolean }) {
-  return (
-    <header className="cc-header" aria-label={`${title} screen`}>
-      <Logo />
-      <div className="cc-status" aria-label={`Station 01 is ${online ? "online" : "offline"}`}>
-        <span>Station 01</span>
-        <i aria-hidden="true" />
-        <span className={online ? "cc-status__state" : "cc-status__state cc-status__state--offline"}>
-          <Circle size={10} fill="currentColor" aria-hidden="true" />
-          {online ? "Online" : "Offline"}
-        </span>
-        <i aria-hidden="true" />
-        <time>{now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}</time>
-      </div>
-    </header>
-  );
+function formatTime(now: Date) {
+  return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function Logo() {
   return (
     <div className="cc-logo" aria-label="Cocktail Craft">
-      <span className="cc-logo__mark"><Martini size={29} strokeWidth={2.2} aria-hidden="true" /></span>
+      <Martini size={20} strokeWidth={1.8} aria-hidden="true" />
       <span>Cocktail Craft</span>
     </div>
   );
 }
 
-function GoldButton({ children, onClick, big = false, variant = "primary", disabled }: any) {
+function Header({ now, action }: { now: Date; action?: ReactNode }) {
+  return (
+    <header className="cc-header">
+      <Logo />
+      <div className="cc-header__end">
+        {action}
+        <time className="cc-time">{formatTime(now)}</time>
+      </div>
+    </header>
+  );
+}
+
+function HeaderButton({ onClick, icon, children }: any) {
+  return (
+    <button type="button" className="cc-header-button" onClick={onClick}>
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+/** Real photography behind every screen instead of a flat colour. */
+function Backdrop({ src, blur = false }: { src: string; blur?: boolean }) {
+  return (
+    <div
+      className={`cc-backdrop ${blur ? "cc-backdrop--soften" : ""}`}
+      style={{ backgroundImage: `url("${src}")` }}
+      aria-hidden="true"
+    />
+  );
+}
+
+/** Edge-to-edge photo on the right of a screen; fades into the backdrop. */
+function SidePhoto({
+  src,
+  alt = "",
+  tone = "",
+  children,
+}: {
+  src: string;
+  alt?: string;
+  tone?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <figure className={`cc-side-photo ${tone}`}>
+      <img src={src} alt={alt} />
+      {children}
+    </figure>
+  );
+}
+
+const ORDER_STEPS = ["Place glass", "Mixing", "Enjoy"];
+
+function OrderSteps({ current }: { current: number }) {
+  return (
+    <ol className="cc-steps" aria-label="Order progress">
+      {ORDER_STEPS.map((label, index) => (
+        <li
+          key={label}
+          className={index < current ? "is-done" : index === current ? "is-current" : ""}
+          aria-current={index === current ? "step" : undefined}
+        >
+          <span className="cc-steps__dot">
+            {index < current ? <Check size={13} strokeWidth={3} aria-hidden="true" /> : index + 1}
+          </span>
+          {label}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function PrimaryButton({ children, onClick, disabled, className = "" }: any) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`cc-button cc-button--${variant} ${big ? "cc-button--large" : ""}`}
+      className={`cc-button cc-button--primary ${className}`}
     >
       {children}
     </button>
   );
 }
 
-function BackChip({ onClick, label = "Back" }: any) {
+function IceChoice({ wantsIce, setWantsIce, compact = false }: any) {
   return (
-    <button type="button" onClick={onClick} className="cc-back">
-      <ArrowLeft size={22} aria-hidden="true" />
-      {label}
-    </button>
+    <fieldset className={`cc-ice ${compact ? "cc-ice--compact" : ""}`}>
+      <legend>Ice</legend>
+      <div>
+        <button
+          type="button"
+          aria-pressed={!wantsIce}
+          className={!wantsIce ? "is-selected" : ""}
+          onClick={() => setWantsIce(false)}
+        >
+          {!compact && <GlassIcon size={22} />}
+          No ice
+        </button>
+        <button
+          type="button"
+          aria-pressed={wantsIce}
+          className={wantsIce ? "is-selected" : ""}
+          onClick={() => setWantsIce(true)}
+        >
+          {!compact && <Box size={22} strokeWidth={1.8} aria-hidden="true" />}
+          With ice
+        </button>
+      </div>
+    </fieldset>
   );
+}
+
+function GlassIcon({ size = 22, tall = false }: { size?: number; tall?: boolean }) {
+  return tall ? (
+    <svg
+      width={size * 0.75}
+      height={size}
+      viewBox="0 0 30 40"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 4h24l-2.5 33h-19z" />
+    </svg>
+  ) : (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 4h12l-1.5 16h-9z" />
+    </svg>
+  );
+}
+
+function DrinkPhoto({ drink, className = "" }: { drink: any; className?: string }) {
+  const src = drinkImage(drink);
+  return src ? (
+    <img src={src} alt={drink?.name || ""} className={`cc-photo ${className}`} />
+  ) : (
+    <div className={`cc-photo cc-photo--empty ${className}`} aria-hidden="true">
+      <Martini size={56} strokeWidth={1.2} />
+    </div>
+  );
+}
+
+function glassNote(volumeMl: number, smallGlassMaxMl: number) {
+  return volumeMl > smallGlassMaxMl ? "needs a large glass" : "fits either glass";
+}
+
+/** The photo that represents what is being made: the drink, or the machine for a custom mix. */
+function orderPhoto(mode: string, selected: any) {
+  return (mode === "signature" && drinkImage(selected)) || MACHINE_PHOTO;
 }
 
 /* ============================================================
    Screens
    ============================================================ */
 
-function PoweredOff({ now, poweredOn, connected }: any) {
-  const unavailable = !poweredOn;
-  const heading = unavailable
-    ? "Machine is offline"
-    : "Controller is unavailable";
-  const description = unavailable
-    ? "Please ask a member of staff for assistance. Orders will be available once the station is powered on."
-    : "The station cannot communicate with its controller. Please ask a member of staff for assistance.";
-
+function MachineScreen({ now, children }: { now: Date; children: ReactNode }) {
   return (
-    <div className="cc-screen cc-unavailable">
-      <StatusBar title="Machine unavailable" now={now} online={false} />
-      <div className="cc-state-card cc-state-card--warning">
-        <div className="cc-state-card__icon"><PowerOff size={44} aria-hidden="true" /></div>
-        <p className="cc-eyebrow">Station unavailable</p>
-        <h1>{heading}</h1>
-        <p>{description}</p>
+    <div className="cc-screen cc-screen--photo">
+      <Backdrop src={HOUSE_BACKDROP} />
+      <div className="cc-pane">
+        <Header now={now} />
+        <section className="cc-pane__body cc-message">{children}</section>
       </div>
+      <SidePhoto src={MACHINE_PHOTO} tone="is-machine" />
     </div>
   );
 }
 
-function Welcome({ now, go }: any) {
+function PoweredOff({ now, poweredOn }: any) {
+  return (
+    <MachineScreen now={now}>
+      <span className="cc-message__icon">
+        <PowerOff size={28} aria-hidden="true" />
+      </span>
+      <h1>{poweredOn ? "Taking a short break" : "The bar is closed"}</h1>
+      <p>
+        {poweredOn
+          ? "The station can’t reach its controller right now. Please ask a member of staff for help."
+          : "Orders open as soon as staff switch the station on. Please ask a member of staff for help."}
+      </p>
+    </MachineScreen>
+  );
+}
+
+function Welcome({
+  now,
+  go,
+  drinks,
+  setMode,
+  setWantsIce,
+  setSelectedId,
+  setCustomIngredients,
+}: any) {
+  const photos = drinks
+    .map((drink: any) => drinkImage(drink))
+    .filter(Boolean)
+    .slice(0, 3);
+  const collage = photos.length === 3 ? photos : FALLBACK_COLLAGE;
+  const listed = drinks.slice(0, 6);
+
+  const start = () => {
+    setMode("signature");
+    setWantsIce(false);
+    go("catalog");
+  };
+  const openDrink = (drink: any) => {
+    setMode("signature");
+    setSelectedId(drink.id);
+    setWantsIce(false);
+    go("detail");
+  };
+  const buildOwn = () => {
+    setMode("custom");
+    setCustomIngredients([]);
+    setWantsIce(false);
+    go("compose");
+  };
+
   return (
     <div className="cc-screen cc-welcome">
-      <StatusBar title="Welcome" now={now} />
-      <div className="cc-welcome__glow" aria-hidden="true" />
-      <section className="cc-welcome__copy">
-        <p className="cc-eyebrow">Touchscreen cocktail station</p>
-        <h1>Ready for<br />your next <span>drink?</span></h1>
-        <p className="cc-welcome__intro">Choose a house classic or create a drink with the ingredients available at this station.</p>
-        <GoldButton big onClick={() => go("experience")}>
-          <Martini size={30} aria-hidden="true" />
-          Start Order
-          <ChevronRight size={26} aria-hidden="true" />
-        </GoldButton>
-      </section>
-      <div className="cc-welcome__art" aria-hidden="true">
-        <div className="cc-welcome__rear-card" />
-        <figure className="cc-welcome__drink-card">
-          <img src={readyHero} alt="" />
-          <figcaption><Sparkles size={18} /> Cocktail Craft</figcaption>
-        </figure>
+      <Backdrop src={HOUSE_BACKDROP} />
+      <Header now={now} />
+      <div className="cc-welcome__body">
+        <section className="cc-board" aria-labelledby="cc-board-title">
+          <div className="cc-board__head">
+            <h1 id="cc-board-title">On the menu</h1>
+            {drinks.length > 0 && <span>{drinks.length} house drinks</span>}
+          </div>
+          <ul className="cc-board__list">
+            {listed.map((drink: any) => (
+              <li key={drink.id}>
+                <button type="button" disabled={!drink.available} onClick={() => openDrink(drink)}>
+                  <strong>{drink.name}</strong>
+                  <i aria-hidden="true" />
+                  <span>{drink.available ? flavourLine(drink.ingredients) : "Not today"}</span>
+                </button>
+              </li>
+            ))}
+            <li>
+              <button type="button" className="is-build" onClick={buildOwn}>
+                <strong>Build your own</strong>
+                <i aria-hidden="true" />
+                <span>Your mix</span>
+              </button>
+            </li>
+          </ul>
+          <PrimaryButton className="cc-button--large cc-button--block" onClick={start}>
+            Tap to order <ArrowRight size={22} aria-hidden="true" />
+          </PrimaryButton>
+        </section>
+        <div className="cc-welcome__collage" aria-hidden="true">
+          {collage.map((src: string, index: number) => (
+            <img key={index} src={src} alt="" />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-function Experience({ now, go, setMode, setCustomIngredients, setWantsIce }: any) {
-  const choose = (m: string) => {
-    setMode(m);
+function Catalog({
+  now,
+  go,
+  startOver,
+  setSelectedId,
+  setMode,
+  setWantsIce,
+  setCustomIngredients,
+  drinks,
+  showPrices,
+}: any) {
+  const [activeCategory, setActiveCategory] = useState("all");
+  const categories = useMemo(
+    () =>
+      Array.from(
+        new Set(drinks.map((drink: any) => String(drink.category || "classic"))),
+      ).sort() as string[],
+    [drinks],
+  );
+  const visibleDrinks =
+    activeCategory === "all"
+      ? drinks
+      : drinks.filter((drink: any) => String(drink.category || "classic") === activeCategory);
+
+  const openDrink = (drink: any) => {
+    setMode("signature");
+    setSelectedId(drink.id);
     setWantsIce(false);
-    if (m === "custom") setCustomIngredients([]);
-    go(m === "signature" ? "catalog" : "compose");
+    go("detail");
   };
+  const buildOwn = () => {
+    setMode("custom");
+    setCustomIngredients([]);
+    setWantsIce(false);
+    go("compose");
+  };
+
   return (
-    <div className="cc-screen cc-experience">
-      <StatusBar title="Choose Experience" now={now} />
-      <BackChip onClick={() => go("welcome")} label="Home" />
-      <div className="cc-experience__heading">
-        <p className="cc-eyebrow">Choose your experience</p>
-        <h1>How would you like to <span>order?</span></h1>
-        <p>Choose one option to continue.</p>
+    <div className="cc-screen cc-menu">
+      <Backdrop src={HOUSE_BACKDROP} />
+      <Header
+        now={now}
+        action={
+          <HeaderButton onClick={startOver} icon={<RotateCcw size={18} aria-hidden="true" />}>
+            Start over
+          </HeaderButton>
+        }
+      />
+      <div className="cc-menu__top">
+        <h1>Choose your drink</h1>
+        <div className="cc-filters" aria-label="Filter drinks">
+          {["all", ...categories].map((category) => (
+            <button
+              type="button"
+              key={category}
+              aria-pressed={activeCategory === category}
+              className={activeCategory === category ? "is-active" : ""}
+              onClick={() => setActiveCategory(category)}
+            >
+              {category === "all" ? "All" : categoryLabel(category)}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="cc-experience__cards">
-        <button type="button" onClick={() => choose("signature")} className="cc-experience-card">
-          <div className="cc-experience-card__visual cc-experience-card__visual--classic"><img src={defaultDrink} alt="" /></div>
-          <div className="cc-experience-card__body">
-            <span className="cc-card-icon"><Sparkles size={25} /></span>
-            <h2>House Classics</h2>
-            <p>Browse signature cocktails</p>
-            <span className="cc-select-label">Select <ChevronRight size={24} /></span>
-          </div>
+      <div className="cc-menu__row">
+        <button type="button" className="cc-build-card" onClick={buildOwn}>
+          <span className="cc-build-card__icon">
+            <Plus size={26} aria-hidden="true" />
+          </span>
+          <span>
+            <strong>Build your own</strong>
+            <small>Mix the ingredients the way you like it.</small>
+          </span>
         </button>
-        <button type="button" onClick={() => choose("custom")} className="cc-experience-card">
-          <div className="cc-experience-card__visual cc-experience-card__visual--custom"><img src={customBuild} alt="" /></div>
-          <div className="cc-experience-card__body">
-            <span className="cc-card-icon"><Sparkles size={25} /></span>
-            <h2>Build Your Own</h2>
-            <p>Create a custom mix</p>
-            <span className="cc-select-label">Select <ChevronRight size={24} /></span>
-          </div>
-        </button>
+        {visibleDrinks.map((drink: any) => (
+          <button
+            type="button"
+            key={drink.id}
+            className={`cc-drink-card ${!drink.available ? "is-unavailable" : ""}`}
+            disabled={!drink.available}
+            onClick={() => openDrink(drink)}
+          >
+            <DrinkPhoto drink={drink} />
+            <span className="cc-drink-card__body">
+              <strong>{drink.name}</strong>
+              <small>
+                {drink.available ? flavourLine(drink.ingredients) : "Not available right now"}
+              </small>
+              {showPrices && drink.available && (
+                <span className="cc-price">€{Number(drink.price || 0).toFixed(2)}</span>
+              )}
+            </span>
+          </button>
+        ))}
+        {visibleDrinks.length === 0 && (
+          <p className="cc-menu__empty">No drinks in this category right now.</p>
+        )}
+      </div>
+      <div className="cc-menu__footer">
+        {visibleDrinks.length > 3 && (
+          <span>
+            Swipe for all {visibleDrinks.length} drinks <ArrowRight size={18} aria-hidden="true" />
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
 function categoryLabel(category: string) {
-  return category.replace(/[-_]/g, " ").replace(/\b\w/g, char => char.toUpperCase());
+  return category.replace(/[-_]/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function drinkImageUrl(imageUrl?: string) {
-  return imageUrl ? `http://localhost:5000${imageUrl}` : undefined;
-}
-
-function Catalog({ now, go, setSelectedId, drinks, showPrices }: any) {
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [page, setPage] = useState(0);
-  const categories = useMemo(
-    () => Array.from(new Set(drinks.map((drink: any) => String(drink.category || "classic")))).sort(),
-    [drinks],
-  );
-  const filteredDrinks = useMemo(
-    () => activeCategory === "all" ? drinks : drinks.filter((drink: any) => String(drink.category || "classic") === activeCategory),
-    [activeCategory, drinks],
-  );
-  const pageCount = Math.max(1, Math.ceil(filteredDrinks.length / 4));
-  const visibleDrinks = filteredDrinks.slice(page * 4, page * 4 + 4);
-
-  useEffect(() => setPage(0), [activeCategory]);
-  useEffect(() => setPage(current => Math.min(current, pageCount - 1)), [pageCount]);
-
-  return (
-    <div className="cc-screen cc-catalog">
-      <StatusBar title="House Classics" now={now} />
-      <BackChip onClick={() => go("welcome")} label="Home" />
-      <div className="cc-catalog__top">
-        <div>
-          <p className="cc-eyebrow">Cocktail menu</p>
-          <h1>House Classics</h1>
-          <p>Tap a drink to continue.</p>
-        </div>
-        <div className="cc-filters" aria-label="Drink categories">
-          <button type="button" className={activeCategory === "all" ? "is-active" : ""} onClick={() => setActiveCategory("all")}>All</button>
-          {categories.map((category: string) => (
-            <button type="button" key={category} className={activeCategory === category ? "is-active" : ""} onClick={() => setActiveCategory(category)}>
-              {categoryLabel(category)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="cc-drink-grid">
-        {visibleDrinks.map((drink: any) => (
-          <button
-            type="button"
-            key={drink.id}
-            onClick={() => { setSelectedId(drink.id); go("detail"); }}
-            className={`cc-drink-card ${!drink.available ? "cc-drink-card--unavailable" : ""}`}
-            disabled={!drink.available}
-          >
-            <div className="cc-drink-card__image">
-              {drinkImageUrl(drink.image_url) ? <img src={drinkImageUrl(drink.image_url)} alt={drink.name} /> : <Martini size={88} strokeWidth={1.1} aria-hidden="true" />}
-            </div>
-            <div className="cc-drink-card__content">
-              <h2>{drink.name}</h2>
-              <p>{drink.description || categoryLabel(drink.category || "classic")}</p>
-              <div>{showPrices && <strong>€{Number(drink.price || 0).toFixed(2)}</strong>}<span>View <ChevronRight size={18} /></span></div>
-              {!drink.available && <small>{drink.availability_reason || "Ingredients unavailable"}</small>}
-            </div>
-          </button>
-        ))}
-        {visibleDrinks.length === 0 && <div className="cc-empty-menu">No drinks are available in this category.</div>}
-      </div>
-      <div className="cc-pagination" aria-label="Menu pagination">
-        <button type="button" aria-label="Previous drinks" disabled={page === 0} onClick={() => setPage(current => Math.max(0, current - 1))}><ArrowLeft size={24} /></button>
-        <div>{Array.from({ length: pageCount }, (_, index) => <i key={index} className={index === page ? "is-active" : ""} />)}</div>
-        <button type="button" aria-label="Next drinks" disabled={page === pageCount - 1} onClick={() => setPage(current => Math.min(pageCount - 1, current + 1))}><ArrowRight size={24} /></button>
-      </div>
-    </div>
-  );
-}
-
-function Detail({ selected, now, go, wantsIce, setWantsIce, showPrices }: any) {
+function Detail({
+  selected,
+  now,
+  go,
+  wantsIce,
+  setWantsIce,
+  showPrices,
+  smallGlassMaxMl,
+  handleOrder,
+  isSubmitting,
+  machineStatus,
+}: any) {
   if (!selected) return null;
+  const ingredients: any[] = selected.ingredients || [];
+  const total = ingredients.reduce((sum, i) => sum + i.amount_ml, 0);
+  const backdrop = drinkBackdrop(selected);
+  const photo = drinkImage(selected);
+
   return (
-    <div className="cc-screen cc-detail">
-      <StatusBar title={selected.name} now={now} />
-      <BackChip onClick={() => go("catalog")} />
-      <div className="cc-detail__visual">
-        <div className="cc-detail__image">
-          {drinkImageUrl(selected.image_url) ? <img src={drinkImageUrl(selected.image_url)} alt={selected.name} /> : <Martini size={210} strokeWidth={1.1} aria-hidden="true" />}
-        </div>
-      </div>
-      <section className="cc-detail__content">
-        <p className="cc-eyebrow">House classic</p>
-        <h1>{selected.name}</h1>
-        <p className="cc-detail__description">{selected.description || "A carefully balanced house favourite."}</p>
-        {showPrices && <p className="cc-price">€{Number(selected.price || 0).toFixed(2)}</p>}
-        <div className="cc-ingredient-section">
-          <p>Ingredients</p>
-          <div className="cc-ingredient-grid">
-            {selected.ingredients.map((ingredient: any) => (
-              <div key={ingredient.id} className="cc-ingredient">
-                <Droplets size={21} aria-hidden="true" />
-                <span>{ingredient.name}</span>
-                <small>{ingredient.amount_ml} ml</small>
-              </div>
-            ))}
+    <div className="cc-screen cc-screen--photo cc-detail">
+      <Backdrop src={backdrop.src} blur={backdrop.blur} />
+      <div className="cc-pane">
+        <Header
+          now={now}
+          action={
+            <HeaderButton
+              onClick={() => go("catalog")}
+              icon={<ArrowLeft size={18} aria-hidden="true" />}
+            >
+              Menu
+            </HeaderButton>
+          }
+        />
+        <section className="cc-pane__body cc-detail__content">
+          <div className="cc-detail__title">
+            <h1>{selected.name}</h1>
+            {showPrices && (
+              <span className="cc-price">€{Number(selected.price || 0).toFixed(2)}</span>
+            )}
           </div>
-        </div>
-        <fieldset className="cc-ice-choice">
-          <legend>Ice</legend>
-          <button type="button" className={!wantsIce ? "is-selected" : ""} onClick={() => setWantsIce(false)}><Snowflake size={24} /> No Ice</button>
-          <button type="button" className={wantsIce ? "is-selected" : ""} onClick={() => setWantsIce(true)}><Snowflake size={24} /> Add Ice</button>
-        </fieldset>
-        {!selected.available && <p className="cc-detail__description">{selected.availability_reason || "One or more ingredients are unavailable."}</p>}
-        <GoldButton big onClick={() => go("review")} disabled={!selected.available}>
-          <Martini size={28} /> Add to Order
-        </GoldButton>
-      </section>
+          <p className="cc-detail__description">{selected.description || "A house favourite."}</p>
+
+          <div className="cc-recipe">
+            <span className="cc-label">What’s in it</span>
+            <div className="cc-recipe__bar" aria-hidden="true">
+              {ingredients.map((ingredient, index) => (
+                <span
+                  key={ingredient.id}
+                  style={{
+                    width: `${(ingredient.amount_ml / total) * 100}%`,
+                    background: ingredientColor(ingredient.name, index),
+                  }}
+                />
+              ))}
+            </div>
+            <ul className="cc-recipe__legend">
+              {ingredients.map((ingredient, index) => (
+                <li key={ingredient.id}>
+                  <i
+                    style={{ background: ingredientColor(ingredient.name, index) }}
+                    aria-hidden="true"
+                  />
+                  {ingredient.name}
+                  <span>{ingredient.amount_ml} ml</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <IceChoice wantsIce={wantsIce} setWantsIce={setWantsIce} />
+
+          <div className="cc-detail__confirm">
+            {selected.available ? (
+              <span className="cc-note">
+                <GlassIcon size={18} /> {total} ml · {glassNote(total, smallGlassMaxMl)}
+              </span>
+            ) : (
+              <span className="cc-note cc-note--warning">
+                {selected.availability_reason || "One or more ingredients are unavailable."}
+              </span>
+            )}
+            <PrimaryButton
+              className="cc-button--large cc-button--block"
+              onClick={handleOrder}
+              disabled={!selected.available || isSubmitting || machineStatus !== "idle"}
+            >
+              {isSubmitting ? (
+                "Sending to the machine…"
+              ) : (
+                <>
+                  Make my drink <ArrowRight size={22} aria-hidden="true" />
+                </>
+              )}
+            </PrimaryButton>
+          </div>
+        </section>
+      </div>
+      {photo ? (
+        <SidePhoto src={photo} alt={selected.name} />
+      ) : (
+        <figure className="cc-side-photo cc-photo--empty" aria-hidden="true">
+          <Martini size={72} strokeWidth={1.1} />
+        </figure>
+      )}
     </div>
   );
 }
 
-function Compose({ now, go, availablePumps, customIngredients, setCustomIngredients, reserveMarginMl, wantsIce, setWantsIce }: any) {
+function Compose({
+  now,
+  go,
+  availablePumps,
+  customIngredients,
+  setCustomIngredients,
+  reserveMarginMl,
+  wantsIce,
+  setWantsIce,
+  smallGlassMaxMl,
+  handleOrder,
+  isSubmitting,
+  machineStatus,
+}: any) {
   const totalMl = customIngredients.reduce((sum: number, i: any) => sum + i.amount_ml, 0);
-  const MAX_TOTAL = 300;
-  const MAX_PER_ING = 100;
+  const orderableMl = (pump: any) =>
+    Math.max(0, Number(pump.current_volume_ml || 0) - reserveMarginMl);
 
-  const updateAmount = (idx: number, amount: number) => {
-    if (amount < 0) amount = 0;
-    if (amount > MAX_PER_ING) amount = MAX_PER_ING;
-
-    const pump = availablePumps.find((item: any) => item.ingredient_id === customIngredients[idx].ingredient_id);
-    if (pump) {
-      const orderableMl = Math.max(0, Number(pump.current_volume_ml || 0) - reserveMarginMl);
-      if (amount > orderableMl) amount = Math.floor(orderableMl / 5) * 5;
+  const setAmount = (pump: any, amount: number) => {
+    const existing = customIngredients.find((i: any) => i.ingredient_id === pump.ingredient_id);
+    if (existing) {
+      setCustomIngredients(
+        customIngredients.map((i: any) =>
+          i.ingredient_id === pump.ingredient_id ? { ...i, amount_ml: amount } : i,
+        ),
+      );
+    } else {
+      setCustomIngredients([
+        ...customIngredients,
+        { ingredient_id: pump.ingredient_id, name: pump.ingredient_name, amount_ml: amount },
+      ]);
     }
-
-    const newIngs = [...customIngredients];
-    newIngs[idx].amount_ml = amount;
-    setCustomIngredients(newIngs);
   };
+  const remove = (pump: any) =>
+    setCustomIngredients(
+      customIngredients.filter((i: any) => i.ingredient_id !== pump.ingredient_id),
+    );
 
-  const addIngredient = (pump: any) => {
-    if (customIngredients.length >= 6) return;
-    if (customIngredients.find((i: any) => i.ingredient_id === pump.ingredient_id)) return;
-    const orderableMl = Math.max(0, Number(pump.current_volume_ml || 0) - reserveMarginMl);
-    const initialAmount = Math.min(25, Math.floor(orderableMl / 5) * 5);
-    if (initialAmount < 5) return;
-    setCustomIngredients([...customIngredients, { ingredient_id: pump.ingredient_id, name: pump.ingredient_name, amount_ml: initialAmount }]);
-  };
+  const presetAllowed = (pump: any, preset: number, current: number) =>
+    preset <= MAX_PER_INGREDIENT_ML &&
+    preset <= orderableMl(pump) &&
+    totalMl - current + preset <= MAX_TOTAL_ML;
 
-  const removeIngredient = (idx: number) => {
-    setCustomIngredients(customIngredients.filter((_: any, i: number) => i !== idx));
-  };
-
-  const isOverLimit = totalMl > MAX_TOTAL;
-  const isZero = totalMl === 0;
-  const inventoryErrors = customIngredients.filter((ingredient: any) => {
-    const pump = availablePumps.find((item: any) => item.ingredient_id === ingredient.ingredient_id);
-    const orderableMl = pump ? Math.max(0, Number(pump.current_volume_ml || 0) - reserveMarginMl) : 0;
-    return ingredient.amount_ml > orderableMl;
+  const inventoryShort = customIngredients.some((ingredient: any) => {
+    const pump = availablePumps.find(
+      (item: any) => item.ingredient_id === ingredient.ingredient_id,
+    );
+    return !pump || ingredient.amount_ml > orderableMl(pump);
   });
 
   return (
     <div className="cc-screen cc-compose">
-      <StatusBar title="Custom Creation" now={now} />
-      <BackChip onClick={() => go("experience")} />
-      <section className="cc-compose__main">
-        <div className="cc-compose__heading"><div><p className="cc-eyebrow">Build your own</p><h1>Your recipe</h1></div><strong className={isOverLimit ? "is-over-limit" : ""}>{totalMl} / {MAX_TOTAL} ml</strong></div>
-        <div className="cc-compose__selected">
-          {customIngredients.map((ingredient: any, index: number) => (
-            <div key={ingredient.ingredient_id} className="cc-compose-row">
-              <span>{ingredient.name}</span>
-              <div>
-                <button type="button" aria-label={`Decrease ${ingredient.name}`} onClick={() => updateAmount(index, ingredient.amount_ml - 5)}><Minus size={20} /></button>
-                <strong>{ingredient.amount_ml} ml</strong>
-                <button type="button" aria-label={`Increase ${ingredient.name}`} onClick={() => updateAmount(index, ingredient.amount_ml + 5)}><Plus size={20} /></button>
-                <button type="button" className="cc-remove" aria-label={`Remove ${ingredient.name}`} onClick={() => removeIngredient(index)}>×</button>
-              </div>
-            </div>
-          ))}
-          {customIngredients.length === 0 && <div className="cc-compose-empty"><FlaskConical size={30} /><span>Select ingredients below to start your mix.</span></div>}
-        </div>
-        <div className="cc-compose__available">
-          <p>Available ingredients</p>
-          <div>
-            {availablePumps.map((pump: any) => {
-              const isSelected = customIngredients.some((ingredient: any) => ingredient.ingredient_id === pump.ingredient_id);
-              const orderableMl = Math.max(0, Number(pump.current_volume_ml || 0) - reserveMarginMl);
+      <Backdrop src={HOUSE_BACKDROP} />
+      <Header
+        now={now}
+        action={
+          <HeaderButton
+            onClick={() => go("catalog")}
+            icon={<ArrowLeft size={18} aria-hidden="true" />}
+          >
+            Menu
+          </HeaderButton>
+        }
+      />
+      <div className="cc-compose__body">
+        <section className="cc-compose__main">
+          <div className="cc-compose__heading">
+            <h1>Build your own</h1>
+            <p>Choose how much of each. Up to {MAX_TOTAL_ML} ml in total.</p>
+          </div>
+          <div className="cc-compose__rows">
+            {availablePumps.map((pump: any, index: number) => {
+              const chosen = customIngredients.find(
+                (i: any) => i.ingredient_id === pump.ingredient_id,
+              );
+              const color = ingredientColor(pump.ingredient_name, index);
+              const firstAllowed = AMOUNT_PRESETS.slice(0, 2)
+                .reverse()
+                .find((preset) => presetAllowed(pump, preset, 0));
               return (
-                <button type="button" key={pump.ingredient_id} onClick={() => addIngredient(pump)} disabled={isSelected || orderableMl < 5}>
-                  {pump.ingredient_name} · {Number(orderableMl.toFixed(1))} ml available
-                </button>
+                <div
+                  key={pump.ingredient_id}
+                  className={`cc-compose-row ${chosen ? "is-chosen" : ""}`}
+                >
+                  <i style={{ background: color }} aria-hidden="true" />
+                  <span className="cc-compose-row__name">{pump.ingredient_name}</span>
+                  {chosen ? (
+                    <>
+                      <div
+                        className="cc-amounts"
+                        role="group"
+                        aria-label={`${pump.ingredient_name} amount`}
+                      >
+                        {AMOUNT_PRESETS.map((preset) => (
+                          <button
+                            type="button"
+                            key={preset}
+                            aria-pressed={chosen.amount_ml === preset}
+                            className={chosen.amount_ml === preset ? "is-selected" : ""}
+                            disabled={
+                              chosen.amount_ml !== preset &&
+                              !presetAllowed(pump, preset, chosen.amount_ml)
+                            }
+                            onClick={() => setAmount(pump, preset)}
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="cc-icon-button"
+                        aria-label={`Remove ${pump.ingredient_name}`}
+                        onClick={() => remove(pump)}
+                      >
+                        <X size={20} aria-hidden="true" />
+                      </button>
+                    </>
+                  ) : firstAllowed ? (
+                    <button
+                      type="button"
+                      className="cc-add-button"
+                      onClick={() => setAmount(pump, firstAllowed)}
+                    >
+                      <Plus size={18} aria-hidden="true" /> Add
+                    </button>
+                  ) : (
+                    <span className="cc-compose-row__out">
+                      {orderableMl(pump) < AMOUNT_PRESETS[0] ? "Running low" : "Glass is full"}
+                    </span>
+                  )}
+                </div>
               );
             })}
-            {availablePumps.length === 0 && <span className="cc-no-pumps">No active ingredients are configured. Ask staff for assistance.</span>}
-          </div>
-        </div>
-      </section>
-      <aside className="cc-compose__summary">
-        <div><FlaskConical size={78} aria-hidden="true" /><p>Custom Mix</p><span>{customIngredients.length} ingredient{customIngredients.length === 1 ? "" : "s"} selected</span></div>
-        <fieldset className="cc-ice-choice">
-          <legend>Ice</legend>
-          <button type="button" className={!wantsIce ? "is-selected" : ""} onClick={() => setWantsIce(false)}><Snowflake size={24} /> No Ice</button>
-          <button type="button" className={wantsIce ? "is-selected" : ""} onClick={() => setWantsIce(true)}><Snowflake size={24} /> Add Ice</button>
-        </fieldset>
-        {isOverLimit && <small>Total exceeds {MAX_TOTAL} ml</small>}
-        {isZero && <small>Choose at least one ingredient</small>}
-        {inventoryErrors.length > 0 && <small>One or more bottles no longer have enough tracked volume plus the {reserveMarginMl} ml reserve.</small>}
-        <GoldButton big onClick={() => go("review")} disabled={isOverLimit || isZero || inventoryErrors.length > 0}>Review mix <ChevronRight size={24} /></GoldButton>
-      </aside>
-    </div>
-  );
-}
-
-function Review({ selected, mode, customIngredients, wantsIce, now, go, handleOrder, isSubmitting, machineStatus, poweredOn, showPrices }: any) {
-  const isCustom = mode === "custom";
-  const title = isCustom ? "Custom Mix" : selected?.name;
-
-  return (
-    <div className="cc-screen cc-review">
-      <StatusBar title="Confirm Order" now={now} />
-      <BackChip onClick={() => go(isCustom ? "compose" : "detail")} label="Edit" />
-      <div className="cc-review__panel">
-        <div className="cc-review__visual">
-          {!isCustom && drinkImageUrl(selected?.image_url) ? <img src={drinkImageUrl(selected.image_url)} alt={title} /> : <FlaskConical size={132} strokeWidth={1.1} aria-hidden="true" />}
-        </div>
-        <section className="cc-review__content">
-          <p className="cc-eyebrow">Order confirmation</p>
-          <h1>{title}</h1>
-          <div className="cc-review__items">
-            {isCustom ? (
-              customIngredients.map((ingredient: any) => (
-                <div key={ingredient.ingredient_id}>
-                  <span>{ingredient.name}</span><strong>{ingredient.amount_ml} ml</strong>
-                </div>
-              ))
-            ) : (
-              selected?.ingredients.map((ingredient: any) => (
-                <div key={ingredient.id}>
-                  <span>{ingredient.name}</span><strong>{ingredient.amount_ml} ml</strong>
-                </div>
-              ))
+            {availablePumps.length === 0 && (
+              <p className="cc-note">
+                No ingredients are set up yet. Please ask a member of staff.
+              </p>
             )}
           </div>
-          <div className="cc-review__ice"><Snowflake size={22} /><span>Ice</span><strong>{wantsIce ? "Add Ice" : "No Ice"}</strong></div>
-          {showPrices && <div className="cc-review__total"><span>Total</span><strong>{isCustom ? "—" : `€${Number(selected?.price || 0).toFixed(2)}`}</strong></div>}
-          <GoldButton big onClick={handleOrder} disabled={!poweredOn || isSubmitting || machineStatus !== "idle"}>
-            <Check size={26} /> {isSubmitting ? "Processing…" : "Confirm Order"}
-          </GoldButton>
+        </section>
+
+        <aside className="cc-compose__summary">
+          <MixGlass
+            ingredients={customIngredients}
+            pumps={availablePumps}
+            smallGlassMaxMl={smallGlassMaxMl}
+          />
+          <div className="cc-compose__total">
+            <strong>{totalMl} ml</strong>
+            <span>
+              {totalMl === 0
+                ? "Add an ingredient to start"
+                : `of ${MAX_TOTAL_ML} · ${glassNote(totalMl, smallGlassMaxMl)}`}
+            </span>
+          </div>
+          <IceChoice wantsIce={wantsIce} setWantsIce={setWantsIce} compact />
+          {inventoryShort && (
+            <span className="cc-note cc-note--warning">
+              A bottle is running low. Please choose a smaller amount.
+            </span>
+          )}
+          <PrimaryButton
+            className="cc-button--block"
+            onClick={handleOrder}
+            disabled={
+              totalMl === 0 ||
+              totalMl > MAX_TOTAL_ML ||
+              inventoryShort ||
+              isSubmitting ||
+              machineStatus !== "idle"
+            }
+          >
+            {isSubmitting ? (
+              "Sending…"
+            ) : (
+              <>
+                Make my drink <ArrowRight size={20} aria-hidden="true" />
+              </>
+            )}
+          </PrimaryButton>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function MixGlass({ ingredients, pumps, smallGlassMaxMl }: any) {
+  const GLASS_HEIGHT = 220;
+  const totalMl = ingredients.reduce((sum: number, i: any) => sum + i.amount_ml, 0);
+  const colorFor = (ingredientId: number, name: string) => {
+    const index = pumps.findIndex((pump: any) => pump.ingredient_id === ingredientId);
+    return ingredientColor(name, Math.max(0, index));
+  };
+  return (
+    <div
+      className="cc-mix-glass"
+      role="img"
+      aria-label={`Glass filled to ${totalMl} of ${MAX_TOTAL_ML} millilitres`}
+    >
+      <div className="cc-mix-glass__body">
+        {ingredients.map((ingredient: any) => (
+          <span
+            key={ingredient.ingredient_id}
+            style={{
+              height: (ingredient.amount_ml / MAX_TOTAL_ML) * GLASS_HEIGHT,
+              background: colorFor(ingredient.ingredient_id, ingredient.name),
+            }}
+          />
+        ))}
+      </div>
+      <span
+        className="cc-mix-glass__limit"
+        style={{ bottom: (smallGlassMaxMl / MAX_TOTAL_ML) * GLASS_HEIGHT }}
+        aria-hidden="true"
+      >
+        <small>small glass</small>
+      </span>
+    </div>
+  );
+}
+
+function WaitingGlass({
+  now,
+  glassState,
+  totalMl,
+  requiredGlass,
+  orderVolumeMl,
+  smallGlassMaxMl,
+  orderedName,
+}: any) {
+  const volume = Number.isFinite(orderVolumeMl) ? orderVolumeMl : totalMl;
+  const requiresLarge = requiredGlass === "large";
+  let title = requiresLarge
+    ? "Place a large glass under the spout"
+    : "Place a glass under the spout";
+  let subtitle = `Your ${orderedName} starts as soon as the glass is in place.`;
+  let tone = "";
+
+  if (glassState === "small_glass" && requiresLarge) {
+    title = "That glass is too small";
+    subtitle = `This ${volume} ml drink needs the large glass. Please swap it.`;
+    tone = "is-warning";
+  } else if (glassState === "small_glass" || glassState === "large_glass") {
+    title = "Glass detected";
+    subtitle = "Starting your drink…";
+    tone = "is-detected";
+  } else if (glassState === "sensor_error") {
+    title = "We can’t see the glass properly";
+    subtitle = "Please centre the glass on the grate, right under the spout.";
+    tone = "is-warning";
+  }
+
+  return (
+    <div className="cc-screen cc-screen--photo">
+      <Backdrop src={HOUSE_BACKDROP} />
+      <div className="cc-pane">
+        <Header now={now} />
+        <section className="cc-pane__body">
+          <OrderSteps current={0} />
+          <div className="cc-heading">
+            <h1>{title}</h1>
+            <p>{subtitle}</p>
+          </div>
+          <div className="cc-glass-options">
+            <div className={!requiresLarge ? "is-ok" : ""}>
+              <GlassIcon size={30} />
+              <span>
+                <strong>Small glass</strong>
+                <small>Up to {smallGlassMaxMl} ml</small>
+              </span>
+            </div>
+            <div className="is-ok">
+              <GlassIcon size={40} tall />
+              <span>
+                <strong>Large glass</strong>
+                <small>Your drink is {volume} ml</small>
+              </span>
+            </div>
+          </div>
         </section>
       </div>
+      <SidePhoto
+        src={DISPENSE_BAY_PHOTO}
+        alt="The dispensing bay: place the glass on the grate"
+        tone={`is-bay ${tone}`}
+      >
+        <svg className="cc-bay-guide" viewBox="0 0 540 600" fill="none" aria-hidden="true">
+          <g className="cc-bay-guide__arrow">
+            <path d="M297 300v41" />
+            <path d="M282.5 327l14.5 14.5 14.5-14.5" />
+          </g>
+          <path
+            className="cc-bay-guide__glass"
+            d="M245 374h103l-8.3 124c-.5 6.2-4.6 10.3-10.8 10.3h-65.1c-6.2 0-10.3-4.1-10.8-10.3z"
+          />
+        </svg>
+      </SidePhoto>
     </div>
   );
 }
 
-function WaitingGlass({ now, glassState, lowerSensor, upperSensor, totalMl, requiredGlass, orderVolumeMl, message }: any) {
-  const drinkVolumeMl = Number.isFinite(orderVolumeMl) ? orderVolumeMl : totalMl;
-  const requiresLarge = requiredGlass === "large";
-  const raw = (value: number | null) => value === null ? "not read" : String(value);
-  let title = `Please place a ${requiresLarge ? "LARGE " : ""}glass`;
-  let subtitle = "under the dispenser nozzle";
-  let ringClass = "is-waiting";
+// Translate firmware status into the guest-facing three-phase progress.
+function preparingPhase(machineStatus: string) {
+  if (machineStatus === "mixing") return 1;
+  if (machineStatus === "pouring") return 2;
+  return 0;
+}
 
-  if (glassState === "small_glass") {
-    if (requiresLarge) {
-      title = "Large Glass Required";
-      subtitle = message || `This ${drinkVolumeMl} ml drink requires the large glass. Please replace it.`;
-      ringClass = "is-sensor-error";
-    } else {
-      title = "Small Glass Detected";
-      subtitle = "Starting order...";
-      ringClass = "is-detected";
-    }
-  } else if (glassState === "large_glass") {
-    title = "Large Glass Detected";
-    subtitle = "Starting order...";
-    ringClass = "is-detected";
-  } else if (glassState === "sensor_error") {
-    title = "IR Sensor Alignment Error";
-    subtitle = "Please check the glass position and sensors";
-    ringClass = "is-sensor-error";
+function pouringDetail(message: string, orderPumps: any[]) {
+  if (/prim/i.test(message)) return "Getting the lines ready";
+  const match = message.match(/pump\s+(\d+)/i);
+  if (match) {
+    const pumpNumber = Number(match[1]);
+    const index = orderPumps.findIndex((command: any) => Number(command.pump) === pumpNumber);
+    if (index >= 0)
+      return `${orderPumps[index].ingredient} now · ${index + 1} of ${orderPumps.length}`;
   }
-  const sensorText = `Raw IR — lower: ${raw(lowerSensor)} / upper: ${raw(upperSensor)}`;
+  return "Getting started";
+}
 
+function Preparing({
+  now,
+  selected,
+  mode,
+  progress,
+  machineStatus,
+  message,
+  orderedName,
+  orderPumps,
+}: any) {
+  const phase = preparingPhase(machineStatus);
+  const phases = ["Pouring ingredients", "Mixing", "Pouring into your glass"];
+  const backdrop =
+    mode === "signature" ? drinkBackdrop(selected) : { src: HOUSE_BACKDROP, blur: false };
   return (
-    <div className="cc-screen cc-machine-state">
-      <StatusBar title="Waiting for Glass" now={now} />
-      <div className={`cc-machine-state__icon ${ringClass}`}>
-        <GlassWater size={74} aria-hidden="true" />
+    <div className="cc-screen cc-screen--photo">
+      <Backdrop src={backdrop.src} blur={backdrop.blur} />
+      <div className="cc-pane">
+        <Header now={now} />
+        <section className="cc-pane__body">
+          <OrderSteps current={1} />
+          <div className="cc-heading">
+            <h1>Mixing your {orderedName}</h1>
+          </div>
+          <ol className="cc-phases">
+            <li className="is-done">
+              <span className="cc-phases__dot">
+                <Check size={16} strokeWidth={3} aria-hidden="true" />
+              </span>
+              Glass in place
+            </li>
+            {phases.map((label, index) => (
+              <li
+                key={label}
+                className={index < phase ? "is-done" : index === phase ? "is-current" : ""}
+                aria-current={index === phase ? "step" : undefined}
+              >
+                <span className="cc-phases__dot">
+                  {index < phase && <Check size={16} strokeWidth={3} aria-hidden="true" />}
+                </span>
+                <span className="cc-phases__text">
+                  {label}
+                  {index === 0 && phase === 0 && (
+                    <>
+                      <small>{pouringDetail(message, orderPumps)}</small>
+                      <span className="cc-phases__bar">
+                        <i style={{ width: `${Math.max(4, Math.min(100, progress))}%` }} />
+                      </span>
+                    </>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ol>
+          <p className="cc-note">
+            <Info size={18} aria-hidden="true" /> Please leave the glass where it is until it’s
+            ready.
+          </p>
+        </section>
       </div>
-      <h1>{title}</h1>
-      <p>{subtitle}</p>
-      <small>{sensorText}</small>
+      <SidePhoto src={orderPhoto(mode, selected)} tone={mode === "signature" ? "" : "is-machine"} />
     </div>
   );
 }
 
-function Preparing({ selected, mode, progress, machineStatus, message, now }: any) {
-  let title = "Preparing";
-  if (machineStatus === "mixing") title = "Mixing your drink";
-  if (machineStatus === "pouring") title = "Pouring into glass";
-
-  const drinkName = mode === "signature" ? selected?.name : "Custom Mix";
-
+function Ready({ now, selected, mode, orderedName }: any) {
+  const backdrop =
+    mode === "signature" ? drinkBackdrop(selected) : { src: HOUSE_BACKDROP, blur: false };
   return (
-    <div className="cc-screen cc-machine-state cc-preparing">
-      <StatusBar title={title} now={now} />
-      <div className="cc-progress-ring" style={{ "--progress": `${Math.max(0, Math.min(100, progress))}%` } as React.CSSProperties}>
-        <div>{progress}%</div>
+    <div className="cc-screen cc-screen--photo cc-ready">
+      <Backdrop src={backdrop.src} blur={backdrop.blur} />
+      <div className="cc-pane">
+        <Header now={now} />
+        <section className="cc-pane__body">
+          <OrderSteps current={2} />
+          <span className="cc-ready__check">
+            <Check size={30} strokeWidth={2.6} aria-hidden="true" />
+          </span>
+          <h1>Your {orderedName} is ready</h1>
+          <p>Lift your glass out and enjoy. The machine rinses itself for the next guest.</p>
+        </section>
       </div>
-      <h1>{drinkName}</h1>
-      <p>{message || title}</p>
+      <SidePhoto src={orderPhoto(mode, selected)} tone={mode === "signature" ? "" : "is-machine"} />
     </div>
   );
 }
 
-function Ready({ now }: any) {
+function ErrorScreen({ now, message, orderedName, startOver }: any) {
   return (
-    <div className="cc-screen cc-ready">
-      <StatusBar title="Ready" now={now} />
-      <img src={readyHero} alt="" className="cc-ready__image" />
-      <div className="cc-ready__overlay" />
-      <section>
-        <p className="cc-eyebrow">Order complete</p>
-        <h1>Your drink is <span>ready.</span></h1>
-        <p>Enjoy your drink. Remove the glass to start cleaning.</p>
-      </section>
-    </div>
+    <MachineScreen now={now}>
+      <span className="cc-message__icon cc-message__icon--danger">
+        <AlertTriangle size={28} aria-hidden="true" />
+      </span>
+      <h1>Sorry, we couldn’t finish your drink</h1>
+      <p>The machine has stopped. Please ask a member of staff — they’ll sort it out.</p>
+      <aside className="cc-staff" aria-label="Details for staff">
+        <span className="cc-label">For staff</span>
+        <p>{message || "The controller reported an error."}</p>
+        <small>Order: {orderedName}. Open Admin → Hardware for details.</small>
+      </aside>
+      <PrimaryButton onClick={startOver}>Back to start</PrimaryButton>
+    </MachineScreen>
   );
 }
 
-function ErrorScreen({ now, message }: any) {
+function CleaningScreen({ now, progress }: any) {
   return (
-    <div className="cc-screen cc-machine-state cc-error-state">
-      <StatusBar title="System Error" now={now} />
-      <div className="cc-machine-state__icon"><AlertTriangle size={68} aria-hidden="true" /></div>
-      <h1>Order unavailable</h1>
-      <p>{message || "Please contact staff for assistance."}</p>
-    </div>
-  );
-}
-
-function CleaningScreen({ now, progress, message }: any) {
-  return (
-    <div className="cc-screen cc-machine-state cc-cleaning">
-      <StatusBar title="Machine Maintenance" now={now} />
-      <div className="cc-machine-state__icon"><Sparkles size={68} aria-hidden="true" /></div>
-      <h1>Cleaning in progress</h1>
-      <p>Please wait while the station is prepared for the next order.</p>
-      <div className="cc-cleaning__bar"><i style={{ width: `${progress}%` }} /></div>
-      <small>{message || "Rinsing systems…"}</small>
-    </div>
+    <MachineScreen now={now}>
+      <span className="cc-message__icon">
+        <RinseIcon />
+      </span>
+      <h1>Getting ready for the next guest</h1>
+      <p>The machine is rinsing itself. This only takes a moment.</p>
+      <span className="cc-message__bar">
+        <i style={{ width: `${Math.max(4, Math.min(100, progress))}%` }} />
+      </span>
+    </MachineScreen>
   );
 }
 
 function CleaningDone({ now }: any) {
   return (
-    <div className="cc-screen cc-machine-state cc-cleaning-done">
-      <StatusBar title="All Clean" now={now} />
-      <div className="cc-machine-state__icon"><Check size={74} aria-hidden="true" /></div>
-      <h1>All clean</h1>
-      <p>Machine ready for the next order.</p>
-    </div>
+    <MachineScreen now={now}>
+      <span className="cc-message__icon cc-message__icon--accent">
+        <Check size={28} strokeWidth={2.6} aria-hidden="true" />
+      </span>
+      <h1>All set for the next guest</h1>
+      <p>Thanks for visiting Cocktail Craft.</p>
+    </MachineScreen>
+  );
+}
+
+function RinseIcon() {
+  return (
+    <svg
+      width="28"
+      height="28"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3c3.5 4.2 5.5 7.3 5.5 10a5.5 5.5 0 0 1-11 0c0-2.7 2-5.8 5.5-10z" />
+      <path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5" />
+    </svg>
   );
 }

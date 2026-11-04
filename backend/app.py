@@ -221,11 +221,26 @@ def api_dev_simulate_message():
     """Simulate a hardware message (STATUS or SENSOR) via UI DevPanel."""
     data = request.get_json() or {}
     msg_type = data.get("type", "").upper()
+    simulator = isinstance(_controller, hardware_controller.SimulatorController)
     try:
         if msg_type == "STATUS":
-            hardware_controller._handle_status(data)
+            if not simulator:
+                hardware_controller._handle_status(data)
+            elif data.get("machine_status") == "idle":
+                # Clears any simulated order so the next one is not blocked.
+                _controller.reset()
+            else:
+                # Let the panel jump straight to any screen while simulating.
+                hardware_controller._set_machine_state(
+                    data.get("machine_status"),
+                    progress=data.get("progress"),
+                    message=data.get("message"),
+                    force=True,
+                )
         elif msg_type == "SENSOR":
             hardware_controller._handle_sensor(data)
+            if simulator and "glass_state" in data:
+                _controller.handle_glass_event(str(data["glass_state"]))
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

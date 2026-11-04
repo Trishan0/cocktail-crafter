@@ -309,6 +309,46 @@ class SimulatorController(HardwareController):
         self._lock = threading.RLock()
         self._stop_requested = threading.Event()
         self._lines_primed = False
+        # Local UI testing knobs (see dev_sim.py).  DELAY_SCALE stretches every
+        # simulated phase so each kiosk screen stays visible; AUTO_GLASS=False
+        # waits for the Dev Panel to place/remove the glass instead.
+        self._delay_scale = max(0.0, float(getattr(config, "SIMULATOR_DELAY_SCALE", 1.0)))
+        self._auto_glass = bool(getattr(config, "SIMULATOR_AUTO_GLASS", True))
+
+    def _scaled(self, seconds: float) -> float:
+        return seconds * self._delay_scale
+
+    def _schedule_glass_detection(self):
+        if not self._auto_glass:
+            return
+        timer = threading.Timer(self._scaled(0.5), self._simulate_glass_detection)
+        timer.daemon = True
+        timer.start()
+
+    def reset(self):
+        """Drop any simulated order/maintenance run and return to idle (Dev Panel)."""
+        with self._lock:
+            self._pending = None
+            self._run_mode = None
+        self._stop_requested.clear()
+        _clear_glass_requirement()
+        _set_machine_state(MachineState.IDLE, progress=0, message="Simulator reset.", order_id=None, force=True)
+
+    def handle_glass_event(self, glass_state: str):
+        """React to a Dev Panel glass placement/removal like the IR sensors would."""
+        with self._lock:
+            pending = dict(self._pending) if self._pending else None
+            busy = self._run_mode is not None
+        if not pending or busy:
+            return
+        if glass_state == "no_glass" and pending.get("drink_ready"):
+            self.send_clean()
+        elif glass_state != "no_glass" and pending["initialized"] and not pending["start_sent"]:
+            try:
+                self.start_pending_order()
+            except RuntimeError as exc:
+                # Wrong glass: start_pending_order already published the waiting message.
+                print(f"[SIM] {exc}")
 
     def start(self):
         self._running = True
@@ -352,7 +392,7 @@ class SimulatorController(HardwareController):
 
         _set_glass_requirement(volume, required_glass)
         _set_machine_state(MachineState.INITIALIZING, progress=0, message="Loading order into controller...", order_id=order_id)
-        threading.Timer(0.15, self._acknowledge_order).start()
+        threading.Timer(self._scaled(0.15), self._acknowledge_order).start()
 
     def _acknowledge_order(self):
         with self._lock:
@@ -361,7 +401,7 @@ class SimulatorController(HardwareController):
             self._pending["initialized"] = True
             order_id = self._pending["db_order_id"]
         _set_machine_state(MachineState.WAITING_GLASS, progress=0, message="Order initialized. Waiting for IR glass detection...", order_id=order_id)
-        threading.Timer(0.5, self._simulate_glass_detection).start()
+        self._schedule_glass_detection()
 
     def _simulate_glass_detection(self):
         with self._lock:
@@ -487,7 +527,7 @@ class SimulatorController(HardwareController):
                 message="Cleaning finished. Pending order is still initialized; waiting for IR glass detection...",
                 order_id=pending["db_order_id"],
             )
-            threading.Timer(0.5, self._simulate_glass_detection).start()
+            self._schedule_glass_detection()
         else:
             # A completed order remains associated with the controller until
             # its post-drink CLEAN sequence has finished.
@@ -520,7 +560,9 @@ class SimulatorController(HardwareController):
         )
         # The simulator has no physical IR sensors.  Model the user removing
         # the glass so local demos still exercise the same ready -> clean flow.
-        timer = threading.Timer(1.0, self._simulate_glass_removal, args=(order_id,))
+        if not self._auto_glass:
+            return
+        timer = threading.Timer(self._scaled(1.0), self._simulate_glass_removal, args=(order_id,))
         timer.daemon = True
         timer.start()
 
@@ -542,7 +584,7 @@ class SimulatorController(HardwareController):
             print(f"[SIM] Could not start post-drink cleaning: {exc}")
 
     def _wait(self, seconds: float) -> bool:
-        deadline = time.monotonic() + seconds
+        deadline = time.monotonic() + self._scaled(seconds)
         while time.monotonic() < deadline:
             if not self._running:
                 return False

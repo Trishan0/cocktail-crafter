@@ -34,3 +34,5 @@ dist-ssr
 .vercel/
 __pycache__/
 .lovable/
+# Local simulator database (backend/dev_sim.py)
+backend/Cocktail-Craft.sim.db*

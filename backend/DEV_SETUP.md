@@ -1,3 +1,20 @@
+# Dev setup — UI testing without any hardware
+
+`dev_sim.py` runs Flask with the built-in `SimulatorController` (no ESP32, no Raspberry Pi, no serial port). It works on a copy of the database, `Cocktail-Craft.sim.db` (gitignored), and pre-seeds it so orders succeed: machine powered on, every bottle at 2000 ml, liquid sensor polarity set.
+
+```bash
+cd backend
+uv run python dev_sim.py                 # glass auto-placed/removed, phases slowed 3x
+uv run python dev_sim.py --manual-glass  # place/remove the glass from the Dev Panel
+uv run python dev_sim.py --speed 1       # original simulator timing
+uv run python dev_sim.py --reset         # re-copy Cocktail-Craft.db
+
+cd ../frontend
+npm run dev                              # http://localhost:8080  (admin: /admin, PIN 1234 by default)
+```
+
+In dev builds a **Dev** button (bottom-right) opens the Dev Panel. It places or removes a small/large glass and jumps straight to the waiting-glass, preparing, ready, cleaning and error screens. **Reset to idle** clears any simulated order.
+
 # Dev setup — current ESP32-S3 serial harness
 
 `fake_esp32.py` lets you exercise the real `SerialController` without the physical ESP32. It implements the current firmware protocol from `arduino-code/CocktailCraft_Internal_Mechanism_Complete_Handoff.md`:
