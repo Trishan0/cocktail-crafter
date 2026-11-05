@@ -14,6 +14,7 @@ SERIAL_RECONNECT_SECONDS = 3
 # Simulator-only knobs for local UI testing (set by dev_sim.py).
 SIMULATOR_DELAY_SCALE = 1.0         # multiply every simulated phase duration
 SIMULATOR_AUTO_GLASS  = True        # False: place/remove the glass from the Dev Panel
+SIMULATOR_PUMP_TIME_SCALE = 0.1     # simulated pump runs = real duration x this (40 s -> 4 s)
 
 # The current ESP32 firmware rejects an ORDER if a pump time is outside this
 # range. Keep the Pi-side validation in lockstep with MAX_PUMP_TIME_MS in the

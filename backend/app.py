@@ -131,6 +131,7 @@ def _on_status_change(state: dict):
         "firmware_ready": state.get("firmware_ready", False),
         "required_glass": state.get("required_glass"),
         "order_volume_ml": state.get("order_volume_ml"),
+        "order_progress": state.get("order_progress"),
         "powered_on":     _is_powered_on(),
     })
     order_id = state.get("current_order_id")
@@ -185,6 +186,7 @@ def stream():
             "firmware_ready": state.get("firmware_ready", False),
             "required_glass": state.get("required_glass"),
             "order_volume_ml": state.get("order_volume_ml"),
+            "order_progress": state.get("order_progress"),
             "powered_on":     _is_powered_on(),
         })
         yield f"event: init\ndata: {init_data}\n\n"
@@ -463,6 +465,7 @@ def api_status():
         "order_volume_ml": state.get("order_volume_ml"),
         "last_seen":      state["last_seen"],
         "firmware_ready": state.get("firmware_ready", False),
+        "order_progress": state.get("order_progress"),
         "powered_on":     _is_powered_on(),
     })
 

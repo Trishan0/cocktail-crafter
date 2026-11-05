@@ -22,6 +22,9 @@ import threading
 import time
 from datetime import datetime
 
+# Pump runs are replayed at this fraction of the ORDER's time_ms.
+PUMP_TIME_SCALE = 0.05
+
 
 MAX_PUMP_TIME_MS = 60_000
 
@@ -205,16 +208,26 @@ class FakeESP32:
         threading.Thread(target=self._run_reverse, daemon=True).start()
 
     def _run_order(self, order: dict):
+        # Match CocktailCraft_Firmware.ino: the ice cycle runs in parallel,
+        # pumps 1-5 run in pump-number order at their indexer positions, and
+        # the direct syrup pump 6 runs only after the valve has opened.
+        ice_thread = None
         if order["ice"]:
-            self._run_ice_cycle()
+            ice_thread = threading.Thread(target=self._run_ice_cycle, daemon=True)
+            ice_thread.start()
         if not self._lines_primed:
             self._system("line_priming", "started")
             self._sleep(0.35)
             self._lines_primed = True
             self._system("line_priming", "finished")
+        syrup = None
         for command in order["pumps"]:
+            if command["pump"] == 6:
+                syrup = command
+                continue
+            self._sleep(0.1)  # indexer travel
             self._system("pump", "forward", pump=command["pump"])
-            self._sleep(0.18)
+            self._sleep(command["time_ms"] / 1000 * PUMP_TIME_SCALE)
             self._system("pump", "stop", pump=command["pump"])
             self._sleep(0.08)
         self._system("mixing", "started")
@@ -222,6 +235,13 @@ class FakeESP32:
         self._system("mixing", "stopped")
         self._sleep(0.12)
         self._system("valve", "opened")
+        if syrup:
+            self._sleep(0.2)  # PUMP6_POST_VALVE_DELAY_MS
+            self._system("pump", "forward", pump=6)
+            self._sleep(syrup["time_ms"] / 1000 * PUMP_TIME_SCALE)
+            self._system("pump", "stop", pump=6)
+        if ice_thread:
+            ice_thread.join()
         with self._lock:
             self._loaded_order = None
             self._busy = False
