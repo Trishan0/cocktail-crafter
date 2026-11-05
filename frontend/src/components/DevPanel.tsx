@@ -1,13 +1,27 @@
-import { useState } from 'react';
-import { simulateHardwareMessage } from '../lib/api';
+import { useEffect, useState } from 'react';
+import { getSimulatorMode, simulateHardwareMessage } from '../lib/api';
 
 // Local UI testing helper. Pair with `python dev_sim.py` in backend/ — the
 // simulator lets these buttons jump the kiosk to any machine-driven screen.
+// Shown only in dev builds AND while the backend runs the simulator: its
+// messages are refused on real hardware anyway.
 export const DevPanel = () => {
   const [open, setOpen] = useState(false);
+  const [simulator, setSimulator] = useState(false);
 
-  // Only render in development mode
-  if (import.meta.env.PROD) {
+  useEffect(() => {
+    if (import.meta.env.PROD) return;
+    const check = () =>
+      getSimulatorMode()
+        .then((data) => setSimulator(Boolean(data.simulator)))
+        .catch(() => setSimulator(false));
+    check();
+    // Admin can switch Live/Simulator at runtime.
+    const timer = setInterval(check, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (import.meta.env.PROD || !simulator) {
     return null;
   }
 

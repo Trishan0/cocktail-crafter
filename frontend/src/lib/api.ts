@@ -101,6 +101,7 @@ export const verifyPin = (pin: string) => fetchApi("/admin/pin/verify", { method
 // Admin - Hardware
 export const sendCleanCommand = (trigger: string, mode: string, pump?: number) =>
   fetchApi("/admin/clean", { method: "POST", body: JSON.stringify({ trigger, mode, pump }) });
+export const getSimulatorMode = () => fetchApi("/admin/mode");
 export const setSimulatorMode = (enabled: boolean) =>
   fetchApi("/admin/mode", { method: "POST", body: JSON.stringify({ simulator: enabled }) });
 export const getPowerState = () => fetchApi("/admin/power");
