@@ -45,11 +45,6 @@ body:has(.kiosk-stage) {
   box-sizing: border-box;
 }
 
-.kiosk-stage,
-.kiosk-stage button {
-  cursor: default;
-}
-
 /* :where() keeps these resets at zero specificity so component classes win. */
 :where(.kiosk-stage) button {
   font: inherit;
@@ -59,10 +54,6 @@ body:has(.kiosk-stage) {
 
 :where(.kiosk-stage) :is(h1, h3, p, figure) {
   margin: 0;
-}
-
-.kiosk-stage button:not(:disabled) {
-  cursor: pointer;
 }
 
 .kiosk-stage button:focus-visible {

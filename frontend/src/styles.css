@@ -96,12 +96,17 @@
   }
 }
 
+/* Touchscreen kiosk: never draw a cursor where the screen was last touched. */
 * {
   cursor: none;
 }
 
-.admin-ui, .admin-ui * {
-  cursor: auto !important;
+/* Staff may manage the station from a laptop; show the cursor only for a mouse. */
+@media (hover: hover) and (pointer: fine) {
+  .admin-ui,
+  .admin-ui * {
+    cursor: auto !important;
+  }
 }
 
 /* --- Presentation utilities --- */
