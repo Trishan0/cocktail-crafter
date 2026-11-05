@@ -1129,76 +1129,170 @@ body:has(.kiosk-stage) {
   font-size: 14px;
 }
 
-/* Preparing ---------------------------------------------------------------- */
+/* Preparing: real-time steps from the ESP32's events ------------------------ */
 
-.cc-phases {
+.cc-prep-screen {
+  gap: 14px;
+  padding-bottom: 28px;
+}
+
+/* Five pours + topping + ice + a two-line drink name: drop the reminder
+   rather than clip the list. */
+.cc-prep-screen:has(.cc-pour:nth-child(5)) > .cc-note {
+  display: none;
+}
+
+.cc-prep-screen .cc-heading {
+  gap: 8px;
+}
+
+/* Fits the worst case (five pours + syrup topping + ice) in 600 px. */
+.cc-prep-screen .cc-heading h1 {
+  font-size: 36px;
+}
+
+.cc-heading .cc-prep__headline {
+  color: var(--k-accent);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.cc-prep {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.cc-phases li {
+.cc-prep__phase {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 14px;
   color: var(--k-faint);
-  font-size: 18px;
-  line-height: 32px;
 }
 
-.cc-phases__dot {
-  width: 32px;
-  height: 32px;
+.cc-prep__dot {
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1.5px solid var(--k-line-strong);
-  border-radius: 16px;
+  border-radius: 13px;
   color: var(--k-accent);
 }
 
-.cc-phases li.is-done .cc-phases__dot {
+.cc-prep__phase.is-done .cc-prep__dot {
   border-color: transparent;
   background: var(--k-surface-2);
 }
 
-.cc-phases li.is-current {
-  color: var(--k-text);
-  font-weight: 600;
-}
-
-.cc-phases li.is-current .cc-phases__dot {
+.cc-prep__phase.is-active .cc-prep__dot {
   border: 2px solid var(--k-accent);
 }
 
-.cc-phases li.is-current .cc-phases__dot::after {
-  width: 12px;
-  height: 12px;
+.cc-prep__phase.is-active .cc-prep__dot::after {
+  width: 10px;
+  height: 10px;
   content: "";
-  border-radius: 6px;
+  border-radius: 5px;
   background: var(--k-accent);
   animation: cc-pulse 1.6s ease-in-out infinite;
 }
 
-.cc-phases__text {
+.cc-prep__body {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.cc-phases__text small {
-  color: var(--k-muted);
-  font-size: 15px;
-  font-weight: 400;
-  line-height: 1.3;
+.cc-prep__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 17px;
+  line-height: 26px;
 }
 
-.cc-phases__bar,
+.cc-prep__phase.is-active .cc-prep__label,
+.cc-prep__phase.is-done .cc-prep__label {
+  color: var(--k-text);
+}
+
+.cc-prep__phase.is-active .cc-prep__label {
+  font-weight: 600;
+}
+
+.cc-prep__label small {
+  color: var(--k-muted);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One line per ingredient, in the order the machine actually pours. */
+.cc-pours {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.cc-pour {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cc-pour__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--k-faint);
+  font-size: 15px;
+}
+
+.cc-pour__row > span {
+  flex: 1;
+}
+
+.cc-pour__row small {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-pour.is-done .cc-pour__row {
+  color: var(--k-muted);
+}
+
+.cc-pour.is-done svg {
+  color: var(--k-accent);
+}
+
+.cc-pour.is-active .cc-pour__row,
+.cc-pour.is-moving .cc-pour__row {
+  color: var(--k-text);
+}
+
+.cc-pour.is-active .cc-pour__row {
+  font-weight: 600;
+}
+
+.cc-pour.is-active .cc-pour__row small,
+.cc-pour.is-moving .cc-pour__row small {
+  color: var(--k-accent);
+  font-weight: 600;
+}
+
+.cc-bar,
 .cc-message__bar {
   display: block;
   height: 6px;
@@ -1207,12 +1301,48 @@ body:has(.kiosk-stage) {
   background: var(--k-surface-2);
 }
 
-.cc-phases__bar i,
 .cc-message__bar i {
   display: block;
   height: 100%;
   background: var(--k-accent);
   transition: width 0.4s ease;
+}
+
+/* Exact pump run: fills linearly over the step's real duration. */
+.cc-bar__timed {
+  display: block;
+  height: 100%;
+  background: var(--k-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation-name: cc-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* Running, but the firmware gives no duration: a sweep, not a percentage. */
+.cc-bar__busy {
+  display: block;
+  width: 32%;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--k-accent);
+  animation: cc-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes cc-fill {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes cc-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
 }
 
 /* Ready -------------------------------------------------------------------- */
@@ -1415,7 +1545,8 @@ body:has(.kiosk-stage) {
 @media (prefers-reduced-motion: reduce) {
   .cc-screen,
   .cc-bay-guide__arrow,
-  .cc-phases li.is-current .cc-phases__dot::after,
+  .cc-prep__phase.is-active .cc-prep__dot::after,
+  .cc-bar__busy,
   .cc-ready__check {
     animation: none;
   }

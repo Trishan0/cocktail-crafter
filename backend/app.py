@@ -131,6 +131,7 @@ def _on_status_change(state: dict):
         "firmware_ready": state.get("firmware_ready", False),
         "required_glass": state.get("required_glass"),
         "order_volume_ml": state.get("order_volume_ml"),
+        "order_progress": state.get("order_progress"),
         "powered_on":     _is_powered_on(),
     })
     order_id = state.get("current_order_id")
@@ -185,6 +186,7 @@ def stream():
             "firmware_ready": state.get("firmware_ready", False),
             "required_glass": state.get("required_glass"),
             "order_volume_ml": state.get("order_volume_ml"),
+            "order_progress": state.get("order_progress"),
             "powered_on":     _is_powered_on(),
         })
         yield f"event: init\ndata: {init_data}\n\n"
@@ -219,14 +221,16 @@ def stream():
 @app.route("/api/dev/simulate-message", methods=["POST"])
 def api_dev_simulate_message():
     """Simulate a hardware message (STATUS or SENSOR) via UI DevPanel."""
+    simulator = isinstance(_controller, hardware_controller.SimulatorController)
+    if not simulator:
+        # On the real machine a faked "glass placed" sensor value could let the
+        # Pi send START with no glass under the spout. Simulator only.
+        return jsonify({"error": "Dev messages are only accepted in simulator mode."}), 403
     data = request.get_json() or {}
     msg_type = data.get("type", "").upper()
-    simulator = isinstance(_controller, hardware_controller.SimulatorController)
     try:
         if msg_type == "STATUS":
-            if not simulator:
-                hardware_controller._handle_status(data)
-            elif data.get("machine_status") == "idle":
+            if data.get("machine_status") == "idle":
                 # Clears any simulated order so the next one is not blocked.
                 _controller.reset()
             else:
@@ -239,7 +243,7 @@ def api_dev_simulate_message():
                 )
         elif msg_type == "SENSOR":
             hardware_controller._handle_sensor(data)
-            if simulator and "glass_state" in data:
+            if "glass_state" in data:
                 _controller.handle_glass_event(str(data["glass_state"]))
         return jsonify({"success": True})
     except Exception as e:
@@ -463,6 +467,7 @@ def api_status():
         "order_volume_ml": state.get("order_volume_ml"),
         "last_seen":      state["last_seen"],
         "firmware_ready": state.get("firmware_ready", False),
+        "order_progress": state.get("order_progress"),
         "powered_on":     _is_powered_on(),
     })
 

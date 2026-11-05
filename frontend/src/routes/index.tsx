@@ -84,7 +84,8 @@ function KioskApp() {
   const [smallGlassMaxMl, setSmallGlassMaxMl] = useState(DEFAULT_SMALL_GLASS_ML);
   // What the guest actually ordered, kept apart from the browsing selection.
   const [orderedName, setOrderedName] = useState(UNKNOWN_DRINK_NAME);
-  const [orderPumps, setOrderPumps] = useState<any[]>([]);
+  // Step plan from the backend, advanced by the ESP32's own events.
+  const [orderProgress, setOrderProgress] = useState<any>(null);
 
   // SSE State
   const [machineStatus, setMachineStatus] = useState("idle");
@@ -184,6 +185,7 @@ function KioskApp() {
       setGlassState(data.glass_state);
       if ("required_glass" in data) setRequiredGlass(data.required_glass ?? null);
       if ("order_volume_ml" in data) setOrderVolumeMl(data.order_volume_ml ?? null);
+      if ("order_progress" in data) setOrderProgress(withClockOffset(data.order_progress));
       syncScreenWithMachine(data.machine_status, data.message || "", true);
     });
 
@@ -197,6 +199,7 @@ function KioskApp() {
       setMessage(data.message || "");
       if ("required_glass" in data) setRequiredGlass(data.required_glass ?? null);
       if ("order_volume_ml" in data) setOrderVolumeMl(data.order_volume_ml ?? null);
+      if ("order_progress" in data) setOrderProgress(withClockOffset(data.order_progress));
       syncScreenWithMachine(status, data.message || "");
     });
 
@@ -298,10 +301,9 @@ function KioskApp() {
     if (!stationReady || machineStatus !== "idle" || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      let response;
       if (mode === "signature") {
         if (!selected) return;
-        response = await placeOrder(selected.id, wantsIce);
+        await placeOrder(selected.id, wantsIce);
         setOrderedName(selected.name);
       } else {
         if (customIngredients.length === 0) return;
@@ -310,10 +312,9 @@ function KioskApp() {
           name: i.name,
           amount_ml: i.amount_ml,
         }));
-        response = await placeCustomOrder(payload, wantsIce);
+        await placeCustomOrder(payload, wantsIce);
         setOrderedName("custom mix");
       }
-      setOrderPumps(Array.isArray(response?.pump_commands) ? response.pump_commands : []);
       // Screen will change via SSE when status becomes waiting_glass or dispensing
     } catch (e: any) {
       setOrderError(e.message || "An unknown error occurred.");
@@ -349,7 +350,7 @@ function KioskApp() {
     showPrices,
     smallGlassMaxMl,
     orderedName,
-    orderPumps,
+    orderProgress,
     now,
     go,
     startOver,
@@ -1223,79 +1224,239 @@ function WaitingGlass({
   );
 }
 
-// Translate firmware status into the guest-facing three-phase progress.
-function preparingPhase(machineStatus: string) {
-  if (machineStatus === "mixing") return 1;
-  if (machineStatus === "pouring") return 2;
-  return 0;
+/* ------------------------------------------------------------
+   Preparing: driven by the backend's step plan (order_progress),
+   which advances only on the ESP32's own DATA events. Pump runs
+   have exact durations; every other step is shown as "in
+   progress" rather than with an invented percentage.
+   ------------------------------------------------------------ */
+
+/** Remember how far the kiosk clock is from the Pi's, so timed bars stay true. */
+function withClockOffset(plan: any) {
+  if (!plan) return null;
+  const serverTime = Number(plan.server_time_ms);
+  return { ...plan, clockOffsetMs: Number.isFinite(serverTime) ? Date.now() - serverTime : 0 };
 }
 
-function pouringDetail(message: string, orderPumps: any[]) {
-  if (/prim/i.test(message)) return "Getting the lines ready";
-  const match = message.match(/pump\s+(\d+)/i);
-  if (match) {
-    const pumpNumber = Number(match[1]);
-    const index = orderPumps.findIndex((command: any) => Number(command.pump) === pumpNumber);
-    if (index >= 0)
-      return `${orderPumps[index].ingredient} now · ${index + 1} of ${orderPumps.length}`;
-  }
-  return "Getting started";
+function serverNow(plan: any) {
+  return Date.now() - (plan?.clockOffsetMs ?? 0);
 }
 
-function Preparing({
-  now,
-  selected,
-  mode,
-  progress,
-  machineStatus,
-  message,
-  orderedName,
-  orderPumps,
-}: any) {
-  const phase = preparingPhase(machineStatus);
-  const phases = ["Pouring ingredients", "Mixing", "Pouring into your glass"];
+/** Fills over the step's real run time using a CSS animation (no JS timers on the Pi). */
+function TimedBar({ plan, step }: { plan: any; step: any }) {
+  // Computed once per step start: re-renders must not shift the animation.
+  const [elapsedAtMount] = useState(() =>
+    Math.min(step.duration_ms, Math.max(0, serverNow(plan) - plan.active_started_ms)),
+  );
+  return (
+    <span className="cc-bar" aria-hidden="true">
+      <i
+        className="cc-bar__timed"
+        style={{
+          animationDuration: `${step.duration_ms}ms`,
+          animationDelay: `-${elapsedAtMount}ms`,
+        }}
+      />
+    </span>
+  );
+}
+
+function BusyBar() {
+  return (
+    <span className="cc-bar" aria-hidden="true">
+      <i className="cc-bar__busy" />
+    </span>
+  );
+}
+
+function SecondsLeft({ plan, step }: { plan: any; step: any }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((tick) => tick + 1), 500);
+    return () => clearInterval(timer);
+  }, []);
+  const remaining = plan.active_started_ms + step.duration_ms - serverNow(plan);
+  return <>{remaining > 900 ? `${Math.ceil(remaining / 1000)} s left` : "almost done"}</>;
+}
+
+function stepState(plan: any, step: any) {
+  if (!step) return "pending";
+  if (step.state === "done") return "done";
+  if (step.key === plan.active_key) return "active";
+  if (step.key === plan.moving_to) return "moving";
+  return "pending";
+}
+
+function PhaseRow({
+  state,
+  label,
+  detail,
+  children,
+}: {
+  state: string;
+  label: string;
+  detail?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <li
+      className={`cc-prep__phase is-${state}`}
+      aria-current={state === "active" ? "step" : undefined}
+    >
+      <span className="cc-prep__dot">
+        {state === "done" && <Check size={15} strokeWidth={3} aria-hidden="true" />}
+      </span>
+      <span className="cc-prep__body">
+        <span className="cc-prep__label">
+          {label}
+          {detail && <small>{detail}</small>}
+        </span>
+        {children}
+      </span>
+    </li>
+  );
+}
+
+function Preparing({ now, selected, mode, orderedName, orderProgress, message }: any) {
+  const plan = orderProgress;
   const backdrop =
     mode === "signature" ? drinkBackdrop(selected) : { src: HOUSE_BACKDROP, blur: false };
+  const steps: any[] = plan?.steps ?? [];
+  const pours = steps.filter((step) => step.kind === "pour");
+  const find = (key: string) => steps.find((step) => step.key === key);
+  const mix = find("mix");
+  const serve = find("serve");
+  const topping = steps.find((step) => step.kind === "topping");
+  const ice = find("ice");
+  const phase = plan?.phase;
+
+  const poursDone = pours.length > 0 && pours.every((step) => step.state === "done");
+  const pourGroupState = poursDone ? "done" : "active";
+  const serveState = stepState(plan, serve);
+  const toppingState =
+    topping && (topping.state === "done" ? "done" : phase === "topping" ? "active" : "pending");
+
+  const active = steps.find((step) => step.key === plan?.active_key);
+  const movingTo = steps.find((step) => step.key === plan?.moving_to);
+  const headline = !plan
+    ? message || "Working on your drink…"
+    : phase === "priming"
+      ? "Getting the lines ready"
+      : phase === "pouring"
+        ? `Pouring ${active?.ingredient}`
+        : phase === "moving"
+          ? `Moving to the ${movingTo?.ingredient}`
+          : phase === "returning"
+            ? "Getting ready to mix"
+            : phase === "mixing"
+              ? "Mixing it together"
+              : phase === "serving"
+                ? "Pouring into your glass"
+                : phase === "topping"
+                  ? `Adding the ${topping?.ingredient}`
+                  : phase === "ice"
+                    ? "Adding the ice"
+                    : "Starting your drink";
+
   return (
     <div className="cc-screen cc-screen--photo">
       <Backdrop src={backdrop.src} blur={backdrop.blur} />
       <div className="cc-pane">
         <Header now={now} />
-        <section className="cc-pane__body">
+        <section className="cc-pane__body cc-prep-screen">
           <OrderSteps current={1} />
           <div className="cc-heading">
             <h1>Mixing your {orderedName}</h1>
+            <p className="cc-prep__headline" aria-live="polite">
+              {headline}
+            </p>
           </div>
-          <ol className="cc-phases">
-            <li className="is-done">
-              <span className="cc-phases__dot">
-                <Check size={16} strokeWidth={3} aria-hidden="true" />
-              </span>
-              Glass in place
-            </li>
-            {phases.map((label, index) => (
-              <li
-                key={label}
-                className={index < phase ? "is-done" : index === phase ? "is-current" : ""}
-                aria-current={index === phase ? "step" : undefined}
+
+          {plan ? (
+            <ol className="cc-prep">
+              <PhaseRow
+                state={pourGroupState}
+                label="Pouring ingredients"
+                detail={poursDone ? `${pours.length} poured` : undefined}
               >
-                <span className="cc-phases__dot">
-                  {index < phase && <Check size={16} strokeWidth={3} aria-hidden="true" />}
-                </span>
-                <span className="cc-phases__text">
-                  {label}
-                  {index === 0 && phase === 0 && (
-                    <>
-                      <small>{pouringDetail(message, orderPumps)}</small>
-                      <span className="cc-phases__bar">
-                        <i style={{ width: `${Math.max(4, Math.min(100, progress))}%` }} />
-                      </span>
-                    </>
+                {!poursDone && (
+                  <ul className="cc-pours">
+                    {(phase === "priming" || phase === "starting") && (
+                      <li className="cc-pour is-active">
+                        <span className="cc-pour__row">
+                          <span>
+                            {phase === "priming" ? "Getting the lines ready" : "Getting started"}
+                          </span>
+                        </span>
+                        <BusyBar />
+                      </li>
+                    )}
+                    {pours.map((step) => {
+                      const state = stepState(plan, step);
+                      return (
+                        <li key={step.key} className={`cc-pour is-${state}`}>
+                          <span className="cc-pour__row">
+                            {state === "done" && (
+                              <Check size={14} strokeWidth={3} aria-hidden="true" />
+                            )}
+                            <span>{step.ingredient}</span>
+                            <small>
+                              {state === "active" ? (
+                                <SecondsLeft key={plan.active_started_ms} plan={plan} step={step} />
+                              ) : state === "moving" ? (
+                                "moving into place"
+                              ) : (
+                                `${step.amount_ml} ml`
+                              )}
+                            </small>
+                          </span>
+                          {state === "active" && (
+                            <TimedBar key={plan.active_started_ms} plan={plan} step={step} />
+                          )}
+                          {state === "moving" && <BusyBar />}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </PhaseRow>
+              <PhaseRow
+                state={phase === "returning" ? "active" : stepState(plan, mix)}
+                label="Mixing"
+                detail={phase === "returning" ? "getting ready" : undefined}
+              >
+                {(phase === "returning" || stepState(plan, mix) === "active") && <BusyBar />}
+              </PhaseRow>
+              <PhaseRow state={serveState} label="Pouring into your glass">
+                {serveState === "active" && <BusyBar />}
+              </PhaseRow>
+              {topping && (
+                <PhaseRow
+                  state={toppingState as string}
+                  label={`Adding ${topping.ingredient}`}
+                  detail={
+                    topping.key === plan.active_key ? (
+                      <SecondsLeft key={plan.active_started_ms} plan={plan} step={topping} />
+                    ) : undefined
+                  }
+                >
+                  {topping.key === plan.active_key ? (
+                    <TimedBar key={plan.active_started_ms} plan={plan} step={topping} />
+                  ) : (
+                    toppingState === "active" && <BusyBar />
                   )}
-                </span>
-              </li>
-            ))}
-          </ol>
+                </PhaseRow>
+              )}
+              {ice && (
+                <PhaseRow state={stepState(plan, ice)} label="Adding ice">
+                  {stepState(plan, ice) === "active" && <BusyBar />}
+                </PhaseRow>
+              )}
+            </ol>
+          ) : (
+            <BusyBar />
+          )}
+
           <p className="cc-note">
             <Info size={18} aria-hidden="true" /> Please leave the glass where it is until it’s
             ready.

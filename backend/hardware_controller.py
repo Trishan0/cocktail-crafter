@@ -27,6 +27,7 @@ import serial.tools.list_ports
 import config
 import machine_state as ms
 from machine_state import MachineState
+from order_progress import SYRUP_PUMP, OrderProgress
 
 
 _lock = threading.RLock()
@@ -51,7 +52,13 @@ _state: dict[str, Any] = {
     # one pending order, used to decide whether it is safe to send START.
     "required_glass": None,
     "order_volume_ml": None,
+    # Step plan for the running order (order_progress.OrderProgress.snapshot).
+    "order_progress": None,
 }
+
+# The running order's step plan; advanced only by firmware events.
+_progress: OrderProgress | None = None
+_ORDER_RUN_STATES = frozenset({MachineState.DISPENSING, MachineState.MIXING, MachineState.POURING})
 
 _status_callbacks: list = []
 _sensor_callbacks: list = []
@@ -189,6 +196,8 @@ def _set_machine_state(
             return False
 
         _state["machine_status"] = new_state
+        if new_state not in _ORDER_RUN_STATES:
+            _discard_order_progress_locked()
         if progress is not None:
             _state["progress"] = max(0, min(100, int(progress)))
         if message is not None:
@@ -199,6 +208,43 @@ def _set_machine_state(
 
     print(f"[HW] STATE {current.value} -> {new_state.value} ({state_copy['progress']}%) | {state_copy['message']}")
     _notify_status(state_copy)
+    return True
+
+
+def _discard_order_progress_locked():
+    global _progress
+    _progress = None
+    _state["order_progress"] = None
+
+
+def _begin_order_progress(pump_commands: list, ice: bool, time_scale: float = 1.0):
+    """Build the step plan when START is sent. A malformed plan only loses the
+    detailed progress view; it must never block the order itself."""
+    global _progress
+    try:
+        tracker = OrderProgress(pump_commands, ice=ice, time_scale=time_scale)
+    except (KeyError, TypeError, ValueError) as exc:
+        print(f"[HW] Order progress unavailable: {exc}")
+        tracker = None
+    with _lock:
+        _progress = tracker
+        _state["order_progress"] = tracker.snapshot() if tracker else None
+
+
+def _apply_order_progress(update, status: MachineState, order_id: Any) -> bool:
+    """Advance the plan with one firmware event and publish it.
+
+    Returns False when no plan exists, so callers can fall back to a plain
+    state update (e.g. an order started before this Pi process did).
+    """
+    with _lock:
+        tracker = _progress
+        if tracker is None:
+            return False
+        update(tracker)
+        _state["order_progress"] = tracker.snapshot()
+        percent, message = tracker.percent(), tracker.message()
+    _set_machine_state(status, progress=percent, message=message, order_id=order_id)
     return True
 
 
@@ -314,6 +360,9 @@ class SimulatorController(HardwareController):
         # waits for the Dev Panel to place/remove the glass instead.
         self._delay_scale = max(0.0, float(getattr(config, "SIMULATOR_DELAY_SCALE", 1.0)))
         self._auto_glass = bool(getattr(config, "SIMULATOR_AUTO_GLASS", True))
+        # Real pump runs (e.g. 40 s for 100 ml) are shortened by this factor;
+        # the progress plan is built with the same factor so bars stay honest.
+        self._pump_time_scale = max(0.0, float(getattr(config, "SIMULATOR_PUMP_TIME_SCALE", 0.1)))
 
     def _scaled(self, seconds: float) -> float:
         return seconds * self._delay_scale
@@ -438,7 +487,9 @@ class SimulatorController(HardwareController):
             self._run_mode = "order"
             pending = dict(self._pending)
 
-        _set_machine_state(MachineState.DISPENSING, progress=1, message="START accepted. Preparing drink...", order_id=pending["db_order_id"])
+        _begin_order_progress(pending["pumps"], pending["ice"], time_scale=self._pump_time_scale * self._delay_scale)
+        if not _apply_order_progress(lambda tracker: tracker.on_start(), MachineState.DISPENSING, pending["db_order_id"]):
+            _set_machine_state(MachineState.DISPENSING, progress=1, message="START accepted. Preparing drink...", order_id=pending["db_order_id"])
         threading.Thread(target=self._run_order, args=(pending,), daemon=True, name=f"sim-order-{pending['db_order_id']}").start()
 
     def send_stop_request(self):
@@ -492,23 +543,69 @@ class SimulatorController(HardwareController):
         return levels
 
     def _run_order(self, pending: dict):
+        """Replay CocktailCraft_Firmware.ino's order sequence and timing.
+
+        Mechanical waits use the firmware's constants (scaled by DELAY_SCALE);
+        pump runs use the order's own durations (scaled by PUMP_TIME_SCALE).
+        """
         order_id = pending["db_order_id"]
+        by_pump = {int(command["pump"]): command for command in pending["pumps"]}
+
+        def event(update, status):
+            _apply_order_progress(update, status, order_id)
+
+        ice_done = threading.Event()
+        if pending["ice"]:
+            # Firmware ice cycle runs in parallel: 26 s travel each way plus
+            # open hold and vibration (ICE_TRAVEL_TIME_MS, ICE_OPEN_HOLD_TIME_MS...).
+            timer = threading.Timer(self._scaled(54 * self._pump_time_scale), ice_done.set)
+            timer.daemon = True
+            timer.start()
+        else:
+            ice_done.set()
+
         if not self._lines_primed:
-            _set_machine_state(MachineState.DISPENSING, progress=5, message="Priming all six feed lines...", order_id=order_id)
-            if not self._wait(1.0):
+            event(lambda t: t.on_line_priming("started"), MachineState.DISPENSING)
+            # LINE_PRIME_PUMP_TIME_MS (1.4 s) for each of the six lines.
+            if not self._wait(6 * 1.4 * self._pump_time_scale):
                 return
             self._lines_primed = True
+            event(lambda t: t.on_line_priming("finished"), MachineState.DISPENSING)
 
-        for position, command in enumerate(pending["pumps"], start=1):
-            _set_machine_state(MachineState.DISPENSING, progress=min(60, 15 + position * 10), message=f"Dispensing pump {command['pump']}...", order_id=order_id)
-            if not self._wait(0.35):
+        for pump in range(1, 6):  # INDEXED_PUMP_COUNT
+            if not self._wait(0.6):  # indexer travel to the next bottle
+                return
+            command = by_pump.get(pump)
+            if not command:
+                continue  # firmware: "PUMP n SKIPPED"
+            event(lambda t, p=pump: t.on_pump(p, "forward"), MachineState.DISPENSING)
+            if not self._wait(int(command["duration_ms"]) / 1000 * self._pump_time_scale):
+                return
+            event(lambda t, p=pump: t.on_pump(p, "stop"), MachineState.DISPENSING)
+            if not self._wait(0.3):  # IDX_POST_STOP_DELAY_MS
                 return
 
-        _set_machine_state(MachineState.MIXING, progress=75, message="Mixing drink...", order_id=order_id)
-        self._wait(0.8)  # STOP is honoured here, matching the real firmware's limited scope.
-        _set_machine_state(MachineState.POURING, progress=90, message="Opening valve...", order_id=order_id)
-        if not self._wait(0.3):
+        if not self._wait(0.6):  # indexer returns to position 1
             return
+        event(lambda t: t.on_mixing("started"), MachineState.MIXING)
+        self._wait(1.5)  # STOP is honoured here, matching the real firmware's limited scope.
+        event(lambda t: t.on_mixing("stopped"), MachineState.POURING)
+        if not self._wait(0.9):  # homing + HOME_TO_VALVE_DELAY_MS + VALVE_OPEN_TIME_MS
+            return
+        event(lambda t: t.on_valve_opened(), MachineState.POURING)
+
+        syrup = by_pump.get(SYRUP_PUMP)
+        if syrup:
+            if not self._wait(0.5):  # PUMP6_POST_VALVE_DELAY_MS
+                return
+            event(lambda t: t.on_pump(SYRUP_PUMP, "forward"), MachineState.DISPENSING)
+            if not self._wait(int(syrup["duration_ms"]) / 1000 * self._pump_time_scale):
+                return
+            event(lambda t: t.on_pump(SYRUP_PUMP, "stop"), MachineState.POURING)
+
+        while not ice_done.is_set():
+            if not self._wait(0.1):
+                return
         self._finish_order(order_id)
 
     def _run_clean(self):
@@ -688,6 +785,7 @@ class SerialController(HardwareController):
                 "ice": bool(ice),
                 "total_volume_ml": volume,
                 "required_glass": required_glass,
+                "pump_commands": list(pump_commands),
             }
 
         _set_glass_requirement(volume, required_glass)
@@ -731,6 +829,7 @@ class SerialController(HardwareController):
             ice_enabled = self._pending_order["ice"]
             total_volume_ml = self._pending_order["total_volume_ml"]
             required_glass = self._pending_order["required_glass"]
+            pump_commands = self._pending_order.get("pump_commands", [])
 
         with _lock:
             glass_state = _state["glass_state"]
@@ -752,8 +851,10 @@ class SerialController(HardwareController):
             self._active_run_mode = "order"
 
         self._stop_ir_polling()
-        message = "START sent. Dispensing ice and preparing drink..." if ice_enabled else "START sent. Preparing drink..."
-        _set_machine_state(MachineState.DISPENSING, progress=1, message=message, order_id=order_id)
+        _begin_order_progress(pump_commands, ice_enabled)
+        if not _apply_order_progress(lambda tracker: tracker.on_start(), MachineState.DISPENSING, order_id):
+            message = "START sent. Dispensing ice and preparing drink..." if ice_enabled else "START sent. Preparing drink..."
+            _set_machine_state(MachineState.DISPENSING, progress=1, message=message, order_id=order_id)
         try:
             self._send_text("START")
         except Exception as exc:
@@ -1132,7 +1233,13 @@ class SerialController(HardwareController):
             run_mode = self._active_run_mode
         order_id = pending["db_order_id"] if pending else None
 
+        in_order = run_mode == "order"
+
         if event == "line_priming":
+            if in_order and _apply_order_progress(
+                lambda tracker: tracker.on_line_priming(action), MachineState.DISPENSING, order_id
+            ):
+                return
             progress = 5 if action == "started" else 15
             message = "Priming all six feed lines..." if action == "started" else "Feed lines primed. Continuing order..."
             _set_machine_state(MachineState.DISPENSING, progress=progress, message=message, order_id=order_id)
@@ -1140,6 +1247,22 @@ class SerialController(HardwareController):
 
         if event == "pump":
             pump = data.get("pump")
+            try:
+                pump_number = int(pump)
+            except (TypeError, ValueError):
+                pump_number = None
+            if in_order and pump_number is not None:
+                # The syrup topping runs after the valve has opened; once it
+                # stops, the drink is pouring/finishing again.
+                status = (
+                    MachineState.POURING
+                    if action != "forward" and pump_number == SYRUP_PUMP
+                    else MachineState.DISPENSING
+                )
+                if _apply_order_progress(
+                    lambda tracker: tracker.on_pump(pump_number, action), status, order_id
+                ):
+                    return
             if run_mode == "cleaning":
                 progress = 45 if action == "forward" else 55
                 message = f"Cleaning with pump {pump}..." if action == "forward" else "Cleaning dispense complete."
@@ -1151,6 +1274,11 @@ class SerialController(HardwareController):
             return
 
         if event == "mixing":
+            status = MachineState.MIXING if action == "started" else MachineState.POURING
+            if in_order and _apply_order_progress(
+                lambda tracker: tracker.on_mixing(action), status, order_id
+            ):
+                return
             if action == "started":
                 _set_machine_state(MachineState.MIXING, progress=75, message="Mixing drink..." if run_mode == "order" else "Mixing cleaning water...", order_id=order_id if run_mode == "order" else None)
             elif action == "stopped":
@@ -1160,6 +1288,10 @@ class SerialController(HardwareController):
         if event == "valve" and action == "opened":
             if run_mode == "order":
                 _record_event("esp32:valve_opened", f"Pi order {order_id}")
+                if _apply_order_progress(
+                    lambda tracker: tracker.on_valve_opened(), MachineState.POURING, order_id
+                ):
+                    return
                 # Valve opening can occur before a later pump-6 or parallel
                 # ice task is done.  The target firmware's drink/ready event
                 # is the sole completion signal for the customer UI.
