@@ -650,42 +650,34 @@ body:has(.kiosk-stage) {
   scroll-snap-align: start;
 }
 
-.cc-build-card {
-  width: 190px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 24px 20px;
-  border: 1.5px dashed var(--k-line-strong);
-  border-radius: 20px;
-  background: rgb(22 17 13 / 55%);
-  text-align: left;
+/* Same card as a drink, marked as the custom option by the + badge and accent name. */
+.cc-build-card__media {
+  position: relative;
+  display: block;
+  height: 292px;
+  flex-shrink: 0;
+}
+
+.cc-build-card__media .cc-photo {
+  height: 100%;
 }
 
 .cc-build-card__icon {
-  width: 56px;
-  height: 56px;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
-  background: var(--k-surface-2);
+  border-radius: 14px;
+  background: var(--k-accent);
+  color: var(--k-on-accent);
+}
+
+.cc-drink-card.cc-build-card strong {
   color: var(--k-accent);
-}
-
-.cc-build-card strong {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 30px;
-  line-height: 1;
-}
-
-.cc-build-card small {
-  display: block;
-  color: var(--k-muted);
-  font-size: 15px;
-  line-height: 1.45;
 }
 
 .cc-drink-card {
