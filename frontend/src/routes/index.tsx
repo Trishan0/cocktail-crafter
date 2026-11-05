@@ -18,8 +18,6 @@ import { getMenu, placeOrder, placeCustomOrder, getPumps, getGlassCapacityConfig
 import {
   DISPENSE_BAY_PHOTO,
   FALLBACK_COLLAGE,
-  CUSTOM_MIX_BACKDROP,
-  CUSTOM_MIX_PHOTO,
   HOUSE_BACKDROP,
   MACHINE_BACKDROP,
   MACHINE_PHOTO,
@@ -592,8 +590,7 @@ function glassNote(volumeMl: number, smallGlassMaxMl: number) {
 
 /** The photo that represents what is being made: the drink, or the machine for a custom mix. */
 function orderPhoto(mode: string, selected: any) {
-  if (mode !== "signature") return CUSTOM_MIX_PHOTO;
-  return drinkImage(selected) || MACHINE_PHOTO;
+  return (mode === "signature" && drinkImage(selected)) || MACHINE_PHOTO;
 }
 
 /* ============================================================
@@ -770,16 +767,22 @@ function Catalog({
         </div>
       </div>
       <div className="cc-menu__row">
-        <button type="button" className="cc-drink-card cc-build-card" onClick={buildOwn}>
-          <span className="cc-build-card__media">
-            <img src={CUSTOM_MIX_PHOTO} alt="" className="cc-photo" />
-            <span className="cc-build-card__icon">
-              <Plus size={22} aria-hidden="true" />
-            </span>
+        <button type="button" className="cc-build-card" onClick={buildOwn}>
+          <span className="cc-build-card__tag">Custom</span>
+          <span className="cc-build-card__plus" aria-hidden="true">
+            <Plus size={30} strokeWidth={2.6} />
           </span>
-          <span className="cc-drink-card__body">
-            <strong>Build your own</strong>
-            <small>Your mix, your way</small>
+          <span className="cc-build-card__text">
+            <strong>Create your own</strong>
+            <small>
+              Pick your flavours,
+              <br />
+              build your drink
+            </small>
+          </span>
+          {/* Inside a <button>, so a styled span rather than a nested button. */}
+          <span className="cc-build-card__cta" aria-hidden="true">
+            Start mixing <ArrowRight size={16} />
           </span>
         </button>
         {visibleDrinks.map((drink: any) => (
@@ -981,7 +984,7 @@ function Compose({
 
   return (
     <div className="cc-screen cc-compose">
-      <Backdrop src={CUSTOM_MIX_BACKDROP} />
+      <Backdrop src={HOUSE_BACKDROP} />
       <Header
         now={now}
         action={
@@ -1327,7 +1330,7 @@ function PhaseRow({
 function Preparing({ now, selected, mode, orderedName, orderProgress, message }: any) {
   const plan = orderProgress;
   const backdrop =
-    mode === "signature" ? drinkBackdrop(selected) : { src: CUSTOM_MIX_BACKDROP, blur: false };
+    mode === "signature" ? drinkBackdrop(selected) : { src: HOUSE_BACKDROP, blur: false };
   const steps: any[] = plan?.steps ?? [];
   const pours = steps.filter((step) => step.kind === "pour");
   const find = (key: string) => steps.find((step) => step.key === key);
@@ -1477,7 +1480,7 @@ function Preparing({ now, selected, mode, orderedName, orderProgress, message }:
 
 function Ready({ now, selected, mode, orderedName }: any) {
   const backdrop =
-    mode === "signature" ? drinkBackdrop(selected) : { src: CUSTOM_MIX_BACKDROP, blur: false };
+    mode === "signature" ? drinkBackdrop(selected) : { src: HOUSE_BACKDROP, blur: false };
   return (
     <div className="cc-screen cc-screen--photo cc-ready">
       <Backdrop src={backdrop.src} blur={backdrop.blur} />

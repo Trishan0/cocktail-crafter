@@ -650,34 +650,79 @@ body:has(.kiosk-stage) {
   scroll-snap-align: start;
 }
 
-/* Same card as a drink, marked as the custom option by the + badge and accent name. */
-.cc-build-card__media {
-  position: relative;
-  display: block;
-  height: 292px;
+/* Custom-drink card: a plain dark face with a dashed accent border, set apart
+   from the photo cards on purpose. Whole card is one tap target. */
+.cc-build-card {
+  width: 212px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 10px;
+  padding: 20px 16px;
+  border: 1.5px dashed var(--k-accent);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 50% 42%, rgb(242 166 94 / 14%), transparent 65%),
+    var(--k-surface-solid);
+  text-align: center;
+}
+
+.cc-build-card__tag {
+  padding: 4px 14px;
+  border: 1px solid var(--k-accent);
+  border-radius: 999px;
+  color: var(--k-accent);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cc-build-card__plus {
+  width: 72px;
+  height: 72px;
   flex-shrink: 0;
-}
-
-.cc-build-card__media .cc-photo {
-  height: 100%;
-}
-
-.cc-build-card__icon {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  width: 44px;
-  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
+  border-radius: 50%;
   background: var(--k-accent);
   color: var(--k-on-accent);
+  /* Clear gap, then a thin outer ring, as in the reference design. */
+  outline: 1.5px solid rgb(242 166 94 / 50%);
+  outline-offset: 13px;
 }
 
-.cc-drink-card.cc-build-card strong {
+.cc-build-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cc-build-card strong {
   color: var(--k-accent);
+  font-size: 30px;
+  line-height: 0.95;
+}
+
+.cc-build-card small {
+  color: var(--k-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.cc-build-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--k-accent);
+  color: var(--k-on-accent);
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .cc-drink-card {

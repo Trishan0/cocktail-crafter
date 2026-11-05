@@ -10,8 +10,6 @@ import orangeRoseCoolerBg from "@/assets/drinks/orange-rose-cooler-bg.webp";
 import citrusRoseSpritzBg from "@/assets/drinks/citrus-rose-spritz-bg.webp";
 import roseSprite from "@/assets/drinks/rose-sprite.webp";
 import roseSpriteBg from "@/assets/drinks/rose-sprite-bg.webp";
-import buildYourOwn from "@/assets/drinks/build-your-own.webp";
-import buildYourOwnBg from "@/assets/drinks/build-your-own-bg.webp";
 import machinePhoto from "@/assets/backdrops/machine.webp";
 import machineBackdrop from "@/assets/backdrops/machine-bg.webp";
 import dispenseBayPhoto from "@/assets/backdrops/bay.webp";
@@ -30,9 +28,6 @@ const BUNDLED_IMAGES: Record<string, { photo: string; backdrop: string }> = {
 
 export const FALLBACK_COLLAGE = [orangeRoseCooler, orangeRoseFizz, roseLimeFizz];
 export const HOUSE_BACKDROP = orangeRoseCoolerBg;
-// "Build your own" card, compose screen, and custom-mix preparing/ready.
-export const CUSTOM_MIX_PHOTO = buildYourOwn;
-export const CUSTOM_MIX_BACKDROP = buildYourOwnBg;
 export const MACHINE_PHOTO = machinePhoto;
 // Softened machine shot for screens that show the machine, so no drink glass
 // sits behind text next to the charcoal hardware photo.
