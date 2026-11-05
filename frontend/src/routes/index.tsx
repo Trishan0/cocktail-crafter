@@ -145,7 +145,8 @@ function KioskApp() {
         inCleanCycle.current = false;
         setScreen("waiting_glass");
       } else if (["initializing", "dispensing", "pouring"].includes(status)) {
-        setScreen("preparing");
+        // Once a clean cycle has begun, only idle/waiting_glass/done end it.
+        setScreen(inCleanCycle.current ? "cleaning" : "preparing");
       } else if (status === "mixing") {
         // Mixing is used both during drink-making and the firmware's CLEAN cycle.
         const cleaning = inCleanCycle.current || statusMessage.toLowerCase().includes("clean");

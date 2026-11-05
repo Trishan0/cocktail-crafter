@@ -98,10 +98,30 @@ class SerialProtocolAlignmentTests(unittest.TestCase):
         with hw._lock:
             hw._state["machine_status"] = MachineState.DONE
 
+        no_glass = {"command": "CHECK_IR", "upper": 1, "lower": 1}
+        glass = {"command": "CHECK_IR", "upper": 0, "lower": 0}
         with patch.object(controller, "send_clean") as send_clean:
-            controller._handle_ir_response({"command": "CHECK_IR", "upper": 1, "lower": 1})
+            # One stray no-glass reading while the drink is still there.
+            controller._handle_ir_response(no_glass)
+            controller._handle_ir_response(glass)
+            for _ in range(hw.config.GLASS_REMOVED_CONFIRMATIONS - 1):
+                controller._handle_ir_response(no_glass)
+            send_clean.assert_not_called()
+            controller._handle_ir_response(no_glass)
 
         send_clean.assert_called_once()
+
+    def test_cleaning_mixer_and_valve_stay_in_washing(self):
+        controller = hw.SerialController()
+        controller._active_run_mode = "cleaning"
+        with hw._lock:
+            hw._state["machine_status"] = MachineState.WASHING
+        for action in ("started", "stopped"):
+            controller._handle_system_event({"type": "system", "event": "mixing", "action": action})
+            self.assertEqual(hw.get_state()["machine_status"], MachineState.WASHING.value)
+        with patch.object(hw, "_record_event"):
+            controller._handle_system_event({"type": "system", "event": "valve", "action": "opened"})
+        self.assertEqual(hw.get_state()["machine_status"], MachineState.WASHING.value)
 
     def test_cleaning_finished_releases_completed_order_to_idle(self):
         controller = hw.SerialController()

@@ -22,6 +22,10 @@ SIMULATOR_PUMP_TIME_SCALE = 0.1     # simulated pump runs = real duration x this
 MAX_PUMP_TIME_MS = 60_000
 ORDER_RESPONSE_TIMEOUT_SECONDS = 8
 IR_POLL_INTERVAL_SECONDS = 0.75
+# After drink/ready, CLEAN is sent only once this many consecutive CHECK_IR
+# replies read no-glass (~2 s at the poll interval), so one noisy reading
+# while the guest is still reaching for the drink cannot start cleaning.
+GLASS_REMOVED_CONFIRMATIONS = 3
 LEVEL_RESPONSE_TIMEOUT_SECONDS = 2
 
 # The firmware sends no explicit order-completed event; valve-opened is the

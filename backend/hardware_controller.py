@@ -611,7 +611,7 @@ class SimulatorController(HardwareController):
     def _run_clean(self):
         if not self._wait(0.8):
             return
-        _set_machine_state(MachineState.MIXING, progress=70, message="Mixing cleaning water...", order_id=None)
+        _set_machine_state(MachineState.WASHING, progress=70, message="Mixing cleaning water...", order_id=None)
         if not self._wait(0.7):
             return
         with self._lock:
@@ -659,7 +659,9 @@ class SimulatorController(HardwareController):
         # the glass so local demos still exercise the same ready -> clean flow.
         if not self._auto_glass:
             return
-        timer = threading.Timer(self._scaled(1.0), self._simulate_glass_removal, args=(order_id,))
+        # A guest takes a few seconds to lift the drink out; cleaning must not
+        # start before that (the real Pi waits for CHECK_IR to read no glass).
+        timer = threading.Timer(self._scaled(4.0), self._simulate_glass_removal, args=(order_id,))
         timer.daemon = True
         timer.start()
 
@@ -699,6 +701,8 @@ class SerialController(HardwareController):
 
     ORDER_RESPONSE_TIMEOUT_SECONDS = config.ORDER_RESPONSE_TIMEOUT_SECONDS
     IR_POLL_INTERVAL_SECONDS = config.IR_POLL_INTERVAL_SECONDS
+    # Consecutive no-glass CHECK_IR replies seen since drink/ready.
+    _no_glass_readings = 0
     LEVEL_RESPONSE_TIMEOUT_SECONDS = config.LEVEL_RESPONSE_TIMEOUT_SECONDS
 
     def __init__(self):
@@ -967,6 +971,7 @@ class SerialController(HardwareController):
         """
         if self._post_drink_ir_poll_thread and self._post_drink_ir_poll_thread.is_alive():
             return
+        self._no_glass_readings = 0
         self._post_drink_ir_poll_stop.clear()
         self._post_drink_ir_poll_thread = threading.Thread(
             target=self._post_drink_ir_poll_loop,
@@ -1160,8 +1165,14 @@ class SerialController(HardwareController):
             # Active-low upper=1/lower=1 is the installed no-glass state.
             # Keep polling while any glass is still present; the customer must
             # first take the completed drink away before flushing the system.
+            # The firmware never cleans on its own, so this is the only gate.
             if glass_state != "no_glass":
+                self._no_glass_readings = 0
                 return
+            self._no_glass_readings += 1
+            if self._no_glass_readings < config.GLASS_REMOVED_CONFIRMATIONS:
+                return
+            self._no_glass_readings = 0
             self._stop_post_drink_ir_polling()
             try:
                 self.send_clean()
@@ -1279,10 +1290,18 @@ class SerialController(HardwareController):
                 lambda tracker: tracker.on_mixing(action), status, order_id
             ):
                 return
+            if run_mode == "cleaning":
+                # The CLEAN cycle reuses the mixer and valve; report it as one
+                # washing phase so no screen mistakes it for a drink.
+                if action == "started":
+                    _set_machine_state(MachineState.WASHING, progress=70, message="Mixing cleaning water...", order_id=None)
+                else:
+                    _set_machine_state(MachineState.WASHING, progress=85, message="Draining cleaning water...", order_id=None)
+                return
             if action == "started":
-                _set_machine_state(MachineState.MIXING, progress=75, message="Mixing drink..." if run_mode == "order" else "Mixing cleaning water...", order_id=order_id if run_mode == "order" else None)
+                _set_machine_state(MachineState.MIXING, progress=75, message="Mixing drink...", order_id=order_id)
             elif action == "stopped":
-                _set_machine_state(MachineState.POURING, progress=90, message="Opening valve...", order_id=order_id if run_mode == "order" else None)
+                _set_machine_state(MachineState.POURING, progress=90, message="Opening valve...", order_id=order_id)
             return
 
         if event == "valve" and action == "opened":
