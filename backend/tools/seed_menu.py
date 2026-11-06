@@ -1,10 +1,10 @@
 """
-seed_menu.py — Replace the house menu with the current CocktailCraft recipes
+seed_menu.py — Replace the house menu, ingredients and pump layout
 Cocktail-Craft Bartender | Raspberry Pi
 
 Removes every existing recipe (order history is kept: db.delete_recipe nulls
-the link and the snapshots stay) and creates the menu below. Also ensures
-Green Apple Juice exists and is assigned to pump 5, which previously held Soda.
+the link and the snapshots stay), sets the pump layout below, deletes any
+ingredient that is no longer used, and creates the menu.
 
     uv run python tools/seed_menu.py                          # Cocktail-Craft.db
     uv run python tools/seed_menu.py --db Cocktail-Craft.sim.db
@@ -21,48 +21,56 @@ sys.path.insert(0, BACKEND)
 
 import db  # noqa: E402
 
-GREEN_APPLE = "Green Apple Juice"
-GREEN_APPLE_PUMP = 5
+# Pump 1 is reserved for Water (the CLEAN cycle uses it). Pumps 2-5 pour at
+# the indexer before mixing; pump 6 is the firmware's direct syrup line and
+# pours after the valve opens, so rose syrup lands on top of the drink.
+PUMPS = {
+    1: ("Water", "Cleaning water"),
+    2: ("Orange Juice", "Fresh orange juice"),
+    3: ("Strawberry Juice", "Strawberry juice"),
+    4: ("Sprite", "Lemon-lime soda"),
+    5: ("Green Apple Juice", "Fresh green apple juice"),
+    6: ("Rose Syrup", "Floral rose syrup"),
+}
 
-# Small drinks fit the small glass (150 ml); large drinks need the large glass.
+# Small drinks fit the small glass; large drinks (250 ml) need the large one.
 MENU = [
     {
-        "name": "Apple Rose Fizz",
+        "name": "Pink Rose Fizz",
         "category": "small",
-        "description": "Green apple and rose syrup lifted with Sprite.",
-        "ingredients": {GREEN_APPLE: 70, "Sprite": 55, "Rose Syrup": 25},
+        "description": "Sweet, fizzy and floral.",
+        "ingredients": {"Sprite": 100, "Rose Syrup": 20},
     },
     {
-        "name": "Citrus Sunrise",
+        "name": "Orange Rose Cooler",
         "category": "small",
-        "description": "Bright orange juice with Sprite, a touch of apple and rose.",
-        "ingredients": {"Orange Juice": 75, "Sprite": 50, GREEN_APPLE: 15, "Rose Syrup": 10},
+        "description": "Citrusy with a sweet rose flavour.",
+        "ingredients": {"Orange Juice": 100, "Rose Syrup": 20},
     },
     {
-        "name": "Pink Apple Sparkle",
+        "name": "Green Apple Sparkle",
         "category": "small",
-        "description": "A rosy apple sparkler with a splash of orange.",
-        "ingredients": {GREEN_APPLE: 45, "Sprite": 60, "Rose Syrup": 35, "Orange Juice": 10},
+        "description": "Crisp green apple flavour with refreshing carbonation.",
+        # Soda has no free pump, so Sprite stands in (same carbonation).
+        "ingredients": {"Green Apple Juice": 90, "Sprite": 60},
     },
     {
-        "name": "Golden Apple Twist",
+        "name": "Strawberry Sprite",
         "category": "small",
-        "description": "Orange and green apple, softened with Sprite and a hint of rose.",
-        "ingredients": {GREEN_APPLE: 40, "Orange Juice": 65, "Sprite": 40, "Rose Syrup": 5},
+        "description": "Sweet strawberry flavour with a fizzy finish.",
+        "ingredients": {"Strawberry Juice": 90, "Sprite": 60},
     },
     {
         "name": "Tropical Sunset",
         "category": "large",
-        "description": "A long orange-and-apple cooler with Sprite and rose.",
-        # Orange juice is capped at the 100 ml per-ingredient limit; the extra
-        # 10 ml went to green apple so the drink is still 250 ml.
-        "ingredients": {"Orange Juice": 100, GREEN_APPLE: 55, "Sprite": 65, "Rose Syrup": 30},
+        "description": "A fruity orange-strawberry combination with a sparkling finish.",
+        "ingredients": {"Orange Juice": 100, "Strawberry Juice": 100, "Sprite": 50},
     },
     {
-        "name": "Royal Rose Cooler",
+        "name": "Apple Berry Splash",
         "category": "large",
-        "description": "Rose-forward and refreshing, with apple, orange and Sprite.",
-        "ingredients": {GREEN_APPLE: 70, "Orange Juice": 35, "Sprite": 95, "Rose Syrup": 50},
+        "description": "Sweet and fruity with a refreshing sparkling finish.",
+        "ingredients": {"Green Apple Juice": 100, "Strawberry Juice": 100, "Sprite": 50},
     },
 ]
 
@@ -72,7 +80,7 @@ def _ingredient_ids() -> dict[str, int]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Replace the house menu with the current recipes.")
+    parser = argparse.ArgumentParser(description="Replace the house menu, ingredients and pumps.")
     parser.add_argument("--db", default="Cocktail-Craft.db", help="Database file, relative to backend/.")
     args = parser.parse_args()
 
@@ -81,22 +89,24 @@ def main():
         sys.exit(f"Database not found: {db.DB_PATH}")
     db.init_db()
 
-    ids = _ingredient_ids()
-    if GREEN_APPLE.lower() not in ids:
-        db.create_ingredient(GREEN_APPLE, "Fresh green apple juice")
-        ids = _ingredient_ids()
-    db.assign_pump(GREEN_APPLE_PUMP, ids[GREEN_APPLE.lower()])
-
-    needed = {name for drink in MENU for name in drink["ingredients"]}
-    missing = [name for name in needed if name.lower() not in ids]
-    if missing:
-        sys.exit(f"Missing ingredients: {', '.join(missing)}")
-
     for recipe in db.get_all_recipes(visible_only=False):  # hidden ones too
         db.delete_recipe(int(recipe["id"]))
 
+    ids = _ingredient_ids()
+    for name, description in PUMPS.values():
+        if name.lower() not in ids:
+            db.create_ingredient(name, description)
+    ids = _ingredient_ids()
+    for pump_number, (name, _) in PUMPS.items():
+        db.assign_pump(pump_number, ids[name.lower()])
+
+    keep = {name.lower() for name, _ in PUMPS.values()}
+    for name, ingredient_id in ids.items():
+        if name not in keep:
+            db.delete_ingredient(ingredient_id)
+            print(f"  - removed ingredient {name}")
+
     for drink in MENU:
-        total = sum(drink["ingredients"].values())
         db.create_recipe(
             drink["name"],
             drink["description"],
@@ -107,9 +117,10 @@ def main():
                 for name, amount in drink["ingredients"].items()
             ],
         )
-        print(f"  + {drink['name']} ({drink['category']}, {total} ml)")
+        print(f"  + {drink['name']} ({drink['category']}, {sum(drink['ingredients'].values())} ml)")
 
-    print(f"Menu replaced in {os.path.basename(db.DB_PATH)}; {GREEN_APPLE} is on pump {GREEN_APPLE_PUMP}.")
+    layout = ", ".join(f"{n}: {name}" for n, (name, _) in PUMPS.items())
+    print(f"Menu replaced in {os.path.basename(db.DB_PATH)}. Pumps — {layout}")
 
 
 if __name__ == "__main__":

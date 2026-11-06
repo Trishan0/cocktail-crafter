@@ -1,15 +1,15 @@
-import appleRoseFizz from "@/assets/drinks/new/apple_rose_fizz.webp";
-import appleRoseFizzBg from "@/assets/drinks/apple-rose-fizz-bg.webp";
-import citrusSunrise from "@/assets/drinks/new/citrus_sunrise.webp";
-import citrusSunriseBg from "@/assets/drinks/citrus-sunrise-bg.webp";
-import pinkAppleSparkle from "@/assets/drinks/new/pink_apple_sparkle.webp";
-import pinkAppleSparkleBg from "@/assets/drinks/pink-apple-sparkle-bg.webp";
-import goldenAppleTwist from "@/assets/drinks/new/golden_apple_twist.webp";
-import goldenAppleTwistBg from "@/assets/drinks/golden-apple-twist-bg.webp";
-import tropicalSunset from "@/assets/drinks/new/tropical_sunset.webp";
+import pinkRoseFizz from "@/assets/drinks/new/pink_rose_fizz.webp";
+import pinkRoseFizzBg from "@/assets/drinks/pink-rose-fizz-bg.webp";
+import orangeRoseCooler from "@/assets/drinks/new/orange_rose_cooler.webp";
+import orangeRoseCoolerBg from "@/assets/drinks/orange-rose-cooler-bg.webp";
+import greenAppleSparkle from "@/assets/drinks/new/green_apple_sparkle.webp";
+import greenAppleSparkleBg from "@/assets/drinks/green-apple-sparkle-bg.webp";
+import strawberrySprite from "@/assets/drinks/new/strawberry_sprite.webp";
+import strawberrySpriteBg from "@/assets/drinks/strawberry-sprite-bg.webp";
+import tropicalSunset from "@/assets/drinks/new/tropical_sunset_drink.webp";
 import tropicalSunsetBg from "@/assets/drinks/tropical-sunset-bg.webp";
-import royalRoseCooler from "@/assets/drinks/new/royal_rose_cooler.webp";
-import royalRoseCoolerBg from "@/assets/drinks/royal-rose-cooler-bg.webp";
+import appleBerrySplash from "@/assets/drinks/new/apple_berry_splash.webp";
+import appleBerrySplashBg from "@/assets/drinks/apple-berry-splash-bg.webp";
 import machinePhoto from "@/assets/backdrops/machine.webp";
 import machineBackdrop from "@/assets/backdrops/machine-bg.webp";
 import dispenseBayPhoto from "@/assets/backdrops/bay.webp";
@@ -18,15 +18,15 @@ import dispenseBayPhoto from "@/assets/backdrops/bay.webp";
 // Admin (recipe.image_url) always wins over these. Each has a pre-softened
 // "-bg" twin so screen backdrops need no live CSS blur on the Pi.
 const BUNDLED_IMAGES: Record<string, { photo: string; backdrop: string }> = {
-  "apple rose fizz": { photo: appleRoseFizz, backdrop: appleRoseFizzBg },
-  "citrus sunrise": { photo: citrusSunrise, backdrop: citrusSunriseBg },
-  "pink apple sparkle": { photo: pinkAppleSparkle, backdrop: pinkAppleSparkleBg },
-  "golden apple twist": { photo: goldenAppleTwist, backdrop: goldenAppleTwistBg },
+  "pink rose fizz": { photo: pinkRoseFizz, backdrop: pinkRoseFizzBg },
+  "orange rose cooler": { photo: orangeRoseCooler, backdrop: orangeRoseCoolerBg },
+  "green apple sparkle": { photo: greenAppleSparkle, backdrop: greenAppleSparkleBg },
+  "strawberry sprite": { photo: strawberrySprite, backdrop: strawberrySpriteBg },
   "tropical sunset": { photo: tropicalSunset, backdrop: tropicalSunsetBg },
-  "royal rose cooler": { photo: royalRoseCooler, backdrop: royalRoseCoolerBg },
+  "apple berry splash": { photo: appleBerrySplash, backdrop: appleBerrySplashBg },
 };
 
-export const FALLBACK_COLLAGE = [tropicalSunset, appleRoseFizz, royalRoseCooler];
+export const FALLBACK_COLLAGE = [tropicalSunset, pinkRoseFizz, appleBerrySplash];
 export const HOUSE_BACKDROP = tropicalSunsetBg;
 export const MACHINE_PHOTO = machinePhoto;
 // Softened machine shot for screens that show the machine, so no drink glass
@@ -59,6 +59,8 @@ export function drinkBackdrop(drink?: DrinkLike): { src: string; blur: boolean }
 const INGREDIENT_COLORS: Record<string, string> = {
   "orange juice": "#E8893A",
   "green apple juice": "#9BC53D",
+  // Darker than rose syrup so the two pinks/reds stay distinguishable.
+  "strawberry juice": "#B8283E",
   "rose syrup": "#D8607A",
   sprite: "#D9E6A6",
   soda: "#8FB8CC",
