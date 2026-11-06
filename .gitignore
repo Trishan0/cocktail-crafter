@@ -37,3 +37,5 @@ __pycache__/
 # Local simulator database (backend/dev_sim.py)
 backend/Cocktail-Craft.sim.db*
 docs/ui-screenshots/
+# Local database backups
+backend/backups/

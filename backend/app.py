@@ -187,6 +187,7 @@ def stream():
             "required_glass": state.get("required_glass"),
             "order_volume_ml": state.get("order_volume_ml"),
             "order_progress": state.get("order_progress"),
+            "order_id":       state.get("current_order_id"),
             "powered_on":     _is_powered_on(),
         })
         yield f"event: init\ndata: {init_data}\n\n"

@@ -138,18 +138,24 @@ function KioskApp() {
   useEffect(() => {
     const evtSource = new EventSource(`http://${window.location.hostname}:5000/stream`);
 
-    const syncScreenWithMachine = (status: string, statusMessage = "", initial = false) => {
+    // The backend tags every drink-making update with its order id (and the
+    // step plan); the CLEAN cycle reuses the pump, mixer and valve but never
+    // carries an order. So drink screens only follow updates for an order.
+    const belongsToOrder = (data: any) =>
+      data.order_id != null || data.current_order_id != null || data.order_progress != null;
+
+    const syncScreenWithMachine = (data: any, initial = false) => {
+      const status = data.machine_status;
       if (status === "waiting_glass") {
         inCleanCycle.current = false;
         setScreen("waiting_glass");
-      } else if (["initializing", "dispensing", "pouring"].includes(status)) {
-        // Once a clean cycle has begun, only idle/waiting_glass/done end it.
-        setScreen(inCleanCycle.current ? "cleaning" : "preparing");
-      } else if (status === "mixing") {
-        // Mixing is used both during drink-making and the firmware's CLEAN cycle.
-        const cleaning = inCleanCycle.current || statusMessage.toLowerCase().includes("clean");
-        inCleanCycle.current = cleaning;
-        setScreen(cleaning ? "cleaning" : "preparing");
+      } else if (["initializing", "dispensing", "mixing", "pouring"].includes(status)) {
+        if (inCleanCycle.current || !belongsToOrder(data)) {
+          inCleanCycle.current = true;
+          setScreen("cleaning");
+        } else {
+          setScreen("preparing");
+        }
       } else if (status === "done") {
         inCleanCycle.current = false;
         setScreen("ready");
@@ -187,7 +193,7 @@ function KioskApp() {
       if ("required_glass" in data) setRequiredGlass(data.required_glass ?? null);
       if ("order_volume_ml" in data) setOrderVolumeMl(data.order_volume_ml ?? null);
       if ("order_progress" in data) setOrderProgress(withClockOffset(data.order_progress));
-      syncScreenWithMachine(data.machine_status, data.message || "", true);
+      syncScreenWithMachine(data, true);
     });
 
     evtSource.addEventListener("status", (e) => {
@@ -201,7 +207,7 @@ function KioskApp() {
       if ("required_glass" in data) setRequiredGlass(data.required_glass ?? null);
       if ("order_volume_ml" in data) setOrderVolumeMl(data.order_volume_ml ?? null);
       if ("order_progress" in data) setOrderProgress(withClockOffset(data.order_progress));
-      syncScreenWithMachine(status, data.message || "");
+      syncScreenWithMachine(data);
     });
 
     evtSource.addEventListener("inventory", (e) => {

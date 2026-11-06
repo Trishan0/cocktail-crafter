@@ -1,33 +1,33 @@
-import orangeRoseFizz from "@/assets/drinks/orange-rose-fizz.webp";
-import roseLimeFizz from "@/assets/drinks/rose-lime-fizz.webp";
-import orangeSpritzer from "@/assets/drinks/orange-spritzer.webp";
-import orangeRoseCooler from "@/assets/drinks/orange-rose-cooler.webp";
-import citrusRoseSpritz from "@/assets/drinks/citrus-rose-spritz.webp";
-import orangeRoseFizzBg from "@/assets/drinks/orange-rose-fizz-bg.webp";
-import roseLimeFizzBg from "@/assets/drinks/rose-lime-fizz-bg.webp";
-import orangeSpritzerBg from "@/assets/drinks/orange-spritzer-bg.webp";
-import orangeRoseCoolerBg from "@/assets/drinks/orange-rose-cooler-bg.webp";
-import citrusRoseSpritzBg from "@/assets/drinks/citrus-rose-spritz-bg.webp";
-import roseSprite from "@/assets/drinks/rose-sprite.webp";
-import roseSpriteBg from "@/assets/drinks/rose-sprite-bg.webp";
+import appleRoseFizz from "@/assets/drinks/new/apple_rose_fizz.webp";
+import appleRoseFizzBg from "@/assets/drinks/apple-rose-fizz-bg.webp";
+import citrusSunrise from "@/assets/drinks/new/citrus_sunrise.webp";
+import citrusSunriseBg from "@/assets/drinks/citrus-sunrise-bg.webp";
+import pinkAppleSparkle from "@/assets/drinks/new/pink_apple_sparkle.webp";
+import pinkAppleSparkleBg from "@/assets/drinks/pink-apple-sparkle-bg.webp";
+import goldenAppleTwist from "@/assets/drinks/new/golden_apple_twist.webp";
+import goldenAppleTwistBg from "@/assets/drinks/golden-apple-twist-bg.webp";
+import tropicalSunset from "@/assets/drinks/new/tropical_sunset.webp";
+import tropicalSunsetBg from "@/assets/drinks/tropical-sunset-bg.webp";
+import royalRoseCooler from "@/assets/drinks/new/royal_rose_cooler.webp";
+import royalRoseCoolerBg from "@/assets/drinks/royal-rose-cooler-bg.webp";
 import machinePhoto from "@/assets/backdrops/machine.webp";
 import machineBackdrop from "@/assets/backdrops/machine-bg.webp";
 import dispenseBayPhoto from "@/assets/backdrops/bay.webp";
 
-// Photos bundled with the kiosk for the house recipes. An image uploaded in
+// Photos bundled with the kiosk for the house recipes (originals in new/). An image uploaded in
 // Admin (recipe.image_url) always wins over these. Each has a pre-softened
 // "-bg" twin so screen backdrops need no live CSS blur on the Pi.
 const BUNDLED_IMAGES: Record<string, { photo: string; backdrop: string }> = {
-  "orange rose fizz": { photo: orangeRoseFizz, backdrop: orangeRoseFizzBg },
-  "rose lime fizz": { photo: roseLimeFizz, backdrop: roseLimeFizzBg },
-  "orange spritzer": { photo: orangeSpritzer, backdrop: orangeSpritzerBg },
-  "orange rose cooler": { photo: orangeRoseCooler, backdrop: orangeRoseCoolerBg },
-  "citrus rose spritz": { photo: citrusRoseSpritz, backdrop: citrusRoseSpritzBg },
-  "rose sprite": { photo: roseSprite, backdrop: roseSpriteBg },
+  "apple rose fizz": { photo: appleRoseFizz, backdrop: appleRoseFizzBg },
+  "citrus sunrise": { photo: citrusSunrise, backdrop: citrusSunriseBg },
+  "pink apple sparkle": { photo: pinkAppleSparkle, backdrop: pinkAppleSparkleBg },
+  "golden apple twist": { photo: goldenAppleTwist, backdrop: goldenAppleTwistBg },
+  "tropical sunset": { photo: tropicalSunset, backdrop: tropicalSunsetBg },
+  "royal rose cooler": { photo: royalRoseCooler, backdrop: royalRoseCoolerBg },
 };
 
-export const FALLBACK_COLLAGE = [orangeRoseCooler, orangeRoseFizz, roseLimeFizz];
-export const HOUSE_BACKDROP = orangeRoseCoolerBg;
+export const FALLBACK_COLLAGE = [tropicalSunset, appleRoseFizz, royalRoseCooler];
+export const HOUSE_BACKDROP = tropicalSunsetBg;
 export const MACHINE_PHOTO = machinePhoto;
 // Softened machine shot for screens that show the machine, so no drink glass
 // sits behind text next to the charcoal hardware photo.
@@ -58,6 +58,7 @@ export function drinkBackdrop(drink?: DrinkLike): { src: string; blur: boolean }
 
 const INGREDIENT_COLORS: Record<string, string> = {
   "orange juice": "#E8893A",
+  "green apple juice": "#9BC53D",
   "rose syrup": "#D8607A",
   sprite: "#D9E6A6",
   soda: "#8FB8CC",
@@ -78,7 +79,9 @@ export function shortIngredientName(name: string) {
 }
 
 export function flavourLine(ingredients: { name: string; amount_ml: number }[] = []) {
-  // Recipe order, not volume: a 12 ml rose syrup defines the drink more than soda.
-  const names = ingredients.map((i) => shortIngredientName(i.name));
+  // Largest pours first. The API lists ingredients by id, not recipe order.
+  const names = [...ingredients]
+    .sort((a, b) => b.amount_ml - a.amount_ml)
+    .map((i) => shortIngredientName(i.name));
   return Array.from(new Set(names)).slice(0, 3).join(" · ");
 }
